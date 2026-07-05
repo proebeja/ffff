@@ -1,0 +1,1312 @@
+{
+  "version": "2.2",
+  "stand": "2026-05-27",
+  "name": "Hausconvention FDD-Mapping",
+  "geltungsbereich": "SKR03 und SKR04 (DATEV). Fuer non-DATEV-ERP sinngemaess uebertragbar.",
+  "kernprinzip_v2": [
+    "Ein einziges Mapping pro Konto: jedes Konto bekommt GENAU EINEN HGB-Pfad als String in einer Zelle, z.B. '/Passiva/B Rueckstellungen/Steuerrueckstellungen'. Kein zweiter FDD-Pfad pro Konto.",
+    "Die Klassifizierung (ND / TWC / OWC / FA / EQ / DT) wird NICHT pro Konto eingegeben, sondern aus dem HGB-Pfad ABGELEITET — ueber die zentrale Reklassifizierungstabelle per Longest-Prefix-Match. Sie erscheint als sichtbare Spalte im Mastersheet, ist dort aber Ergebnis, nicht Eingabe.",
+    "Ausnahme: drei HGB-Positionen sind inhaltlich gemischt (sonstige Vermoegensgegenstaende, sonstige Verbindlichkeiten, sonstige Rueckstellungen). Nur dort haengt die Klassifizierung vom Kontoinhalt ab und wird durch Keyword-Regeln bestimmt; greift keine Regel, geht das Konto in die Review-Queue.",
+    "Der HGB-Pfad darf bei den drei gemischten Positionen eine Ebene tiefer gehen (z.B. '.../Sonstige Vermoegensgegenstaende/Forderungen gegen Personal'). Die HGB-Bilanz aggregiert auf der Paragraph-266-Ebene; der jeweilige Aufriss nutzt die tiefere Ebene fuer seine Unterzeilen. Ein String, mehrere Leser.",
+    "Zweisprachig: jeder HGB-Pfad existiert auf Deutsch (kanonisch) und Englisch (gespiegelt ueber das Pfad-Woerterbuch). Die NA-Zeilen tragen ebenfalls beide Sprachen."
+  ],
+  "warum_single_mapping_staerker_ist": [
+    "Bei zwei freien Spalten (HGB + Klassifizierung als Eingabe) koennen zwei Konten auf derselben HGB-Position unterschiedliche Klassifizierungen bekommen — das ist eine Inkonsistenz-Quelle (Tippfehler, Uneinheitlichkeit).",
+    "Wird die Klassifizierung aus dem Pfad abgeleitet, ist sie eine Eigenschaft der POSITION, nicht des einzelnen Kontos. Zwei Konten auf demselben Pfad koennen nicht auseinanderlaufen.",
+    "Rödls Mehrspalten-Layout erzeugt zusaetzlich optische Verwirrung: Blatt-Positionen wiederholen ihren Namen ueber die restlichen Spalten (Fuell-Redundanz), waehrend tiefere Verzweigungen echte Information tragen — dieselbe Spalte bedeutet mal etwas, mal nichts. Der Pfad-String vermeidet das."
+  ],
+  "klassifizierungs_codes": {
+    "FA": "Fixed Assets / Anlagevermoegen",
+    "TWC": "Trade Working Capital / Trade Working Capital",
+    "OWC": "Other Working Capital / Other Working Capital",
+    "ND": "Net Debt / Nettofinanzverbindlichkeiten",
+    "EQ": "Equity / Eigenkapital",
+    "DT": "Deferred Tax / Latente Steuern",
+    "PL": "Profit and Loss / GuV (keine WC/ND-Klassifizierung)"
+  },
+  "pfad_woerterbuch_de_en": {
+    "Aktiva": "Assets",
+    "Passiva": "Equity and Liabilities",
+    "A Anlagevermoegen": "A Fixed assets",
+    "I Immaterielle Vermoegensgegenstaende": "I Intangible assets",
+    "Selbst geschaffene Schutzrechte": "Internally generated industrial property rights",
+    "Entgeltlich erworbene Konzessionen": "Purchased concessions and licenses",
+    "Geschaefts- oder Firmenwert": "Goodwill",
+    "Geleistete Anzahlungen": "Advance payments made",
+    "II Sachanlagen": "II Property, plant and equipment",
+    "Grundstuecke und Gebaeude": "Land and buildings",
+    "Technische Anlagen und Maschinen": "Technical equipment and machinery",
+    "Andere Anlagen Betriebs- und Geschaeftsausstattung": "Other equipment, operating and office equipment",
+    "Geleistete Anzahlungen und Anlagen im Bau": "Advance payments and assets under construction",
+    "III Finanzanlagen": "III Financial assets",
+    "Anteile an verbundenen Unternehmen": "Shares in affiliated companies",
+    "Ausleihungen an verbundene Unternehmen": "Loans to affiliated companies",
+    "Beteiligungen": "Participations",
+    "Wertpapiere des Anlagevermoegens": "Securities held as fixed assets",
+    "Sonstige Ausleihungen": "Other loans",
+    "B Umlaufvermoegen": "B Current assets",
+    "I Vorraete": "I Inventories",
+    "Roh- Hilfs- und Betriebsstoffe": "Raw materials and supplies",
+    "Unfertige Erzeugnisse und Leistungen": "Work in progress",
+    "Fertige Erzeugnisse und Waren": "Finished goods and merchandise",
+    "II Forderungen und sonstige Vermoegensgegenstaende": "II Receivables and other assets",
+    "Forderungen aus Lieferungen und Leistungen": "Trade receivables",
+    "Forderungen gegen verbundene Unternehmen": "Receivables from affiliated companies",
+    "Forderungen gegen Unternehmen mit Beteiligungsverhaeltnis": "Receivables from companies in which participations are held",
+    "Sonstige Vermoegensgegenstaende": "Other assets",
+    "Forderungen gegen Personal": "Receivables from employees",
+    "Steuerforderungen Ertrag": "Income tax receivables",
+    "Vorsteuer": "Input VAT",
+    "Kautionen": "Deposits",
+    "III Wertpapiere": "III Securities",
+    "Sonstige Wertpapiere": "Other securities",
+    "IV Kassenbestand und Guthaben bei Kreditinstituten": "IV Cash on hand and bank balances",
+    "C Rechnungsabgrenzungsposten": "C Prepaid expenses",
+    "D Aktive latente Steuern": "D Deferred tax assets",
+    "A Eigenkapital": "A Equity",
+    "I Gezeichnetes Kapital": "I Subscribed capital",
+    "II Kapitalruecklage": "II Capital reserve",
+    "III Gewinnruecklagen": "III Revenue reserves",
+    "IV Gewinnvortrag Verlustvortrag": "IV Profit/loss carried forward",
+    "V Jahresueberschuss Jahresfehlbetrag": "V Net income/loss for the year",
+    "B Rueckstellungen": "B Provisions",
+    "Rueckstellungen fuer Pensionen und aehnliche Verpflichtungen": "Provisions for pensions and similar obligations",
+    "Steuerrueckstellungen": "Tax provisions",
+    "Sonstige Rueckstellungen": "Other provisions",
+    "C Verbindlichkeiten": "C Liabilities",
+    "Anleihen": "Bonds",
+    "Verbindlichkeiten gegenueber Kreditinstituten": "Liabilities to credit institutions",
+    "Erhaltene Anzahlungen auf Bestellungen": "Advance payments received on orders",
+    "Verbindlichkeiten aus Lieferungen und Leistungen": "Trade payables",
+    "Verbindlichkeiten gegenueber verbundenen Unternehmen": "Liabilities to affiliated companies",
+    "Sonstige Verbindlichkeiten": "Other liabilities",
+    "Umsatzsteuer": "VAT payable",
+    "Steuerverbindlichkeiten Ertrag": "Income tax payables",
+    "D Rechnungsabgrenzungsposten": "D Deferred income",
+    "E Passive latente Steuern": "E Deferred tax liabilities",
+    "GuV": "P&L",
+    "Umsatzerloese": "Revenue",
+    "Bestandsveraenderungen Erzeugnisse": "Changes in inventories",
+    "Andere aktivierte Eigenleistungen": "Own work capitalized",
+    "Sonstige betriebliche Ertraege": "Other operating income",
+    "Materialaufwand": "Cost of materials",
+    "Roh- Hilfs- und Betriebsstoffe und Waren": "Raw materials, supplies and goods",
+    "Bezogene Leistungen": "Purchased services",
+    "Personalaufwand": "Personnel expenses",
+    "Loehne und Gehaelter": "Wages and salaries",
+    "Soziale Abgaben und Altersversorgung": "Social security and pension costs",
+    "Abschreibungen": "Depreciation and amortization",
+    "Sonstige betriebliche Aufwendungen": "Other operating expenses",
+    "Sonstige Zinsen und aehnliche Ertraege": "Other interest and similar income",
+    "Zinsen und aehnliche Aufwendungen": "Interest and similar expenses",
+    "Steuern vom Einkommen und vom Ertrag": "Income taxes",
+    "Sonstige Steuern": "Other taxes",
+    "Jahresueberschuss Jahresfehlbetrag": "Net income/loss for the year"
+  },
+  "reklassifizierung": [
+    {
+      "hgb_pfad": "/Aktiva/A Anlagevermoegen/I Immaterielle Vermoegensgegenstaende",
+      "klasse": "FA",
+      "na_de": "Immaterielle Vermoegensgegenstaende",
+      "na_en": "Intangible assets"
+    },
+    {
+      "hgb_pfad": "/Aktiva/A Anlagevermoegen/II Sachanlagen",
+      "klasse": "FA",
+      "na_de": "Sachanlagen",
+      "na_en": "Property, plant and equipment"
+    },
+    {
+      "hgb_pfad": "/Aktiva/A Anlagevermoegen/III Finanzanlagen/Anteile an verbundenen Unternehmen",
+      "klasse": "FA",
+      "na_de": "Finanzanlagen",
+      "na_en": "Financial assets"
+    },
+    {
+      "hgb_pfad": "/Aktiva/A Anlagevermoegen/III Finanzanlagen/Beteiligungen",
+      "klasse": "FA",
+      "na_de": "Finanzanlagen",
+      "na_en": "Financial assets"
+    },
+    {
+      "hgb_pfad": "/Aktiva/A Anlagevermoegen/III Finanzanlagen/Wertpapiere des Anlagevermoegens",
+      "klasse": "ND",
+      "na_de": "Wertpapiere",
+      "na_en": "Securities"
+    },
+    {
+      "hgb_pfad": "/Aktiva/A Anlagevermoegen/III Finanzanlagen/Ausleihungen an verbundene Unternehmen",
+      "klasse": "ND",
+      "na_de": "Ausleihungen",
+      "na_en": "Loans"
+    },
+    {
+      "hgb_pfad": "/Aktiva/A Anlagevermoegen/III Finanzanlagen/Sonstige Ausleihungen",
+      "klasse": "ND",
+      "na_de": "Ausleihungen",
+      "na_en": "Loans"
+    },
+    {
+      "hgb_pfad": "/Aktiva/B Umlaufvermoegen/I Vorraete/Roh- Hilfs- und Betriebsstoffe",
+      "klasse": "TWC",
+      "na_de": "Vorraete",
+      "na_en": "Inventories"
+    },
+    {
+      "hgb_pfad": "/Aktiva/B Umlaufvermoegen/I Vorraete/Unfertige Erzeugnisse und Leistungen",
+      "klasse": "TWC",
+      "na_de": "Vorraete",
+      "na_en": "Inventories"
+    },
+    {
+      "hgb_pfad": "/Aktiva/B Umlaufvermoegen/I Vorraete/Fertige Erzeugnisse und Waren",
+      "klasse": "TWC",
+      "na_de": "Vorraete",
+      "na_en": "Inventories"
+    },
+    {
+      "hgb_pfad": "/Aktiva/B Umlaufvermoegen/I Vorraete/Geleistete Anzahlungen",
+      "klasse": "TWC",
+      "na_de": "Geleistete Anzahlungen",
+      "na_en": "Advance payments made"
+    },
+    {
+      "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Forderungen aus Lieferungen und Leistungen",
+      "klasse": "TWC",
+      "na_de": "Forderungen aus L+L",
+      "na_en": "Trade receivables"
+    },
+    {
+      "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Forderungen gegen verbundene Unternehmen",
+      "klasse": "ND",
+      "na_de": "Forderungen ggue. verbundenen Unternehmen",
+      "na_en": "Receivables from affiliated companies",
+      "hinweis": "In Konso eliminiert; ausserhalb Konsolidierungskreis ND."
+    },
+    {
+      "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende",
+      "klasse": "MIXED",
+      "split_regelset": "sonstige_vermoegensgegenstaende",
+      "na_de": "Sonstige Vermoegensgegenstaende",
+      "na_en": "Other assets"
+    },
+    {
+      "hgb_pfad": "/Aktiva/B Umlaufvermoegen/III Wertpapiere",
+      "klasse": "ND",
+      "na_de": "Wertpapiere",
+      "na_en": "Securities"
+    },
+    {
+      "hgb_pfad": "/Aktiva/B Umlaufvermoegen/IV Kassenbestand und Guthaben bei Kreditinstituten",
+      "klasse": "ND",
+      "na_de": "Liquide Mittel",
+      "na_en": "Cash and cash equivalent"
+    },
+    {
+      "hgb_pfad": "/Aktiva/C Rechnungsabgrenzungsposten",
+      "klasse": "OWC",
+      "na_de": "Aktive Rechnungsabgrenzung",
+      "na_en": "Prepaid expenses"
+    },
+    {
+      "hgb_pfad": "/Aktiva/D Aktive latente Steuern",
+      "klasse": "DT",
+      "na_de": "Aktive latente Steuern",
+      "na_en": "Deferred tax assets"
+    },
+    {
+      "hgb_pfad": "/Passiva/A Eigenkapital",
+      "klasse": "EQ",
+      "na_de": "Eigenkapital",
+      "na_en": "Equity"
+    },
+    {
+      "hgb_pfad": "/Passiva/B Rueckstellungen/Rueckstellungen fuer Pensionen und aehnliche Verpflichtungen",
+      "klasse": "ND",
+      "na_de": "Pensionsrueckstellungen",
+      "na_en": "Pension provisions"
+    },
+    {
+      "hgb_pfad": "/Passiva/B Rueckstellungen/Steuerrueckstellungen",
+      "klasse": "ND",
+      "na_de": "Steuerrueckstellungen",
+      "na_en": "Tax provisions"
+    },
+    {
+      "hgb_pfad": "/Passiva/B Rueckstellungen/Sonstige Rueckstellungen",
+      "klasse": "MIXED",
+      "split_regelset": "sonstige_rueckstellungen",
+      "na_de": "Sonstige Rueckstellungen",
+      "na_en": "Other provisions"
+    },
+    {
+      "hgb_pfad": "/Passiva/C Verbindlichkeiten/Anleihen",
+      "klasse": "ND",
+      "na_de": "Anleihen",
+      "na_en": "Bonds"
+    },
+    {
+      "hgb_pfad": "/Passiva/C Verbindlichkeiten/Verbindlichkeiten gegenueber Kreditinstituten",
+      "klasse": "ND",
+      "na_de": "Verbindlichkeiten ggue. Kreditinstituten",
+      "na_en": "Liabilities to credit institutions"
+    },
+    {
+      "hgb_pfad": "/Passiva/C Verbindlichkeiten/Erhaltene Anzahlungen auf Bestellungen",
+      "klasse": "TWC",
+      "na_de": "Erhaltene Anzahlungen",
+      "na_en": "Advances received"
+    },
+    {
+      "hgb_pfad": "/Passiva/C Verbindlichkeiten/Verbindlichkeiten aus Lieferungen und Leistungen",
+      "klasse": "TWC",
+      "na_de": "Verbindlichkeiten aus L+L",
+      "na_en": "Trade payables"
+    },
+    {
+      "hgb_pfad": "/Passiva/C Verbindlichkeiten/Verbindlichkeiten gegenueber verbundenen Unternehmen",
+      "klasse": "ND",
+      "na_de": "Verbindlichkeiten ggue. verbundenen Unternehmen",
+      "na_en": "Liabilities to affiliated companies",
+      "hinweis": "In Konso eliminiert; ausserhalb Konsolidierungskreis ND."
+    },
+    {
+      "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+      "klasse": "MIXED",
+      "split_regelset": "sonstige_verbindlichkeiten",
+      "na_de": "Sonstige Verbindlichkeiten",
+      "na_en": "Other liabilities"
+    },
+    {
+      "hgb_pfad": "/Passiva/D Rechnungsabgrenzungsposten",
+      "klasse": "OWC",
+      "na_de": "Passive Rechnungsabgrenzung",
+      "na_en": "Deferred income"
+    },
+    {
+      "hgb_pfad": "/Passiva/E Passive latente Steuern",
+      "klasse": "DT",
+      "na_de": "Passive latente Steuern",
+      "na_en": "Deferred tax liabilities"
+    }
+  ],
+  "mapping_regeln_hgb": {
+    "_zweck": "Typ-1-Regeln: weisen einem Konto den EINEN HGB-Pfad zu, wo Kontonummer allein nicht genuegt. Greift keine Regel, kommt der Pfad aus JA-Kontennachweis, dann Lernbibliothek, dann SKR-Default, sonst Review.",
+    "regeln": [
+      {
+        "id": "hgb-steuer-rst",
+        "wenn_bezeichnung_alle": [
+          "rueckstell"
+        ],
+        "wenn_bezeichnung_eines": [
+          "ertragssteuer",
+          "ertragsteuer",
+          "gewerbest",
+          "gewerbesteuer",
+          "gewst",
+          "koe.-st",
+          "koerpersch",
+          "koerperschaftsteuer",
+          "kst.",
+          "kst-",
+          " kst",
+          "kst ",
+          "solidaritaet"
+        ],
+        "hgb_pfad": "/Passiva/B Rueckstellungen/Steuerrueckstellungen",
+        "prioritaet": 100,
+        "wenn_bezeichnung_keines": [
+          "aufloesung",
+          "aufwand",
+          "einstellung",
+          "erloes",
+          "ertraege",
+          "ertrag",
+          "verlust aus",
+          "zufuehrung"
+        ],
+        "gilt_fuer_kontotyp": "bilanz_passiv",
+        "hinweis": "v2.1: GuV-Konten ausgeschlossen (Keyword-Riegel + kontotyp-Gate). | v2.2-fix: Token 'kst' -> ['kst.','kst-',' kst','kst '] gesetzt. Das nackte 'kst' ist Substring von 'rueCKSTellung' und liess die Regel (Prio 100) auf JEDER Rueckstellung feuern (Pensionen/Urlaub/Gewaehrleistung wurden faelschlich Steuerrueckstellung/ND). KSt bleibt ueber 'koerpersch'/'koerperschaftsteuer' und die Boundary-Varianten abgedeckt."
+      },
+      {
+        "id": "hgb-pensions-rst",
+        "wenn_bezeichnung_alle": [
+          "rueckstell"
+        ],
+        "wenn_bezeichnung_eines": [
+          "pension",
+          "altersversorgung",
+          "jubilaeum",
+          "vorruhestand"
+        ],
+        "hgb_pfad": "/Passiva/B Rueckstellungen/Rueckstellungen fuer Pensionen und aehnliche Verpflichtungen",
+        "prioritaet": 100,
+        "wenn_bezeichnung_keines": [
+          "aufloesung",
+          "aufwand",
+          "einstellung",
+          "erloes",
+          "ertraege",
+          "ertrag",
+          "verlust aus",
+          "zufuehrung"
+        ],
+        "gilt_fuer_kontotyp": "bilanz_passiv",
+        "hinweis": "v2.1: GuV-Konten ausgeschlossen (Keyword-Riegel + kontotyp-Gate)."
+      },
+      {
+        "id": "hgb-sonstige-rst",
+        "wenn_bezeichnung_alle": [
+          "rueckstell"
+        ],
+        "hgb_pfad": "/Passiva/B Rueckstellungen/Sonstige Rueckstellungen",
+        "prioritaet": 40,
+        "hinweis": "Faengt alle uebrigen Rueckstellungen; Klassifizierung via split_regelset sonstige_rueckstellungen. | v2.1: GuV-Konten ausgeschlossen (Keyword-Riegel + kontotyp-Gate).",
+        "wenn_bezeichnung_keines": [
+          "aufloesung",
+          "aufwand",
+          "einstellung",
+          "erloes",
+          "ertraege",
+          "ertrag",
+          "verlust aus",
+          "zufuehrung"
+        ],
+        "gilt_fuer_kontotyp": "bilanz_passiv"
+      },
+      {
+        "id": "hgb-vorsteuer",
+        "wenn_bezeichnung_eines": [
+          "abziehbare vorsteuer",
+          "abziehbare vst"
+        ],
+        "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende/Vorsteuer",
+        "prioritaet": 100,
+        "hinweis": "NUR abziehbare Vorsteuer. 'Vorsteuer' als blosser Steuerschluessel-Suffix (z.B. 'Einkauf RHB 19% Vorsteuer') darf NICHT matchen."
+      },
+      {
+        "id": "hgb-umsatzsteuer",
+        "wenn_bezeichnung_alle": [
+          "umsatzsteuer"
+        ],
+        "wenn_bezeichnung_keines": [
+          "vorsteuer",
+          "abziehbar"
+        ],
+        "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten/Umsatzsteuer",
+        "prioritaet": 90,
+        "wenn_bezeichnung_eines": [
+          "mehrwertsteuer",
+          "mwst",
+          "umsatzsteuer"
+        ]
+      },
+      {
+        "id": "hgb-ertragsteuer-forderung",
+        "wenn_bezeichnung_eines": [
+          "koerperschaftsteuerrueckforder",
+          "gewerbesteuerueberzahl",
+          "gewerbesteuerrueckforder",
+          "ertragsteuerueberzahl",
+          "forderung gewerbesteuer",
+          "forderung koerperschaftsteuer",
+          "ertragssteuerforder"
+        ],
+        "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende/Steuerforderungen Ertrag",
+        "prioritaet": 100
+      },
+      {
+        "id": "hgb-ertragsteuer-verbindlichkeit",
+        "wenn_bezeichnung_eines": [
+          "koerperschaftsteuernachzahl",
+          "gewerbesteuernachzahl",
+          "ertragsteuerverbindl",
+          "ertragsteuernachzahl"
+        ],
+        "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten/Steuerverbindlichkeiten Ertrag",
+        "prioritaet": 100
+      },
+      {
+        "id": "hgb-gesellschafter-forderung",
+        "wenn_bezeichnung_alle": [
+          "forderung"
+        ],
+        "wenn_bezeichnung_eines": [
+          "gesellschafter"
+        ],
+        "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Forderungen gegen verbundene Unternehmen",
+        "prioritaet": 95,
+        "hinweis": "Wenn Gesellschafter natuerliche Person -> Pfad auf '.../Sonstige Vermoegensgegenstaende/Forderungen gegen Gesellschafter' aendern (bleibt ND ueber split-Regel)."
+      },
+      {
+        "id": "hgb-gesellschafter-verbindlichkeit",
+        "wenn_bezeichnung_alle": [
+          "verbindlich"
+        ],
+        "wenn_bezeichnung_eines": [
+          "gesellschafter",
+          "gesellschafterdarlehen"
+        ],
+        "hgb_pfad": "/Passiva/C Verbindlichkeiten/Verbindlichkeiten gegenueber verbundenen Unternehmen",
+        "prioritaet": 95
+      },
+      {
+        "id": "hgb-wertpapiere-av",
+        "wenn_bezeichnung_alle": [
+          "wertpapier"
+        ],
+        "wenn_bezeichnung_eines": [
+          "anlagev"
+        ],
+        "hgb_pfad": "/Aktiva/A Anlagevermoegen/III Finanzanlagen/Wertpapiere des Anlagevermoegens",
+        "prioritaet": 100
+      },
+      {
+        "id": "hgb-wertpapiere-uv",
+        "wenn_bezeichnung_alle": [
+          "wertpapier"
+        ],
+        "wenn_bezeichnung_keines": [
+          "anlagev"
+        ],
+        "hgb_pfad": "/Aktiva/B Umlaufvermoegen/III Wertpapiere",
+        "prioritaet": 90
+      },
+      {
+        "id": "hgb-wertberichtigung",
+        "wenn_bezeichnung_eines": [
+          "wertberichtigung",
+          "wertbericht"
+        ],
+        "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Forderungen aus Lieferungen und Leistungen",
+        "prioritaet": 95,
+        "hinweis": "Pauschal-/Einzelwertberichtigung = Korrekturposten zu Forderungen aL (Soll-/Haben-Vorzeichen erhalten)."
+      }
+    ]
+  },
+  "klassifizierungs_regeln_mixed": {
+    "_zweck": "Typ-2-Regeln: bestimmen NUR fuer Konten auf den drei gemischten Positionen, ob ND oder OWC. Werden im jeweiligen Aufriss (NA_OA, NA_OL, NA_OP) als 'thereof ND' wirksam. Greift keine Regel -> Review-Queue.",
+    "sonstige_rueckstellungen": [
+      {
+        "id": "rst-kundenboni",
+        "wenn_eines": [
+          "bonus",
+          "boni",
+          "bonuszahlung",
+          "rabatt",
+          "praemie"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 120,
+        "hinweis": "Kundenboni/Rabatte = operativ -> OWC. Bedingung: 'Kunde' UND Bonus-Wort. Vorrang vor rst-boni.",
+        "wenn_alle": [
+          "kunde"
+        ]
+      },
+      {
+        "id": "rst-urlaub",
+        "wenn_eines": [
+          "urlaub",
+          "urlaubsgeld"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 100
+      },
+      {
+        "id": "rst-gewaehrleistung",
+        "wenn_eines": [
+          "gewaehrleistung",
+          "garantie"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 100
+      },
+      {
+        "id": "rst-abschluss-pruefung",
+        "wenn_eines": [
+          "abschluss",
+          "pruefung",
+          "pruef"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 100
+      },
+      {
+        "id": "rst-archivierung",
+        "wenn_eines": [
+          "archiv",
+          "aufbewahr"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 100
+      },
+      {
+        "id": "rst-ausstehende-rechnungen",
+        "wenn_eines": [
+          "ausstehende rechnung",
+          "eingehende rechnung",
+          "ausstehende eingangsrechnung"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 100
+      },
+      {
+        "id": "rst-boni",
+        "wenn_eines": [
+          "boni",
+          "bonus",
+          "tantieme",
+          "praemie",
+          "praemien"
+        ],
+        "klasse": "ND",
+        "prioritaet": 100,
+        "wenn_keines": [
+          "kunde",
+          "kunden"
+        ],
+        "hinweis": "Mitarbeiterboni -> ND. Feuert nicht bei 'Kunden' (siehe rst-kundenboni)."
+      },
+      {
+        "id": "rst-restrukturierung",
+        "wenn_eines": [
+          "restruktur",
+          "umstruktur"
+        ],
+        "klasse": "ND",
+        "prioritaet": 100
+      },
+      {
+        "id": "rst-drohverluste",
+        "wenn_eines": [
+          "drohverlust",
+          "schwebende geschaeft",
+          "schwebendes geschaeft"
+        ],
+        "klasse": "ND",
+        "prioritaet": 100
+      },
+      {
+        "id": "rst-rueckbau",
+        "wenn_eines": [
+          "rueckbau",
+          "entsorgung",
+          "renaturier"
+        ],
+        "klasse": "ND",
+        "prioritaet": 100
+      },
+      {
+        "id": "rst-personal-generic",
+        "wenn_eines": [
+          "personalkost",
+          "personal"
+        ],
+        "klasse": "ND",
+        "prioritaet": 50,
+        "review": true,
+        "hinweis": "Default ND (Annahme Boni). Aufriss anfordern; wenn Urlaubsanteil, dorthin OWC."
+      },
+      {
+        "id": "rst-sonstige-generic",
+        "wenn_eines": [
+          "sonstig",
+          "uebrige"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 40,
+        "review": true,
+        "hinweis": "Inhalt unklar — Aufriss anfordern."
+      },
+      {
+        "id": "rst-berufsgenossenschaft",
+        "wenn_eines": [
+          "berufsgenossenschaft",
+          "bg-beitrag"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 100
+      },
+      {
+        "id": "rst-reisekosten",
+        "wenn_eines": [
+          "reisekost",
+          "reisekosten"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 100
+      },
+      {
+        "id": "rst-direktversicherung",
+        "wenn_eines": [
+          "direktversicherung"
+        ],
+        "klasse": "REVIEW",
+        "prioritaet": 90,
+        "review": true,
+        "hinweis": "Pensionsnah — Rueckfrage Zusageart (Beitrags-/Leistungszusage), Deckungsvermoegen, Bewertung."
+      }
+    ],
+    "sonstige_vermoegensgegenstaende": [
+      {
+        "id": "sva-rueckdeckung",
+        "wenn_eines": [
+          "rueckdeckung",
+          "rueckdeckungsvers",
+          "anspr. rueckdeck",
+          "rueckdeckungsversicherung"
+        ],
+        "klasse": "ND",
+        "prioritaet": 115,
+        "review": true,
+        "hinweis": "Anspruch aus Rueckdeckungsversicherung = Deckungsvermoegen zu Pensionen. Pflichtfrage: Saldierung mit Pensionsrueckstellung nach Paragraph 246 Abs. 2 HGB?"
+      },
+      {
+        "id": "sva-darlehen",
+        "wenn_eines": [
+          "darlehen"
+        ],
+        "klasse": "ND",
+        "prioritaet": 110,
+        "hinweis": "Darlehen = Finanzierungsforderung -> ND (Vertragspartner/Konditionen per Frage bestaetigen)."
+      },
+      {
+        "id": "sva-versicherungserstattung",
+        "wenn_eines": [
+          "erstattungsanspruch",
+          "erstattungsansprueche",
+          "versicherungserstattung",
+          "erstattung gg. versicherung",
+          "erstattung versicherung"
+        ],
+        "klasse": "ND",
+        "prioritaet": 110
+      },
+      {
+        "id": "sva-geldtransit",
+        "wenn_eines": [
+          "geldtransit"
+        ],
+        "klasse": "ND",
+        "prioritaet": 110,
+        "hinweis": "Durchlaufkonto Geld -> wirtschaftlich Cash (ND)."
+      },
+      {
+        "id": "sva-ust-vorauszahlung",
+        "wenn_eines": [
+          "mehrwertsteuer",
+          "mwst",
+          "umsatzsteuer",
+          "ust ",
+          "ust voraus",
+          "ust-voraus",
+          "vorauszahlung",
+          "vst"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 85,
+        "hinweis": "USt/Vorsteuer-naher operativer Posten -> OWC (auch auslaendische, z.B. PLN USt-Vorauszahlung)."
+      },
+      {
+        "id": "sva-belege-reise",
+        "wenn_eines": [
+          "reisek",
+          "reisekost",
+          "div. belege",
+          "div belege",
+          "rk +",
+          "belegverrechn",
+          "verrechnungskonto",
+          "paypal"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 80,
+        "hinweis": "Operative Verrechnungs-/Belegkonten -> OWC."
+      },
+      {
+        "id": "sva-factoring",
+        "wenn_eines": [
+          "factoring"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 80,
+        "hinweis": "Forderung aus Factoring -> operatives OWC."
+      },
+      {
+        "id": "sva-debitorische-kreditoren",
+        "wenn_eines": [
+          "debitorische kreditoren",
+          "kreditorische debitoren"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 80
+      },
+      {
+        "id": "sva-vorsteuer",
+        "wenn_eines": [
+          "abziehbare vorsteuer",
+          "vorsteuer"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 100,
+        "hinweis": "Nur echte Vorsteuer-Forderungskonten; Steuerschluessel-Suffix vorher beim HGB-Mapping ausgeschlossen."
+      },
+      {
+        "id": "sva-ertragsteuer",
+        "wenn_eines": [
+          "ertragsteuer",
+          "koerperschaftsteuer",
+          "gewerbesteuer",
+          "steuerforderung ertrag"
+        ],
+        "klasse": "ND",
+        "prioritaet": 100
+      },
+      {
+        "id": "sva-gesellschafter",
+        "wenn_eines": [
+          "gesellschafter"
+        ],
+        "klasse": "ND",
+        "prioritaet": 100
+      },
+      {
+        "id": "sva-personal",
+        "wenn_eines": [
+          "personal",
+          "mitarbeiter",
+          "lohn",
+          "gehalt",
+          "reisekost"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 90,
+        "hinweis": "Forderungen gegen Personal -> operatives OWC."
+      },
+      {
+        "id": "sva-kaution",
+        "wenn_eines": [
+          "kaution",
+          "depot",
+          "deposit"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 80,
+        "review": true,
+        "hinweis": "Annahme Mietkaution -> OWC. Frage: Mietkaution oder sonstige Sicherheit? Laufzeit?"
+      },
+      {
+        "id": "sva-generic",
+        "wenn_eines": [
+          "sonstig",
+          "uebrige",
+          "forderung"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 40,
+        "review": true
+      }
+    ],
+    "sonstige_verbindlichkeiten": [
+      {
+        "id": "svb-altersvorsorge",
+        "wenn_eines": [
+          "altersvorsorge",
+          "altersversorgung"
+        ],
+        "klasse": "ND",
+        "prioritaet": 95,
+        "review": true,
+        "hinweis": "Altersvorsorge-Verbindlichkeit pensionsnah -> Pflichtfrage Zusageart/Charakter."
+      },
+      {
+        "id": "svb-darlehen",
+        "wenn_eines": [
+          "darlehen"
+        ],
+        "klasse": "ND",
+        "prioritaet": 110
+      },
+      {
+        "id": "svb-geldtransit",
+        "wenn_eines": [
+          "geldtransit"
+        ],
+        "klasse": "ND",
+        "prioritaet": 110,
+        "hinweis": "Durchlaufkonto Geld -> Cash (ND)."
+      },
+      {
+        "id": "svb-belege-reise",
+        "wenn_eines": [
+          "reisek",
+          "reisekost",
+          "div. belege",
+          "div belege",
+          "rk +",
+          "belegverrechn",
+          "verrechnungskonto",
+          "paypal"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 85
+      },
+      {
+        "id": "svb-provision",
+        "wenn_eines": [
+          "provision",
+          "prov."
+        ],
+        "klasse": "OWC",
+        "prioritaet": 85,
+        "hinweis": "Provisions-Verbindlichkeit -> operativ OWC."
+      },
+      {
+        "id": "svb-kreditorische-debitoren",
+        "wenn_eines": [
+          "kreditorische debitoren",
+          "debitorische kreditoren"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 85
+      },
+      {
+        "id": "svb-vorsteuer-passiv",
+        "wenn_eines": [
+          "abziehbare vst",
+          "vorsteuer",
+          "vst."
+        ],
+        "klasse": "OWC",
+        "prioritaet": 80,
+        "hinweis": "Kleiner Vorsteuer-Saldo auf Passivseite -> operativ OWC."
+      },
+      {
+        "id": "svb-umsatzsteuer",
+        "wenn_eines": [
+          "mehrwertsteuer",
+          "mwst",
+          "umsatzsteuer",
+          "ust"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 100
+      },
+      {
+        "id": "svb-lohnsteuer",
+        "wenn_eines": [
+          "kirchensteuer",
+          "lohnsteuer",
+          "soz. sicherh",
+          "soz.sicherh",
+          "soziale sicher",
+          "sozialvers",
+          "sv-beitrag"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 100
+      },
+      {
+        "id": "svb-ertragsteuer",
+        "wenn_eines": [
+          "ertragsteuer",
+          "koerperschaftsteuer",
+          "gewerbesteuer",
+          "steuerverbindlichkeit ertrag"
+        ],
+        "klasse": "ND",
+        "prioritaet": 100
+      },
+      {
+        "id": "svb-gesellschafter",
+        "wenn_eines": [
+          "gesellschafter"
+        ],
+        "klasse": "ND",
+        "prioritaet": 100
+      },
+      {
+        "id": "svb-leasing",
+        "wenn_eines": [
+          "leasing",
+          "finanzierung"
+        ],
+        "klasse": "ND",
+        "prioritaet": 90
+      },
+      {
+        "id": "svb-personal",
+        "wenn_eines": [
+          "personal",
+          "lohn",
+          "gehalt"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 80
+      },
+      {
+        "id": "svb-generic",
+        "wenn_eines": [
+          "sonstig",
+          "uebrige",
+          "verbindlich"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 40,
+        "review": true
+      }
+    ]
+  },
+  "matching_logik": [
+    "Normalisierung: lowercase + Umlaute (ae/oe/ue/ss). Substring-Match.",
+    "Typ-1 (HGB-Pfad): 'wenn_bezeichnung_alle' UND-verknuepft, 'wenn_bezeichnung_eines' ODER, 'wenn_bezeichnung_keines' Ausschluss. Hoechste Prioritaet gewinnt.",
+    "Typ-2 (Klassifizierung gemischter Positionen): analog, hoechste Prioritaet gewinnt. Greift nichts -> Review.",
+    "Reklassifizierung (Pfad -> Klasse/NA-Zeile): Longest-Prefix-Match gegen die Tabelle 'reklassifizierung'. Tiefere Pfade gewinnen vor kuerzeren.",
+    "Typ-2 unterstuetzt zusaetzlich 'wenn_alle' (UND) und 'wenn_keines' (Ausschluss) neben 'wenn_eines' (ODER)."
+  ],
+  "mastersheet_spalten": [
+    {
+      "spalte": "Konto",
+      "art": "Eingabe (aus SUSA)"
+    },
+    {
+      "spalte": "Bezeichnung (DE)",
+      "art": "Eingabe (aus SUSA)"
+    },
+    {
+      "spalte": "Entity",
+      "art": "Eingabe (aus SUSA), bei Single-Entity konstant"
+    },
+    {
+      "spalte": "HGB-Pfad (DE)",
+      "art": "Mapping-Ergebnis der Kaskade — der EINE Mapping-Wert"
+    },
+    {
+      "spalte": "HGB-Path (EN)",
+      "art": "Abgeleitet: HGB-Pfad ueber Pfad-Woerterbuch uebersetzt"
+    },
+    {
+      "spalte": "Klasse (ND/TWC/OWC/FA/EQ/DT)",
+      "art": "Abgeleitet: Reklassifizierung (eindeutige Positionen) bzw. Typ-2-Regel (gemischte Positionen). Sichtbar, gesperrt ausser bei Review-Faellen."
+    },
+    {
+      "spalte": "NA-Zeile (DE/EN)",
+      "art": "Abgeleitet aus Reklassifizierung"
+    },
+    {
+      "spalte": "Quelle/Konfidenz",
+      "art": "Protokoll: welche Kaskadenstufe/Regel; Review-Flag"
+    }
+  ],
+  "_notes_fuer_spaeter": {
+    "aufrisse_die_die_klasse_spalte_lesen": "NA_OA (sonstige VG), NA_OL (sonstige Verbindlichkeiten), NA_OP (sonstige Rueckstellungen) summieren ihre 'thereof ND' direkt aus der Klasse-Spalte des Mastersheets. Keine separate Split-Logik.",
+    "aufrisse_uebrige": "Pensions, Steuerrueckstellungen, Ertragsteuer, ARAP, PRAP, geleistete Anzahlungen erhalten eigene Aufrisse zur Konsistenz; ihre Klasse ist eindeutig aus dem Pfad. Standardpositionen (Vorraete, Forderungen aL, Verbindlichkeiten aL, Kasse) brauchen keinen eigenen Aufriss — Zeile in der Konso-Bilanz genuegt.",
+    "einquelligkeit_aufrisse": "Jeder Aufriss zieht konsolidierte Kontenwerte aus der Konso-Schicht (Einzelkontenebene), summiert selbst, und vergleicht per Check-Zeile gegen die entsprechende Position der Konso-Bilanz. Quelle ist der Aufriss, der Check ist nur Kontrolle.",
+    "standardkonten": "Forderungen aL, Verbindlichkeiten aL, Kasse, Bank, Erloese, Materialaufwand, Personalaufwand, Abschreibungen kommen via JA-Kontennachweis / Lernbibliothek / SKR-Default auf ihren HGB-Pfad — keine Typ-1-Regel noetig.",
+    "guv_pfade": "GuV-Konten bekommen ihren GuV-HGB-Pfad analog; Klasse = PL (keine WC/ND-Reklassifizierung). QoE-Bereinigungen sind ein separater, strukturierter Schedule (spaeter)."
+  },
+  "_aenderungen_v2_1": [
+    "Keyword-Riegel: Rueckstellungs-/Steuer-Regeln feuern nicht mehr auf GuV-Konten (Ausschluss von ertrag/aufloesung/aufwand/zufuehrung/einstellung/erloes). Behebt Fehlzuendung z.B. Konto 2735 'Ertraege aus Aufloesung von Rueckstellungen'.",
+    "Kundenboni: neue Regel rst-kundenboni -> OWC (operativ) mit Vorrang; rst-boni (Mitarbeiterboni -> ND) feuert nur noch ohne 'kunde'. Behebt Fehlzuendung Konto 0979 'fuer Bonuszahlungen an Kunden'.",
+    "Neue bestaetigte Klassifizierungsregeln: Darlehen -> ND; Versicherungserstattung -> ND; Geldtransit -> ND/Cash; Kaution -> OWC (mit Frage); Provisionen/Reisekosten/Belegkonten/kreditorische Debitoren/USt-Vorauszahlungen -> OWC.",
+    "Wesentlichkeit als konfigurierbare, positionsabhaengige Steuergroesse aufgenommen (Default 2% mit Net-Debt-Verschaerfung).",
+    "Prozess-Kaskade (Bezeichnung -> Kontennachweis -> Hauptbuch -> Frage falls wesentlich, sonst Hinweis) als Hausprinzip aufgenommen.",
+    "Abschnitt 'software_oberflaeche': je Feld definiert, ob abgeleitet-gesperrt oder manuell-editierbar; Review-Queue, Override, Excel-Export und Frontend-Anforderungen."
+  ],
+  "wesentlichkeit": {
+    "_zweck": "Konfigurierbare, positionsabhaengige Wesentlichkeit. Steuert, ob aus Unklarheit eine Frage (wesentlich) oder ein Bearbeiter-Hinweis (unwesentlich) wird.",
+    "default_prozent": 2.0,
+    "bemessungsgrundlage_je_positionstyp": {
+      "guv": "Umsatz (alternativ EBITDA fuer Bereinigungszwecke)",
+      "bilanz_fa_wc": "Bilanzsumme",
+      "net_debt_equity_bridge": "Bilanzsumme, verschaerft (Default 1%) oder absoluter Mindestbetrag — da kaufpreisrelevant 1:1"
+    },
+    "net_debt_verschaerfung_prozent": 1.0,
+    "konfigurierbar_pro_engagement": true,
+    "anzeige": "Tool zeigt resultierende EUR-Schwellen vor dem Lauf zur Bestaetigung an.",
+    "pruefung": "je Stichtag UND ueber Zeitverlauf (einmalige Ausschlaege werden erfasst)."
+  },
+  "prozess_kaskade_unklare_konten": [
+    "Stufe 1 Bezeichnung: Hausconvention-Regel oder eindeutiger HGB-Pfad -> erledigt.",
+    "Stufe 2 Kontennachweis: HGB-Position aus Kontennachweis pruefen -> wenn ausreichend, erledigt.",
+    "Stufe 3 Hauptbuch: tatsaechliche Buchungen/Buchungstexte auswerten (sofern Auszug vorhanden) -> wenn ausreichend, erledigt, KEINE Frage.",
+    "Stufe 4 Entscheidung: wenn weiter unklar -> WESENTLICH: Frage erzeugen (mit vorlaeufigem Default); UNWESENTLICH: vertretbaren Default setzen + Bearbeiter-Hinweis 'nicht angefragt, da unwesentlich'."
+  ],
+  "software_oberflaeche": {
+    "_zweck": "Definiert je Feld, ob abgeleitet-gesperrt oder manuell-editierbar, damit ein Frontend die manuellen Eingriffe gezielt anzeigen und editierbar machen kann. Excel-Export verpflichtend, Bearbeitung im Frontend aber nicht Excel-artig.",
+    "felder": [
+      {
+        "feld": "HGB-Pfad",
+        "quelle": "Kaskade (Hausconvention/Kontennachweis/Library/SKR)",
+        "editierbar": true,
+        "darstellung": "Auswahl aus kanonischer Pfad-Liste; freie Eingabe nur mit Warnung"
+      },
+      {
+        "feld": "Klasse (ND/TWC/OWC/FA/EQ/DT)",
+        "quelle": "abgeleitet (Reklassifizierung bzw. Typ-2)",
+        "editierbar": false,
+        "ausnahme": "editierbar nur bei den 3 gemischten Positionen, wenn Review/REVIEW",
+        "darstellung": "gesperrt + farbcodiert; bei Mixed: Dropdown ND/OWC"
+      },
+      {
+        "feld": "NA-Zeile",
+        "quelle": "abgeleitet",
+        "editierbar": false
+      },
+      {
+        "feld": "Review-Flag",
+        "quelle": "Regel/Default",
+        "editierbar": true,
+        "darstellung": "Review-Queue als eigene gefilterte Ansicht; abhaken nach Entscheidung"
+      },
+      {
+        "feld": "Wesentlichkeit",
+        "quelle": "berechnet aus Schwelle",
+        "editierbar": false,
+        "darstellung": "Badge wesentlich/unwesentlich + relativer Anteil"
+      },
+      {
+        "feld": "Frage-Text",
+        "quelle": "Fragen-Modul",
+        "editierbar": true,
+        "darstellung": "editierbar vor Versand an Datenraum"
+      },
+      {
+        "feld": "Override-Begruendung",
+        "quelle": "Nutzer",
+        "editierbar": true,
+        "darstellung": "Pflichtfeld wenn abgeleitete Klasse manuell geaendert wird (Audit-Spur)"
+      }
+    ],
+    "interaktionen": [
+      "Jede manuelle Aenderung an einem abgeleiteten Wert verlangt eine Begruendung und wird protokolliert (wer/wann/warum).",
+      "Override wird in die Lernbibliothek zurueckgespielt (Vorschlag fuer kuenftige Mandanten).",
+      "Schrittweises Vorgehen: das Tool haelt nach jeder Schicht an und fragt um Freigabe, bevor es weiterrechnet.",
+      "Excel-Export jederzeit; Re-Import der bearbeiteten Excel optional, aber Frontend ist primaerer Arbeitsort."
+    ],
+    "frontend_anforderungen": [
+      "Sieht nicht aus wie eine Excel: Karten-/Listenansicht, Farbcodierung der Klassen, Filter (Review-Queue, wesentlich, je Position).",
+      "Inline editierbar mit klarer Trennung gesperrt vs. editierbar.",
+      "Review-Queue und offene Fragen als eigene Arbeitsansichten.",
+      "Voll exportierbar nach Excel im Hausformat (Arial, Zahlenformat, Teal-Palette)."
+    ]
+  },
+  "_aenderungen_v2_2": [
+    "SKR03-Default-Bereiche als editierbarer Konfigurationsblock 'skr03_default_bereiche' (vorher im Code). Korrekturen: ARAP 0980-0989, PRAP 0990-0995.",
+    "Wertberichtigungen (Keyword) -> Forderungen aL (Korrekturposten), faengt 0996/0998 unabhaengig vom Bereich.",
+    "Steuerrueckstellung: Abkuerzungen 'koerpersch','gewerbest','koe.-st','kst' ergaenzt (faengt 'Koerpersch.-St.-Rueckstellung').",
+    "Umsatzsteuer: 'mwst','mehrwertsteuer' ergaenzt (Typ-1 + Typ-2 beidseitig).",
+    "Rueckdeckungsversicherung -> ND mit Pflichtfrage (Deckungsvermoegen, Saldierung Paragraph 246 HGB).",
+    "Sozialversicherungs-Verbindlichkeiten und Altersvorsorge ergaenzt.",
+    "Technische DATEV-Konten (>=9000, EBK/Saldenvortrag) als 'TECH' ausgeklammert, nicht im Databook."
+  ],
+  "skr03_default_bereiche": {
+    "_zweck": "Kontonummern-Bereich -> HGB-Pfad. Stufe nach Typ-1/Kontennachweis/Library. Editierbar im Frontend.",
+    "bereiche": [
+      [
+        10,
+        49,
+        "/Aktiva/A Anlagevermoegen/I Immaterielle Vermoegensgegenstaende/Entgeltlich erworbene Konzessionen"
+      ],
+      [
+        50,
+        199,
+        "/Aktiva/A Anlagevermoegen/II Sachanlagen/Grundstuecke und Gebaeude"
+      ],
+      [
+        200,
+        299,
+        "/Aktiva/A Anlagevermoegen/II Sachanlagen/Technische Anlagen und Maschinen"
+      ],
+      [
+        300,
+        499,
+        "/Aktiva/A Anlagevermoegen/II Sachanlagen/Andere Anlagen Betriebs- und Geschaeftsausstattung"
+      ],
+      [
+        500,
+        509,
+        "/Aktiva/A Anlagevermoegen/III Finanzanlagen/Anteile an verbundenen Unternehmen"
+      ],
+      [
+        510,
+        524,
+        "/Aktiva/A Anlagevermoegen/III Finanzanlagen/Beteiligungen"
+      ],
+      [
+        525,
+        549,
+        "/Aktiva/A Anlagevermoegen/III Finanzanlagen/Wertpapiere des Anlagevermoegens"
+      ],
+      [
+        550,
+        699,
+        "/Aktiva/A Anlagevermoegen/III Finanzanlagen/Sonstige Ausleihungen"
+      ],
+      [
+        800,
+        868,
+        "/Passiva/A Eigenkapital/I Gezeichnetes Kapital"
+      ],
+      [
+        869,
+        948,
+        "/Passiva/A Eigenkapital/IV Gewinnvortrag Verlustvortrag"
+      ],
+      [
+        950,
+        954,
+        "/Passiva/B Rueckstellungen/Rueckstellungen fuer Pensionen und aehnliche Verpflichtungen"
+      ],
+      [
+        955,
+        957,
+        "/Passiva/B Rueckstellungen/Steuerrueckstellungen"
+      ],
+      [
+        958,
+        979,
+        "/Passiva/B Rueckstellungen/Sonstige Rueckstellungen"
+      ],
+      [
+        980,
+        989,
+        "/Aktiva/C Rechnungsabgrenzungsposten"
+      ],
+      [
+        990,
+        995,
+        "/Passiva/D Rechnungsabgrenzungsposten"
+      ],
+      [
+        996,
+        999,
+        "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Forderungen aus Lieferungen und Leistungen"
+      ],
+      [
+        1000,
+        1299,
+        "/Aktiva/B Umlaufvermoegen/IV Kassenbestand und Guthaben bei Kreditinstituten"
+      ],
+      [
+        1300,
+        1399,
+        "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende"
+      ],
+      [
+        1400,
+        1499,
+        "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Forderungen aus Lieferungen und Leistungen"
+      ],
+      [
+        1500,
+        1599,
+        "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende"
+      ],
+      [
+        1600,
+        1699,
+        "/Passiva/C Verbindlichkeiten/Verbindlichkeiten aus Lieferungen und Leistungen"
+      ],
+      [
+        1700,
+        1799,
+        "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten"
+      ],
+      [
+        1800,
+        1899,
+        "/Aktiva/B Umlaufvermoegen/IV Kassenbestand und Guthaben bei Kreditinstituten"
+      ],
+      [
+        1900,
+        1949,
+        "/Aktiva/C Rechnungsabgrenzungsposten"
+      ],
+      [
+        1950,
+        1999,
+        "/Passiva/D Rechnungsabgrenzungsposten"
+      ],
+      [
+        2000,
+        2099,
+        "/GuV/Sonstige betriebliche Aufwendungen"
+      ],
+      [
+        2100,
+        2199,
+        "/GuV/Zinsen und aehnliche Aufwendungen"
+      ],
+      [
+        2200,
+        2208,
+        "/GuV/Steuern vom Einkommen und vom Ertrag"
+      ],
+      [
+        2209,
+        2299,
+        "/GuV/Sonstige Steuern"
+      ],
+      [
+        2300,
+        2599,
+        "/GuV/Sonstige betriebliche Aufwendungen"
+      ],
+      [
+        2600,
+        2699,
+        "/GuV/Sonstige Zinsen und aehnliche Ertraege"
+      ],
+      [
+        2700,
+        2799,
+        "/GuV/Sonstige betriebliche Ertraege"
+      ],
+      [
+        2800,
+        2899,
+        "/Passiva/A Eigenkapital/IV Gewinnvortrag Verlustvortrag"
+      ],
+      [
+        3000,
+        3999,
+        "/GuV/Materialaufwand"
+      ],
+      [
+        4000,
+        4129,
+        "/GuV/Personalaufwand/Loehne und Gehaelter"
+      ],
+      [
+        4130,
+        4199,
+        "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung"
+      ],
+      [
+        4200,
+        4829,
+        "/GuV/Sonstige betriebliche Aufwendungen"
+      ],
+      [
+        4830,
+        4899,
+        "/GuV/Abschreibungen"
+      ],
+      [
+        4900,
+        4999,
+        "/GuV/Sonstige betriebliche Aufwendungen"
+      ],
+      [
+        8000,
+        8999,
+        "/GuV/Umsatzerloese"
+      ]
+    ],
+    "technische_konten": {
+      "_regel": "Konto >= 9000 (Eroeffnungsbilanzkonto, Saldenvortraege, statistische Konten) -> Klasse TECH, nicht im Databook.",
+      "ab": 9000
+    }
+  }
+}
