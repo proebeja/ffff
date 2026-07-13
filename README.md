@@ -37,7 +37,8 @@ fdd/
               ai_hook.py         KI-Urteilsschicht (Interface, in v1 inaktiv)
               decision_log.py    Entscheidungsprotokoll + begründungspflichtiger Override
   views/      net_debt.py        Net-Debt-View (Klasse=ND, nach NA-Zeile gruppiert)
-              review_queue.py    ungelöste/geflaggte Konten
+              working_capital.py Working-Capital-View (OA/OL × TWC/OWC, Ist je Periode)
+              review_queue.py    ungelöste/geflaggte Konten (mit v2.3-Marker-Status)
   export/     excel.py           Hausformat, sichtbare SUMIFS-Formeln, Kontrollzeile
   cli.py                         end-to-end-Verdrahtung
 ```
@@ -51,7 +52,13 @@ fdd/
 - **Drei gemischte Positionen** (sonstige VG / Verbindlichkeiten / Rückstellungen)
   bestimmen ND/OWC inhaltsabhängig über Typ-2-Keyword-Regeln; sonst Review.
 - **Single Source of Truth:** das Mastersheet ist das eine Zuhause jeder Zahl; der
-  Net-Debt-Tab summiert per sichtbarer `SUMIFS`-Formel darauf und rechnet nichts neu.
+  Net-Debt- und der Working-Capital-Tab summieren per sichtbarer `SUMIFS`-Formel
+  darauf (gefiltert nach Klasse + NA-Zeile) und rechnen nichts neu. Beide tragen
+  eine Kontrollzeile, die gegen die Mastersheet-Gesamtsumme auf 0 aufgeht.
+- **WC-Definition periodenkonsistent:** der Working-Capital-Tab zeigt das Ist-WC
+  je Periode (OA/OL × TWC/OWC); jede Periode läuft durch dieselbe Klassifizierung.
+  Die normalisierte Referenz / das Target WC kommt später (braucht die
+  `verhaltenspruefung`, in dieser Scheibe noch nicht implementiert).
 - **Deterministisch**, mit **gebundenem KI-Hook** an der Review-Stelle (v1 inaktiv).
 
 ## Die vier Testdatensätze und ihre Fallstricke

@@ -22,6 +22,7 @@ from openpyxl.utils import get_column_letter
 from ..core.model import Klasse, MappedAccount
 from ..views.net_debt import NetDebtView
 from ..views.review_queue import ReviewEintrag
+from ..views.working_capital import WCView
 
 # ---- Hausformat-Konstanten ------------------------------------------------
 ZAHLENFORMAT = '#,##0;(#,##0);"-"'
@@ -70,11 +71,14 @@ def _krit(text: str) -> str:
 
 def schreibe_databook(pfad: str, mapped: list[MappedAccount], nd: NetDebtView,
                       review: list[ReviewEintrag], perioden: list[str],
-                      entity: str, meta: Optional[dict] = None) -> None:
+                      entity: str, meta: Optional[dict] = None,
+                      wc: "Optional[WCView]" = None) -> None:
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
     layout = _schreibe_mastersheet(wb, mapped, perioden, entity)
     _schreibe_net_debt(wb, nd, layout, perioden, entity)
+    if wc is not None:
+        _schreibe_working_capital(wb, wc, layout, perioden, entity)
     _schreibe_review(wb, review, perioden)
     if meta:
         _schreibe_info(wb, meta)
@@ -214,6 +218,119 @@ def _schreibe_net_debt(wb, nd: NetDebtView, layout: MastersheetLayout,
             f"{layout.bereich(layout.spalte_klasse)},\"ND\")"
         )
         cell = ws.cell(k, col, f"={gesamt_nd}-{spalte}{sub_zeile}")
+        cell.number_format = ZAHLENFORMAT
+        cell.font = Font(name=FONT_NAME, italic=True, size=9)
+
+    _breiten(ws, {2: 6, 3: 58})
+    for i in range(len(perioden)):
+        ws.column_dimensions[get_column_letter(p0 + i)].width = 15
+    ws.freeze_panes = ws.cell(kopf_zeile + 1, p0)
+
+
+# ---- Working-Capital-Tab (sichtbare SUMIFS-Formeln, Kontrollzeile) --------
+def _schreibe_working_capital(wb, wc: WCView, layout: MastersheetLayout,
+                              perioden, entity) -> None:
+    ws = wb.create_sheet("Working Capital")
+    ws.sheet_view.showGridLines = False
+    p0 = 4
+
+    ws.cell(1, 2, f"Working Capital (Ist je Periode) — {entity}").font = Font(
+        name=FONT_NAME, bold=True, size=13, color=TEAL)
+    ws.cell(2, 2, "in EUR · WC-Definition über alle Perioden identisch "
+                  "(gleiche Klassifizierung) · noch keine normalisierte Referenz").font = Font(
+        name=FONT_NAME, italic=True, size=9)
+
+    kopf_zeile = 4
+    ws.cell(kopf_zeile, 2, "Ref."); ws.cell(kopf_zeile, 3, "Net-Asset-Position")
+    for i, p in enumerate(perioden):
+        ws.cell(kopf_zeile, p0 + i, p)
+    _style_kopf_row(ws, kopf_zeile, 2, p0 + len(perioden) - 1)
+
+    r = kopf_zeile + 1
+    ref = 1
+    zeilen_rows: dict[tuple[str, str], list[int]] = {}   # (seite,klasse) -> rows
+
+    def sumifs(p: str, klasse: str, na_de: str) -> str:
+        return (f"=SUMIFS({layout.bereich(layout.perioden_spalten[p])},"
+                f"{layout.bereich(layout.spalte_klasse)},\"{klasse}\","
+                f"{layout.bereich(layout.spalte_na)},\"{_krit(na_de)}\")")
+
+    def summe_zeile(label: str, rows: list[int], fett=True, fill=None) -> int:
+        nonlocal r
+        c = ws.cell(r, 3, label); c.font = _bold if fett else _normal
+        if fill:
+            c.fill = fill
+        for i, p in enumerate(perioden):
+            col = p0 + i
+            sp = get_column_letter(col)
+            formel = ("=" + "+".join(f"{sp}{z}" for z in rows)) if rows else 0
+            cell = ws.cell(r, col, formel)
+            cell.number_format = ZAHLENFORMAT
+            cell.font = _bold if fett else _normal
+            if fill:
+                cell.fill = fill
+        zr = r
+        r += 1
+        return zr
+
+    def klasse_block(seite: str, klasse: str) -> None:
+        nonlocal r, ref
+        zeilen = wc.zeilen_fuer(seite, klasse)
+        if not zeilen:
+            return
+        label = "Trade Working Capital (TWC)" if klasse == "TWC" else "Other Working Capital (OWC)"
+        h = ws.cell(r, 3, label); h.font = _bold; h.fill = _grau_fill
+        r += 1
+        rows: list[int] = []
+        for z in zeilen:
+            ws.cell(r, 2, ref).font = _normal
+            ws.cell(r, 3, f"{z.na_de} / {z.na_en}").font = _normal
+            for i, p in enumerate(perioden):
+                cell = ws.cell(r, p0 + i, sumifs(p, klasse, z.na_de))
+                cell.number_format = ZAHLENFORMAT
+                cell.font = _normal
+            rows.append(r)
+            zeilen_rows.setdefault((seite, klasse), []).append(r)
+            ref += 1
+            r += 1
+        summe_zeile(f"  davon {label}", rows, fett=True)
+
+    def seiten_block(seite: str, titel: str) -> int:
+        nonlocal r
+        t = ws.cell(r, 3, titel); t.font = Font(name=FONT_NAME, bold=True, color=TEAL)
+        r += 1
+        klasse_block(seite, "TWC")
+        klasse_block(seite, "OWC")
+        alle_rows = zeilen_rows.get((seite, "TWC"), []) + zeilen_rows.get((seite, "OWC"), [])
+        return summe_zeile(titel + " gesamt", alle_rows, fett=True, fill=_sub_fill)
+
+    oa_row = seiten_block("OA", "Operating Assets")
+    ol_row = seiten_block("OL", "Operating Liabilities")
+
+    # Net Working Capital = Operating Assets + Operating Liabilities (Passiva
+    # sind vorzeichenrichtig negativ gespeichert => OA − |OL|).
+    nwc_row = r
+    ws.cell(nwc_row, 3, "Net Working Capital (Operating Assets − Operating Liabilities)").font = _bold
+    for i, p in enumerate(perioden):
+        col = p0 + i
+        sp = get_column_letter(col)
+        cell = ws.cell(nwc_row, col, f"={sp}{oa_row}+{sp}{ol_row}")
+        cell.number_format = ZAHLENFORMAT
+        cell.font = _bold
+        cell.fill = _sub_fill
+        cell.border = _top_double
+    r += 2
+
+    # Kontrollzeile: alle TWC+OWC im Mastersheet minus NWC = 0.
+    ws.cell(r, 3, "Kontrollzeile (Σ TWC+OWC Mastersheet − NWC, muss 0 sein)").font = Font(
+        name=FONT_NAME, italic=True, size=9)
+    for i, p in enumerate(perioden):
+        col = p0 + i
+        sp = get_column_letter(col)
+        rng = layout.bereich(layout.perioden_spalten[p])
+        kl = layout.bereich(layout.spalte_klasse)
+        gesamt = f"SUMIFS({rng},{kl},\"TWC\")+SUMIFS({rng},{kl},\"OWC\")"
+        cell = ws.cell(r, col, f"={gesamt}-{sp}{nwc_row}")
         cell.number_format = ZAHLENFORMAT
         cell.font = Font(name=FONT_NAME, italic=True, size=9)
 

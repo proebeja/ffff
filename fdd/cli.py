@@ -18,6 +18,7 @@ from .engine.decision_log import Entscheidungsprotokoll
 from .readers.detect import waehle_reader
 from .views.net_debt import baue_net_debt
 from .views.review_queue import baue_review_queue
+from .views.working_capital import baue_working_capital
 from .export import excel
 
 
@@ -32,6 +33,7 @@ def run(eingabe: str, ausgabe: str, hc_pfad: str | None = None,
     mapped = engine.map_ledger(ledger)
 
     nd = baue_net_debt(mapped, ledger.perioden, ledger.entity)
+    wc = baue_working_capital(mapped, ledger.perioden, ledger.entity)
     review = baue_review_queue(mapped, ledger.perioden)
 
     meta = {
@@ -46,13 +48,21 @@ def run(eingabe: str, ausgabe: str, hc_pfad: str | None = None,
         "davon Review": len(review),
         "davon technisch (TECH)": sum(1 for m in mapped if m.klasse.value == "TECH"),
         "Warnungen Reader": len(ledger.warnungen),
+        "WC-Definition": (
+            "Über alle Perioden identisch — jede Periode läuft durch dieselbe "
+            "Klassifizierung (Klasse=TWC/OWC, abgeleitet aus dem HGB-Pfad via "
+            f"Reklassifizierung, Hausconvention v{hc.version}). Voraussetzung "
+            "für die spätere Kaufpreisanpassung: die WC-Definition am "
+            "Completion-Stichtag muss exakt der des Referenz-WC entsprechen."
+        ),
+        "WC-Konten ohne NA-Zeile (Raster-Löcher)": len(wc.ohne_na_zeile),
     }
     excel.schreibe_databook(ausgabe, mapped, nd, review,
-                            ledger.perioden, ledger.entity, meta=meta)
+                            ledger.perioden, ledger.entity, meta=meta, wc=wc)
 
     if verbose:
         _zusammenfassung(ledger, mapped, nd, review, ausgabe, meta)
-    return {"ledger": ledger, "mapped": mapped, "nd": nd,
+    return {"ledger": ledger, "mapped": mapped, "nd": nd, "wc": wc,
             "review": review, "meta": meta}
 
 
