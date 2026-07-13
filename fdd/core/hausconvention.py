@@ -66,6 +66,10 @@ class Typ2Regel:
     keines: list[str]
     review: bool = False
     hinweis: str = ""
+    # v2.3-Marker (nur Status/Anzeige, keine Logik in dieser Scheibe):
+    pflichtfrage: Optional[str] = None      # "aufriss" | "pension"
+    verhaltenspruefung: bool = False
+    gekoppelt_mit: Optional[str] = None
 
 
 class Hausconvention:
@@ -123,6 +127,9 @@ class Hausconvention:
             alle=[normalisiere(x) for x in r.get("wenn_alle", [])],
             keines=[normalisiere(x) for x in r.get("wenn_keines", [])],
             review=r.get("review", False), hinweis=r.get("hinweis", ""),
+            pflichtfrage=r.get("pflichtfrage"),
+            verhaltenspruefung=r.get("verhaltenspruefung", False),
+            gekoppelt_mit=r.get("gekoppelt_mit"),
         )
 
     # ---- Zugriffe ---------------------------------------------------------

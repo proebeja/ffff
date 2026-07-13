@@ -1,6 +1,6 @@
 {
-  "version": "2.2",
-  "stand": "2026-05-27",
+  "version": "2.3",
+  "stand": "2026-07-13",
   "name": "Hausconvention FDD-Mapping",
   "geltungsbereich": "SKR03 und SKR04 (DATEV). Fuer non-DATEV-ERP sinngemaess uebertragbar.",
   "kernprinzip_v2": [
@@ -306,11 +306,10 @@
           "gewst",
           "koe.-st",
           "koerpersch",
+          "koerperschaftst",
           "koerperschaftsteuer",
-          "kst.",
           "kst-",
-          " kst",
-          "kst ",
+          "kst.",
           "solidaritaet"
         ],
         "hgb_pfad": "/Passiva/B Rueckstellungen/Steuerrueckstellungen",
@@ -326,7 +325,7 @@
           "zufuehrung"
         ],
         "gilt_fuer_kontotyp": "bilanz_passiv",
-        "hinweis": "v2.1: GuV-Konten ausgeschlossen (Keyword-Riegel + kontotyp-Gate). | v2.2-fix: Token 'kst' -> ['kst.','kst-',' kst','kst '] gesetzt. Das nackte 'kst' ist Substring von 'rueCKSTellung' und liess die Regel (Prio 100) auf JEDER Rueckstellung feuern (Pensionen/Urlaub/Gewaehrleistung wurden faelschlich Steuerrueckstellung/ND). KSt bleibt ueber 'koerpersch'/'koerperschaftsteuer' und die Boundary-Varianten abgedeckt."
+        "hinweis": "v2.1: GuV-Konten ausgeschlossen (Keyword-Riegel + kontotyp-Gate). | v2.3 BUGFIX: nacktes 'kst' entfernt (war Substring von 'rueckstellung'). KSt via 'koerpersch' abgedeckt."
       },
       {
         "id": "hgb-pensions-rst",
@@ -487,6 +486,72 @@
   "klassifizierungs_regeln_mixed": {
     "_zweck": "Typ-2-Regeln: bestimmen NUR fuer Konten auf den drei gemischten Positionen, ob ND oder OWC. Werden im jeweiligen Aufriss (NA_OA, NA_OL, NA_OP) als 'thereof ND' wirksam. Greift keine Regel -> Review-Queue.",
     "sonstige_rueckstellungen": [
+      {
+        "id": "rst-jubilaeum",
+        "wenn_eines": [
+          "jubilaeum",
+          "jubilaeums"
+        ],
+        "klasse": "ND",
+        "prioritaet": 112,
+        "hinweis": "Langfristige Personalrueckstellung, debt-like -> ND (bestaetigt SAP H096600000)."
+      },
+      {
+        "id": "rst-personalkosten-generisch",
+        "wenn_eines": [
+          "personalkosten"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 95,
+        "hinweis": "Generische Personalkosten-Rst -> OWC (bestaetigt Eckart 0965). Abgrenzung: Jubilaeum/Pension -> ND."
+      },
+      {
+        "id": "rst-ausstehende-rechnungen-abk",
+        "wenn_eines": [
+          "ausst.rg",
+          "ausst. rg",
+          "rst.ausst",
+          "ausstehende rechnung",
+          "ausst. rechnung"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 95,
+        "verhaltenspruefung": true,
+        "hinweis": "SAP-Abkuerzung 'RSt.ausst.Rg. LuL'. Operativ OWC wenn wiederkehrend."
+      },
+      {
+        "id": "rst-honorare-lizenzen",
+        "wenn_eines": [
+          "honorar",
+          "lizenz"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 92,
+        "verhaltenspruefung": true,
+        "hinweis": "Noch nicht abgerechnete operative Leistungen -> OWC wenn wiederkehrend."
+      },
+      {
+        "id": "rst-schwerbehindertenabgabe",
+        "wenn_eines": [
+          "schwerbehinderten",
+          "ausgleichsabgabe"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 92,
+        "hinweis": "Operative Abgabe -> OWC."
+      },
+      {
+        "id": "rst-sammelposition",
+        "wenn_eines": [
+          "sonstige rueckstellung",
+          "rueckstellung sonstige"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 50,
+        "review": true,
+        "pflichtfrage": "aufriss",
+        "hinweis": "Sammelkonto -> Default OWC. PFLICHT: Aufriss je Stichtag anfordern (Art, Fristigkeit, Berechnungsgrundlage); falls Hauptbuch vorhanden, selbst aufdroeseln."
+      },
       {
         "id": "rst-kundenboni",
         "wenn_eines": [
@@ -649,6 +714,97 @@
     ],
     "sonstige_vermoegensgegenstaende": [
       {
+        "id": "sva-steuerueberzahlung",
+        "wenn_eines": [
+          "steuerueberzahlung",
+          "steuerrueckforder",
+          "koerperschaftsteuerrueckforder",
+          "steuererstattung"
+        ],
+        "klasse": "ND",
+        "prioritaet": 112,
+        "hinweis": "Ertragsteuer-Forderung -> ND (bestaetigt Eckart 1540/1549)."
+      },
+      {
+        "id": "sva-deb-kreditoren-abk",
+        "wenn_eines": [
+          "deb.kreditoren",
+          "deb. kreditoren",
+          "debitorische kreditoren",
+          "kred.debitoren"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 90,
+        "hinweis": "SAP-Abkuerzung. Lieferant mit Soll-Saldo = operativ OWC. Einmaligkeit aendert die Klasse NICHT (nur Normalisierung/Frage)."
+      },
+      {
+        "id": "sva-abschlagszahlungen",
+        "wenn_eines": [
+          "abschlagszahlung",
+          "abschlagsz"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 88,
+        "verhaltenspruefung": true,
+        "hinweis": "Operativ OWC. Verhaltenspruefung: wenn nicht wiederkehrend und wesentlich -> Flag/Frage (Normalisierung), Klasse bleibt OWC."
+      },
+      {
+        "id": "sva-sonstige-forderungen-cpd",
+        "wenn_eines": [
+          "sonstige forderungen (cpd)",
+          "sonstige forderungen (op",
+          "cpd"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 86
+      },
+      {
+        "id": "sva-hinterlegte-sicherheiten",
+        "wenn_eines": [
+          "hinterlegte sicherheit",
+          "sicherheitsleistung"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 86,
+        "review": true,
+        "hinweis": "Wie Kaution: Annahme operativ OWC, Frage nach Zweck/Laufzeit."
+      },
+      {
+        "id": "sva-arbeitsagentur",
+        "wenn_eines": [
+          "arbeitsagentur",
+          "agentur fuer arbeit",
+          "arbeitsamt"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 86,
+        "verhaltenspruefung": true,
+        "hinweis": "Operativ OWC. Frage falls lang ausstehend / nicht wiederkehrend."
+      },
+      {
+        "id": "sva-abstimmkonto",
+        "wenn_eines": [
+          "abstimmkto",
+          "abstimmkonto",
+          "anbu abstimm"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 84,
+        "review": true,
+        "hinweis": "Technisches Abstimmkonto, vermutlich operativ. Bei Wesentlichkeit Frage/Hauptbuch."
+      },
+      {
+        "id": "sva-sammelposition",
+        "wenn_eines": [
+          "sonstige vermoegensgegenstaende"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 50,
+        "review": true,
+        "pflichtfrage": "aufriss",
+        "hinweis": "Sammelkonto ohne Inhaltshinweis -> Default OWC. PFLICHT: Aufriss anfordern; falls Hauptbuch vorhanden, selbst aufdroeseln und Bestandteile verteilen."
+      },
+      {
         "id": "sva-rueckdeckung",
         "wenn_eines": [
           "rueckdeckung",
@@ -808,6 +964,102 @@
       }
     ],
     "sonstige_verbindlichkeiten": [
+      {
+        "id": "svb-kred-debitoren-abk",
+        "wenn_eines": [
+          "kred.debitoren",
+          "kred. debitoren",
+          "kreditorische debitoren",
+          "deb.kreditoren"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 92,
+        "hinweis": "SAP-Abkuerzung. Kunde mit Haben-Saldo (Ueberzahlung/Gutschrift) = operative Verbindlichkeit aus L+L -> OWC. ND nur bei dauerhaft stehengelassenem Saldo ggue. nahestehender Partei. Einmaligkeit aendert die Klasse NICHT."
+      },
+      {
+        "id": "svb-altersvorsorge-gekoppelt",
+        "wenn_eines": [
+          "altersvorsorge",
+          "altersversorgung"
+        ],
+        "klasse": "ND",
+        "prioritaet": 100,
+        "review": true,
+        "pflichtfrage": "pension",
+        "gekoppelt_mit": "sva-rueckdeckung",
+        "hinweis": "ND als Default. GEKOPPELTES PENSIONSTHEMA: gemeinsam mit Rueckdeckungsversicherung (Aktivseite) behandeln. Pflichtfrage: (1) Zusageart Beitrags- oder Leistungszusage, (2) warum stehen Verbindlichkeit UND Vermoegen fuer Altersvorsorge gleichzeitig, (3) Deckungsvermoegen/Saldierung Paragraph 246 Abs 2 HGB, (4) Bewertungszins/stille Lasten."
+      },
+      {
+        "id": "svb-kreditkarte",
+        "wenn_eines": [
+          "kreditkarte",
+          "kreditkartenabrechnung"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 90
+      },
+      {
+        "id": "svb-loehne-gehaelter",
+        "wenn_eines": [
+          "loehne",
+          "gehaelter",
+          "lohn und gehalt"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 90,
+        "hinweis": "Kurzfristige Lohnverbindlichkeit -> OWC."
+      },
+      {
+        "id": "svb-sonstige-steuern",
+        "wenn_eines": [
+          "sonstige steuern",
+          "steuern und abgaben"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 90,
+        "hinweis": "Operative Steuern (KfZ, Grund etc.) -> OWC, KEINE Pflichtfrage."
+      },
+      {
+        "id": "svb-einbehaltungen",
+        "wenn_eines": [
+          "einbehaltung",
+          "sonst.einbehalt"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 88
+      },
+      {
+        "id": "svb-avmg-brsg",
+        "wenn_eines": [
+          "altersvermoegensgesetz",
+          "brsg",
+          "arbeitgeberzuschuss"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 95,
+        "hinweis": "Laufende lohnbezogene Verbindlichkeit der Periode (Entgeltumwandlung/Zuschuss), NICHT die Pensionsverpflichtung selbst -> OWC. Diese steckt in der Pensionsrueckstellung."
+      },
+      {
+        "id": "svb-sonst-verb-operativ",
+        "wenn_eines": [
+          "sonst.verb",
+          "sonstige verb. bag",
+          "haussortiment"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 86
+      },
+      {
+        "id": "svb-sammelposition",
+        "wenn_eines": [
+          "sonstige verbindlichkeiten"
+        ],
+        "klasse": "OWC",
+        "prioritaet": 50,
+        "review": true,
+        "pflichtfrage": "aufriss",
+        "hinweis": "Sammelkonto -> Default OWC. PFLICHT: Aufriss anfordern; falls Hauptbuch vorhanden, selbst aufdroeseln und in OL verteilen."
+      },
       {
         "id": "svb-altersvorsorge",
         "wenn_eines": [
@@ -1308,5 +1560,128 @@
       "_regel": "Konto >= 9000 (Eroeffnungsbilanzkonto, Saldenvortraege, statistische Konten) -> Klasse TECH, nicht im Databook.",
       "ab": 9000
     }
+  },
+  "_aenderungen_v2_3": [
+    "KRITISCHER BUGFIX (von Claude Code gefunden): Keyword 'kst' war Substring von 'rueckstellung' -> Steuer-Regel feuerte auf JEDE Rueckstellung (Pensions-, Urlaubs-, Gewaehrleistungsrst. wurden faelschlich ND/Steuer). Ersetzt durch grenzsichere Varianten.",
+    "29 vom Nutzer bestaetigte Einordnungen aus Eckart- und SAP-Review-Queue als feste Regeln aufgenommen.",
+    "NEU: Block 'verhaltenspruefung' — Wiederkehr/Stabilitaet ueber Perioden. Entscheidet NICHT ueber WC vs ND (das ist die Charakterfrage), sondern ueber Normalisierung und Rueckfrage. Nur oberhalb der Wesentlichkeitsschwelle aktiv.",
+    "NEU: Block 'ki_urteilsschicht' — Schnittstelle, Kriterien, Ausgabeformat, Einfrieren.",
+    "NEU: Block 'setup_dialog' — Fragen beim Engagement-Start (Datenlage, Kontenrahmen, Wesentlichkeit, Deal-Kontext) und was daraus fuer die Kaskade folgt.",
+    "Klarstellung: Einmaligkeit fuehrt NIE zu Umklassifizierung WC->ND. Klasse = Charakterfrage (operativ vs. finanzierungsartig). Einmaligkeit = Hoehenfrage (Normalisierung der WC-Referenz)."
+  ],
+  "verhaltenspruefung": {
+    "_zweck": "Prueft das Verhalten eines Kontos ueber die Perioden (Wiederkehr, Stabilitaet, Ausreisser).",
+    "_WICHTIG_was_sie_NICHT_tut": "Sie entscheidet NIEMALS ueber WC vs ND. Die Klasse folgt allein der Charakterfrage (operativ vs. finanzierungsartig) und ist positionsfest. Einmaligkeit fuehrt NIE zu einer Umklassifizierung nach ND.",
+    "_was_sie_tut": [
+      "Normalisierung: markiert Ausreisser, die bei der Bildung der WC-Referenz (Target Working Capital) geglaettet werden sollten, damit die Referenz ein normales Niveau abbildet.",
+      "Rueckfrage: erzeugt eine Frage nach dem Hintergrund, wenn ein wesentliches Konto untypisch auftritt."
+    ],
+    "gate": "Laeuft NUR fuer Konten oberhalb der Wesentlichkeitsschwelle. Unwesentliche Konten erhalten einen vertretbaren Default plus Bearbeiter-Hinweis, keine Frage.",
+    "kriterien": {
+      "wiederkehrend": "Konto in allen (oder nahezu allen) Perioden mit Saldo vorhanden.",
+      "stabil": "Schwankung um den Mittelwert innerhalb der konfigurierten Bandbreite.",
+      "bandbreite_prozent_default": 50,
+      "auffaellig": "Nur in einzelnen Perioden vorhanden, oder Schwankung ausserhalb der Bandbreite, oder ungewoehnlich hoher Saldo im Verhaeltnis zur Position."
+    },
+    "ergebnis": {
+      "wiederkehrend_und_stabil": "Klasse gilt als bestaetigt, kein Flag.",
+      "auffaellig_und_wesentlich": "Klasse bleibt unveraendert. Setzt Normalisierungs-Flag + erzeugt Rueckfrage nach dem Hintergrund.",
+      "auffaellig_und_unwesentlich": "Klasse bleibt. Bearbeiter-Hinweis, keine Frage."
+    },
+    "konfigurierbar_pro_engagement": true
+  },
+  "ki_urteilsschicht": {
+    "_zweck": "Flexibler Anteil. Regeln sind zu starr fuer den Rest. Die KI gibt einen begruendeten Vorschlag, wo die deterministischen Schichten nicht aufloesen.",
+    "wann": "Tritt EIN Schritt vor der Frage ein: erst wenn Kontennachweis/FS-Struktur, Hausconvention, Lernbibliothek, SKR-Default und Hauptbuch nichts aufloesen. Gebundener Fallback, kein Ersatz der Regeln.",
+    "gate": "Nur fuer wesentliche ungeloeste Konten (Wesentlichkeitsschwelle als Tuersteher).",
+    "kontext_der_uebergeben_wird": [
+      "Kontonummer und Bezeichnung",
+      "HGB-Position aus dem Abschluss (Kontennachweis/FS-Struktur)",
+      "Nachbarkonten derselben Position",
+      "Salden ueber ALLE Perioden (fuer die Wiederkehr-Beurteilung)",
+      "Saldo relativ zur Position und zur Wesentlichkeitsschwelle",
+      "Buchungstexte und Gegenkonten aus dem Hauptbuch, sofern vorhanden",
+      "Geschaeftsmodell/Branche des Targets (aus dem Setup-Dialog)"
+    ],
+    "beurteilungskriterien": [
+      "Ist es operationell (operativ) oder finanzierungsartig?",
+      "Ist es wiederkehrend ueber die Perioden?",
+      "Ist der Betrag ungewoehnlich hoch im Verhaeltnis zur Position?",
+      "Was sagen die Buchungstexte und Gegenkonten?"
+    ],
+    "ausgabeformat": {
+      "klasse": "NUR aus der kanonischen Liste (ND/OWC/TWC/FA/EQ/DT) — kein Freitext",
+      "hgb_pfad": "NUR aus der kanonischen Pfad-Liste — keine erfundenen Positionen",
+      "begruendung": "Pflichtfeld, in Bezug auf die vier Kriterien",
+      "konfidenz": "niedrig/mittel/hoch",
+      "vorgeschlagene_frage": "Formulierung fuer den Datenraum, falls Restunsicherheit bleibt"
+    },
+    "regeln": [
+      "Immer geflaggter VORSCHLAG, nie stille Endentscheidung. Der Mensch bestaetigt oder ueberschreibt.",
+      "Wesentliche Posten bleiben immer menschlich gegenzupruefen, unabhaengig von der Konfidenz.",
+      "EINFRIEREN: einmal bestaetigte KI-Entscheidungen werden im Entscheidungsprotokoll des Mandats festgeschrieben und versioniert. Jeder erneute Lauf liest die eingefrorene Entscheidung, statt neu zu fragen -> Databook bleibt exakt reproduzierbar.",
+      "RUECKSPIELEN: bestaetigte Vorschlaege gehen in die Lernbibliothek und werden beim naechsten Mandanten ein deterministischer Treffer. Die KI macht sich fuer wiederkehrende Muster selbst ueberfluessig."
+    ]
+  },
+  "setup_dialog": {
+    "_zweck": "Die Software fragt beim Engagement-Start die Datenlage und Parameter ab, statt sie zu raten. Jede Antwort steuert, welche Schichten der Kaskade zur Verfuegung stehen.",
+    "fragen": [
+      {
+        "id": "hauptbuch",
+        "frage": "Liegen GDPdU-/Hauptbuch-Daten (Einzelbuchungen) vor?",
+        "typ": "ja_nein_upload",
+        "folge_ja": "Buchungsanalyse als Eskalationsstufe 3 wird scharf geschaltet. Unklare Konten werden zuerst aus Buchungstexten/Gegenkonten erklaert -> ersetzt Rueckfragen. Sammelkonten (sonstige Rst/VG/Verb) werden selbst aufgedroeselt statt nur Default+Frage.",
+        "folge_nein": "Stufe 3 entfaellt. Unklare Konten gehen direkt in KI-Urteil bzw. Frage. Sammelkonten erhalten Pflichtfrage 'Aufriss anfordern'."
+      },
+      {
+        "id": "jahresabschluss",
+        "frage": "Liegen Jahresabschluesse mit Kontennachweis vor?",
+        "typ": "ja_nein_upload",
+        "folge_ja": "Kontennachweis ist die MASSGEBLICHE Strukturquelle (Abschlusstreue). HGB-Pfade kommen aus dem Abschluss, Databook ist auf den JA ueberleitbar. Erwartete Abdeckung nahezu vollstaendig.",
+        "folge_nein": "WARNUNG an den Bearbeiter: 'Ohne Kontennachweis arbeite ich mit SKR-Defaults. Rechne mit deutlich mehr Review-Faellen und eingeschraenkter Ueberleitbarkeit auf den Abschluss. Empfehlung: Kontennachweis beim Mandanten anfordern.'"
+      },
+      {
+        "id": "kontenrahmen",
+        "frage": "Welcher Kontenrahmen?",
+        "typ": "auswahl",
+        "optionen": [
+          "SKR03",
+          "SKR04",
+          "eigener ERP-Kontenplan (z.B. SAP)",
+          "unbekannt"
+        ],
+        "folge": "Steuert die Default-Bereichstabelle. Bei eigenem ERP-Plan: SKR-Defaults greifen NICHT, die FS-Struktur des Exports ist zwingend erforderlich."
+      },
+      {
+        "id": "wesentlichkeit",
+        "frage": "Wesentlichkeitsschwelle?",
+        "typ": "parameter",
+        "default": "positionsabhaengig: 2% (GuV gg. Umsatz, Bilanz gg. Bilanzsumme), Net Debt/Equity-Bridge verschaerft auf 1%",
+        "folge": "Tuersteher fuer Fragen, Verhaltenspruefung und KI-Aufrufe. Software zeigt die resultierenden EUR-Betraege vor dem Lauf zur Bestaetigung an."
+      },
+      {
+        "id": "verfahren",
+        "frage": "Kaufpreismechanismus?",
+        "typ": "auswahl",
+        "optionen": [
+          "Locked Box",
+          "Completion Accounts",
+          "noch offen"
+        ],
+        "folge": "Bei Completion Accounts: die WC-Definition am Stichtag MUSS identisch zur Definition der Referenz-WC-Berechnung sein. Die Software garantiert das durch die einheitliche Klassifizierung — sie weist auf diese Konsistenz explizit hin."
+      },
+      {
+        "id": "geschaeftsmodell",
+        "frage": "Branche und Geschaeftsmodell des Targets?",
+        "typ": "freitext",
+        "folge": "Kontext fuer die KI-Urteilsschicht. Beispiel: 'Abgrenzung Honorare ohne Heftzuordnung -> unfertige Leistungen' ist nur mit dem Wissen 'Verlag' beurteilbar."
+      },
+      {
+        "id": "perioden",
+        "frage": "Welche Perioden und Stichtage?",
+        "typ": "parameter",
+        "folge": "Basis fuer die Verhaltenspruefung (Wiederkehr ueber Perioden) und die WC-Referenzbildung."
+      }
+    ]
   }
 }

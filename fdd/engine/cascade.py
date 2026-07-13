@@ -170,6 +170,9 @@ class Engine:
             account=account, hgb_pfad=hgb_pfad, hgb_pfad_en=pfad_en,
             klasse=klasse, na_de=reg.na_de, na_en=reg.na_en,
             quelle=quelle, regel_id=r2.id, review=review, aus_mixed=True,
+            # v2.3-Marker durchreichen — nur Status/Anzeige, keine Logik:
+            pflichtfrage=r2.pflichtfrage, verhaltenspruefung=r2.verhaltenspruefung,
+            gekoppelt_mit=r2.gekoppelt_mit,
             begruendung=begruendung + f" Gemischt -> {klasse.value} via Typ-2 '{r2.id}'."
                         + (f" {r2.hinweis}" if r2.hinweis else ""),
         )

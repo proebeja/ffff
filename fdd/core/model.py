@@ -100,6 +100,10 @@ class MappedAccount:
     # True, wenn die Klasse über den Typ-2-Split einer der drei gemischten
     # Positionen entstand (thereof-ND-Logik der Net-Debt-View).
     aus_mixed: bool = False
+    # Marker aus der Regel (v2.3) — nur Status/Anzeige, KEINE Logik dahinter:
+    pflichtfrage: Optional[str] = None      # "aufriss" | "pension"
+    verhaltenspruefung: bool = False        # Wiederkehr-/Stabilitätsprüfung offen
+    gekoppelt_mit: Optional[str] = None     # Regel-ID einer gekoppelten Position
     # Audit-Spur bei manuellem Override der abgeleiteten Klasse:
     override_von: Optional[Klasse] = None
     override_begruendung: str = ""

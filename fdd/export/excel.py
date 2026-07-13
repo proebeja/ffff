@@ -226,7 +226,8 @@ def _schreibe_net_debt(wb, nd: NetDebtView, layout: MastersheetLayout,
 # ---- Review-Queue ---------------------------------------------------------
 def _schreibe_review(wb, review: list[ReviewEintrag], perioden) -> None:
     ws = wb.create_sheet("Review-Queue")
-    kopf = ["Konto", "Bezeichnung", "HGB-Pfad", "Klasse", "Quelle/Regel", "Grund"]
+    kopf = ["Konto", "Bezeichnung", "HGB-Pfad", "Klasse", "Status",
+            "Quelle/Regel", "Grund"]
     p_start = len(kopf) + 1
     kopf += list(perioden)
     _schreibe_kopf(ws, kopf, zeile=1)
@@ -236,8 +237,13 @@ def _schreibe_review(wb, review: list[ReviewEintrag], perioden) -> None:
         ws.cell(r, 2, e.bezeichnung).font = _normal
         ws.cell(r, 3, e.hgb_pfad).font = _normal
         ws.cell(r, 4, e.klasse).font = _bold
-        ws.cell(r, 5, (e.quelle + (f" [{e.regel_id}]" if e.regel_id else ""))).font = _normal
-        ws.cell(r, 6, e.grund).font = _normal
+        st = ws.cell(r, 5, e.status); st.font = _bold
+        if e.status.startswith("Pflichtfrage"):
+            st.fill = PatternFill("solid", fgColor="F9CB9C")
+        elif "Verhaltensprüfung" in e.status:
+            st.fill = PatternFill("solid", fgColor="FFF2CC")
+        ws.cell(r, 6, (e.quelle + (f" [{e.regel_id}]" if e.regel_id else ""))).font = _normal
+        ws.cell(r, 7, e.grund).font = _normal
         for i, p in enumerate(perioden):
             cell = ws.cell(r, p_start + i, round(e.salden.get(p, 0.0), 2))
             cell.number_format = ZAHLENFORMAT
@@ -245,7 +251,7 @@ def _schreibe_review(wb, review: list[ReviewEintrag], perioden) -> None:
         r += 1
     if not review:
         ws.cell(2, 1, "(keine offenen Fälle)").font = Font(name=FONT_NAME, italic=True)
-    _breiten(ws, {1: 10, 2: 40, 3: 46, 4: 8, 5: 26, 6: 60})
+    _breiten(ws, {1: 10, 2: 40, 3: 44, 4: 8, 5: 26, 6: 24, 7: 52})
     ws.freeze_panes = "A2"
 
 

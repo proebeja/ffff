@@ -57,11 +57,14 @@ def test_matcher_compound_gewerbesteuerrueckstellung(hc):
 # ---- Override (begründungspflichtig, protokolliert) -----------------------
 def test_override_verlangt_begruendung(hc):
     eng = Engine(hc, protokoll=Entscheidungsprotokoll())
+    # v2.3: 'Rückstellungen Personalkosten' -> OWC (rst-personalkosten-generisch,
+    # nutzerbestätigt). Der Override demonstriert die begründungspflichtige
+    # manuelle Korrektur einer abgeleiteten Klasse.
     m = eng.map_account(_konto("0965", "Rückstellungen Personalkosten"), False)
-    assert m.klasse == Klasse.ND      # Default aus rst-personal-generic
-    with pytest.raises(ValueError):
-        eng.protokoll.override_klasse(m, Klasse.OWC, "")
-    eng.protokoll.override_klasse(m, Klasse.OWC, "Aufriss zeigt reinen Urlaubsanteil")
     assert m.klasse == Klasse.OWC
-    assert m.override_von == Klasse.ND
+    with pytest.raises(ValueError):
+        eng.protokoll.override_klasse(m, Klasse.ND, "")
+    eng.protokoll.override_klasse(m, Klasse.ND, "Aufriss zeigt Boni-Anteil (debt-like)")
+    assert m.klasse == Klasse.ND
+    assert m.override_von == Klasse.OWC
     assert any(e.aktion == "override" for e in eng.protokoll.eintraege)
