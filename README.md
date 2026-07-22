@@ -36,7 +36,9 @@ fdd/
               reclassify.py      Longest-Prefix Pfad → Klasse/NA-Zeile
               ai_hook.py         KI-Urteilsschicht (Interface, in v1 inaktiv)
               decision_log.py    Entscheidungsprotokoll + begründungspflichtiger Override
-  views/      net_debt.py        Net-Debt-View (Klasse=ND, nach NA-Zeile gruppiert)
+  views/      schedules.py       Aufriss-Schicht: je NA-Zeile ein Aufriss; die drei
+                                 gemischten (NA_OA/OL/OP) mit operating + thereof-ND
+              net_debt.py        Net-Debt-View (Klasse=ND, nach NA-Zeile gruppiert)
               working_capital.py Working-Capital-View (OA/OL × TWC/OWC, Ist je Periode)
               review_queue.py    ungelöste/geflaggte Konten (mit v2.3-Marker-Status)
   export/     excel.py           Hausformat, sichtbare SUMIFS-Formeln, Kontrollzeile
@@ -51,10 +53,15 @@ fdd/
   (Typ-1) → Lernbibliothek → SKR-Default → Review-Queue.
 - **Drei gemischte Positionen** (sonstige VG / Verbindlichkeiten / Rückstellungen)
   bestimmen ND/OWC inhaltsabhängig über Typ-2-Keyword-Regeln; sonst Review.
-- **Single Source of Truth:** das Mastersheet ist das eine Zuhause jeder Zahl; der
-  Net-Debt- und der Working-Capital-Tab summieren per sichtbarer `SUMIFS`-Formel
-  darauf (gefiltert nach Klasse + NA-Zeile) und rechnen nichts neu. Beide tragen
-  eine Kontrollzeile, die gegen die Mastersheet-Gesamtsumme auf 0 aufgeht.
+- **Single Source of Truth über die Aufriss-Schicht:** Mastersheet → Aufrisse →
+  Leads. Jede Kontozahl wohnt im Mastersheet; jeder Aufriss (eine NA-Zeile)
+  referenziert die Einzelkonten per sichtbarer Formel und summiert; jede
+  Lead-Zeile zieht aus **genau einem** Aufriss — kein Lead greift mehr direkt
+  aufs Mastersheet. Die drei gemischten Aufrisse (NA_OA/OL/OP) führen zwei
+  Spalten, `operating` (→ WC-Lead) und `thereof ND` (→ ND-Lead), gesteuert allein
+  durch die Klasse-Zelle des Mastersheets — die Aufteilung ist an genau einer
+  Stelle definiert und kann nicht auseinanderlaufen. Die Kontrollzeile jedes
+  Leads prüft die Aufriss-Kette unabhängig gegen die Mastersheet-Summe (→ 0).
 - **WC-Definition periodenkonsistent:** der Working-Capital-Tab zeigt das Ist-WC
   je Periode (OA/OL × TWC/OWC); jede Periode läuft durch dieselbe Klassifizierung.
   Die normalisierte Referenz / das Target WC kommt später (braucht die

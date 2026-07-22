@@ -18,6 +18,7 @@ from .engine.decision_log import Entscheidungsprotokoll
 from .readers.detect import waehle_reader
 from .views.net_debt import baue_net_debt
 from .views.review_queue import baue_review_queue
+from .views.schedules import baue_schedules
 from .views.working_capital import baue_working_capital
 from .export import excel
 
@@ -34,6 +35,7 @@ def run(eingabe: str, ausgabe: str, hc_pfad: str | None = None,
 
     nd = baue_net_debt(mapped, ledger.perioden, ledger.entity)
     wc = baue_working_capital(mapped, ledger.perioden, ledger.entity)
+    schedules = baue_schedules(mapped, ledger.perioden)
     review = baue_review_queue(mapped, ledger.perioden)
 
     meta = {
@@ -56,14 +58,17 @@ def run(eingabe: str, ausgabe: str, hc_pfad: str | None = None,
             "Completion-Stichtag muss exakt der des Referenz-WC entsprechen."
         ),
         "WC-Konten ohne NA-Zeile (Raster-Löcher)": len(wc.ohne_na_zeile),
+        "Aufrisse (Schedules)": len(schedules.aufrisse),
+        "Konten ohne Aufriss": len(schedules.ohne_aufriss),
     }
     excel.schreibe_databook(ausgabe, mapped, nd, review,
-                            ledger.perioden, ledger.entity, meta=meta, wc=wc)
+                            ledger.perioden, ledger.entity, meta=meta, wc=wc,
+                            schedules=schedules)
 
     if verbose:
         _zusammenfassung(ledger, mapped, nd, review, ausgabe, meta)
     return {"ledger": ledger, "mapped": mapped, "nd": nd, "wc": wc,
-            "review": review, "meta": meta}
+            "schedules": schedules, "review": review, "meta": meta}
 
 
 def _zusammenfassung(ledger, mapped, nd, review, ausgabe, meta) -> None:

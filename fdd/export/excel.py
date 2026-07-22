@@ -22,6 +22,7 @@ from openpyxl.utils import get_column_letter
 from ..core.model import Klasse, MappedAccount
 from ..views.net_debt import NetDebtView
 from ..views.review_queue import ReviewEintrag
+from ..views.schedules import Aufriss, Schedules
 from ..views.working_capital import WCView
 
 # ---- Hausformat-Konstanten ------------------------------------------------
@@ -44,8 +45,8 @@ _top_double = Border(top=Side(style="double", color=TEAL))
 
 @dataclass
 class MastersheetLayout:
-    """Merkt sich, wo im Mastersheet welche Spalte/Zeilen liegen, damit die
-    Net-Debt-Formeln korrekt referenzieren."""
+    """Merkt sich, wo im Mastersheet welche Spalte/Zeilen liegen, damit
+    Aufrisse und Kontrollzeilen korrekt referenzieren."""
 
     sheetname: str
     erste_datenzeile: int
@@ -53,10 +54,36 @@ class MastersheetLayout:
     spalte_klasse: int
     spalte_na: int
     perioden_spalten: dict[str, int]
+    # Schlüssel ist die Objekt-Identität des MappedAccount, NICHT die Kontonummer:
+    # reale Charts (z.B. Namur) tragen dieselbe Kontonummer mehrfach als
+    # verschiedene Unterkonten — ein konto->Zeile-Map würde die verwechseln.
+    zeile_je_account: dict[int, int]
 
     def bereich(self, spalte: int) -> str:
         c = get_column_letter(spalte)
         return f"'{self.sheetname}'!${c}${self.erste_datenzeile}:${c}${self.letzte_datenzeile}"
+
+    def wert_zelle(self, m: MappedAccount, periode: str) -> str:
+        """Zellbezug auf den Saldo genau dieses Kontos je Periode."""
+        c = get_column_letter(self.perioden_spalten[periode])
+        return f"'{self.sheetname}'!${c}${self.zeile_je_account[id(m)]}"
+
+    def klasse_zelle(self, m: MappedAccount) -> str:
+        c = get_column_letter(self.spalte_klasse)
+        return f"'{self.sheetname}'!${c}${self.zeile_je_account[id(m)]}"
+
+
+def _ref_formel(aufriss: "Optional[AufrissRef]", periode: str, nd_teil: bool) -> str:
+    """Formel einer Lead-Zeile: Verweis auf die passende Aufriss-Summenzelle.
+    nd_teil=True -> Net-Debt-Lead (gemischt: thereof ND, sonst Summe);
+    nd_teil=False -> Working-Capital-Lead (gemischt: operating, sonst Summe)."""
+    if aufriss is None:
+        return "0"
+    if aufriss.is_mixed:
+        zelle = aufriss.thereof_nd[periode] if nd_teil else aufriss.operating[periode]
+    else:
+        zelle = aufriss.total[periode]
+    return "=" + zelle
 
 
 def _krit(text: str) -> str:
@@ -69,20 +96,144 @@ def _krit(text: str) -> str:
     return text
 
 
+@dataclass
+class AufrissRef:
+    """Zellbezüge auf die Summenzeile eines Aufrisses (Quelle der Lead-Zeilen)."""
+
+    sheetname: str
+    is_mixed: bool
+    total: dict[str, str]        # nicht-gemischt: Periode -> Summenzelle
+    operating: dict[str, str]    # gemischt: Periode -> operating-Summenzelle
+    thereof_nd: dict[str, str]   # gemischt: Periode -> thereof-ND-Summenzelle
+
+
 def schreibe_databook(pfad: str, mapped: list[MappedAccount], nd: NetDebtView,
                       review: list[ReviewEintrag], perioden: list[str],
                       entity: str, meta: Optional[dict] = None,
-                      wc: "Optional[WCView]" = None) -> None:
+                      wc: "Optional[WCView]" = None,
+                      schedules: "Optional[Schedules]" = None) -> None:
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
     layout = _schreibe_mastersheet(wb, mapped, perioden, entity)
-    _schreibe_net_debt(wb, nd, layout, perioden, entity)
+    refs = _schreibe_schedules(wb, schedules, layout, perioden, entity) if schedules else {}
+    _schreibe_net_debt(wb, nd, layout, perioden, entity, refs)
     if wc is not None:
-        _schreibe_working_capital(wb, wc, layout, perioden, entity)
+        _schreibe_working_capital(wb, wc, layout, perioden, entity, refs)
     _schreibe_review(wb, review, perioden)
     if meta:
         _schreibe_info(wb, meta)
     wb.save(pfad)
+
+
+# ---- Aufriss-Schicht (Schedules) -----------------------------------------
+def _schreibe_schedules(wb, schedules: Schedules, layout: MastersheetLayout,
+                        perioden, entity) -> dict[str, AufrissRef]:
+    """Schreibt je Net-Asset-Zeile einen Aufriss-Tab. Jede Kontozeile
+    referenziert den Mastersheet-Einzelwert (SSOT); die Summenzeile summiert.
+    Gemischte Aufrisse (NA_OA/OL/OP) führen zwei Spalten je Periode: operating
+    (Klasse OWC) und thereof ND (Klasse ND), gesteuert durch die Klasse-Zelle
+    des Mastersheets. Leere Aufrisse werden ausgeblendet. Gibt je NA-Zeile die
+    Summenzell-Bezüge zurück, aus denen die Leads ziehen."""
+    refs: dict[str, AufrissRef] = {}
+    for a in schedules.aufrisse:
+        refs[a.na_de] = (_schreibe_mixed_aufriss(wb, a, layout, perioden)
+                         if a.is_mixed
+                         else _schreibe_einfacher_aufriss(wb, a, layout, perioden))
+    return refs
+
+
+def _aufriss_kopf(ws, a: Aufriss) -> None:
+    ws.cell(1, 2, f"Aufriss {a.sheetname}: {a.na_de} / {a.na_en}").font = Font(
+        name=FONT_NAME, bold=True, size=12, color=TEAL)
+    speist = {"ND": "Net-Debt-Lead", "WC": "Working-Capital-Lead",
+              "beide": "WC-Lead (operating) + ND-Lead (thereof ND)"}[a.speist]
+    ws.cell(2, 2, f"in EUR · Einzelkonten je Periode aus dem Mastersheet · speist {speist}").font = Font(
+        name=FONT_NAME, italic=True, size=9)
+
+
+def _schreibe_einfacher_aufriss(wb, a: Aufriss, layout, perioden) -> AufrissRef:
+    ws = wb.create_sheet(a.sheetname)
+    ws.sheet_view.showGridLines = False
+    _aufriss_kopf(ws, a)
+    hz = 4
+    kopf = ["", "Konto", "Bezeichnung", "Klasse"] + list(perioden)
+    for c, t in enumerate(kopf[1:], start=2):
+        cell = ws.cell(hz, c, t); cell.font = _kopf_font; cell.fill = _kopf_fill
+    p0 = 5
+    r = hz + 1
+    erste = r
+    for m in a.konten:
+        ws.cell(r, 2, m.konto).font = _normal
+        ws.cell(r, 3, m.bezeichnung).font = _normal
+        kc = ws.cell(r, 4, m.klasse.value); kc.font = _bold; kc.fill = _klasse_fill(m.klasse)
+        for i, p in enumerate(perioden):
+            cell = ws.cell(r, p0 + i, "=" + layout.wert_zelle(m, p))
+            cell.number_format = ZAHLENFORMAT; cell.font = _normal
+        r += 1
+    letzte = r - 1
+    total = {}
+    tc = ws.cell(r, 3, "Summe (Quelle Lead)"); tc.font = _bold
+    for i, p in enumerate(perioden):
+        col = get_column_letter(p0 + i)
+        cell = ws.cell(r, p0 + i, f"=SUM({col}{erste}:{col}{letzte})")
+        cell.number_format = ZAHLENFORMAT; cell.font = _bold; cell.fill = _sub_fill
+        cell.border = _top_double
+        total[p] = f"'{a.sheetname}'!${col}${r}"
+    _breiten(ws, {2: 12, 3: 40, 4: 8})
+    for i in range(len(perioden)):
+        ws.column_dimensions[get_column_letter(p0 + i)].width = 14
+    if a.ist_leer:
+        ws.sheet_state = "hidden"
+    return AufrissRef(a.sheetname, False, total, {}, {})
+
+
+def _schreibe_mixed_aufriss(wb, a: Aufriss, layout, perioden) -> AufrissRef:
+    ws = wb.create_sheet(a.sheetname)
+    ws.sheet_view.showGridLines = False
+    _aufriss_kopf(ws, a)
+    hz = 4
+    ws.cell(hz, 2, "Konto").font = _kopf_font; ws.cell(hz, 2).fill = _kopf_fill
+    ws.cell(hz, 3, "Bezeichnung").font = _kopf_font; ws.cell(hz, 3).fill = _kopf_fill
+    ws.cell(hz, 4, "Klasse").font = _kopf_font; ws.cell(hz, 4).fill = _kopf_fill
+    # je Periode zwei Spalten: operating | thereof ND
+    p0 = 5
+    op_col, nd_col = {}, {}
+    for i, p in enumerate(perioden):
+        oc, nc = p0 + 2 * i, p0 + 2 * i + 1
+        op_col[p], nd_col[p] = oc, nc
+        for col, lab in ((oc, f"{p} operating"), (nc, f"{p} thereof ND")):
+            cell = ws.cell(hz, col, lab); cell.font = _kopf_font; cell.fill = _kopf_fill
+    r = hz + 1
+    erste = r
+    for m in a.konten:
+        ws.cell(r, 2, m.konto).font = _normal
+        ws.cell(r, 3, m.bezeichnung).font = _normal
+        kc = ws.cell(r, 4, m.klasse.value); kc.font = _bold; kc.fill = _klasse_fill(m.klasse)
+        kz = layout.klasse_zelle(m)
+        for p in perioden:
+            wert = layout.wert_zelle(m, p)
+            # Split ausschließlich über die Klasse-Zelle des Mastersheets:
+            op = ws.cell(r, op_col[p], f'=IF({kz}="OWC",{wert},IF({kz}="TWC",{wert},0))')
+            nd = ws.cell(r, nd_col[p], f'=IF({kz}="ND",{wert},0)')
+            for cell in (op, nd):
+                cell.number_format = ZAHLENFORMAT; cell.font = _normal
+        r += 1
+    letzte = r - 1
+    tc = ws.cell(r, 3, "Summe (operating -> WC-Lead / thereof ND -> ND-Lead)"); tc.font = _bold
+    operating, thereof_nd = {}, {}
+    for p in perioden:
+        for col, ziel in ((op_col[p], operating), (nd_col[p], thereof_nd)):
+            L = get_column_letter(col)
+            cell = ws.cell(r, col, f"=SUM({L}{erste}:{L}{letzte})")
+            cell.number_format = ZAHLENFORMAT; cell.font = _bold; cell.fill = _sub_fill
+            cell.border = _top_double
+            ziel[p] = f"'{a.sheetname}'!${L}${r}"
+    _breiten(ws, {2: 12, 3: 40, 4: 8})
+    for i in range(len(perioden) * 2):
+        ws.column_dimensions[get_column_letter(p0 + i)].width = 14
+    if a.ist_leer:
+        ws.sheet_state = "hidden"
+    return AufrissRef(a.sheetname, True, {}, operating, thereof_nd)
 
 
 # ---- Mastersheet (Single Source of Truth) --------------------------------
@@ -96,7 +247,9 @@ def _schreibe_mastersheet(wb, mapped, perioden, entity) -> MastersheetLayout:
     _schreibe_kopf(ws, kopf, zeile=1)
 
     r = 2
+    zeile_je_account: dict[int, int] = {}
     for m in sorted(mapped, key=lambda x: x.konto):
+        zeile_je_account[id(m)] = r
         ws.cell(r, 1, m.konto).font = _normal
         ws.cell(r, 2, m.bezeichnung).font = _normal
         ws.cell(r, 3, m.account.entity).font = _normal
@@ -122,19 +275,21 @@ def _schreibe_mastersheet(wb, mapped, perioden, entity) -> MastersheetLayout:
     return MastersheetLayout(
         sheetname="Mastersheet", erste_datenzeile=2, letzte_datenzeile=max(letzte, 2),
         spalte_klasse=6, spalte_na=7, perioden_spalten=perioden_spalten,
+        zeile_je_account=zeile_je_account,
     )
 
 
-# ---- Net-Debt-Tab (sichtbare SUMIFS-Formeln, Kontrollzeile) --------------
+# ---- Net-Debt-Tab (zieht aus Aufrissen, Kontrollzeile prüft Mastersheet) --
 def _schreibe_net_debt(wb, nd: NetDebtView, layout: MastersheetLayout,
-                       perioden, entity) -> None:
+                       perioden, entity, refs: dict[str, AufrissRef]) -> None:
     ws = wb.create_sheet("Net Debt")
     ws.sheet_view.showGridLines = False
     p0 = 4  # erste Perioden-Spalte (nach Ref./NA-DE/NA-EN)
 
     # Titelblock
     t = ws.cell(1, 2, f"Net Debt — {entity}"); t.font = Font(name=FONT_NAME, bold=True, size=13, color=TEAL)
-    ws.cell(2, 2, "in EUR").font = Font(name=FONT_NAME, italic=True, size=9)
+    ws.cell(2, 2, "in EUR · jede Zeile zieht aus genau einem Aufriss").font = Font(
+        name=FONT_NAME, italic=True, size=9)
 
     kopf_zeile = 4
     ws.cell(kopf_zeile, 2, "Ref."); ws.cell(kopf_zeile, 3, "Net-Asset-Position")
@@ -167,17 +322,16 @@ def _schreibe_net_debt(wb, nd: NetDebtView, layout: MastersheetLayout,
         r += 1
         for z in zeilen:
             ws.cell(r, 2, ref).font = _normal
-            ws.cell(r, 3, f"{z.na_de} / {z.na_en}").font = _normal
+            aufriss = refs.get(z.na_de)
+            quelle = f"  [{aufriss.sheetname}]" if aufriss else ""
+            ws.cell(r, 3, f"{z.na_de} / {z.na_en}{quelle}").font = _normal
             for i, p in enumerate(perioden):
                 col = p0 + i
-                # Sichtbare SUMIFS-Formel auf das Mastersheet (Single Source of Truth).
-                # Summiert alle ND-Konten der Klasse-Spalte mit passender NA-Zeile.
+                # Jede Zeile zieht aus GENAU EINEM Aufriss: gemischte Position ->
+                # thereof-ND-Summe, sonst -> Aufriss-Summe. Kein direkter
+                # Mastersheet-Zugriff mehr (nur die Kontrollzeile prüft dagegen).
                 cell = ws.cell(r, col)
-                cell.value = (
-                    f"=SUMIFS({layout.bereich(layout.perioden_spalten[p])},"
-                    f"{layout.bereich(layout.spalte_klasse)},\"ND\","
-                    f"{layout.bereich(layout.spalte_na)},\"{_krit(z.na_de)}\")"
-                )
+                cell.value = _ref_formel(aufriss, p, nd_teil=True)
                 cell.number_format = ZAHLENFORMAT
                 cell.font = _normal
             daten_zeilen.append(r)
@@ -227,17 +381,17 @@ def _schreibe_net_debt(wb, nd: NetDebtView, layout: MastersheetLayout,
     ws.freeze_panes = ws.cell(kopf_zeile + 1, p0)
 
 
-# ---- Working-Capital-Tab (sichtbare SUMIFS-Formeln, Kontrollzeile) --------
+# ---- Working-Capital-Tab (zieht aus Aufrissen, Kontrollzeile prüft MS) ----
 def _schreibe_working_capital(wb, wc: WCView, layout: MastersheetLayout,
-                              perioden, entity) -> None:
+                              perioden, entity, refs: dict[str, AufrissRef]) -> None:
     ws = wb.create_sheet("Working Capital")
     ws.sheet_view.showGridLines = False
     p0 = 4
 
     ws.cell(1, 2, f"Working Capital (Ist je Periode) — {entity}").font = Font(
         name=FONT_NAME, bold=True, size=13, color=TEAL)
-    ws.cell(2, 2, "in EUR · WC-Definition über alle Perioden identisch "
-                  "(gleiche Klassifizierung) · noch keine normalisierte Referenz").font = Font(
+    ws.cell(2, 2, "in EUR · jede Zeile zieht aus genau einem Aufriss · WC-Definition "
+                  "über alle Perioden identisch · noch keine normalisierte Referenz").font = Font(
         name=FONT_NAME, italic=True, size=9)
 
     kopf_zeile = 4
@@ -249,11 +403,6 @@ def _schreibe_working_capital(wb, wc: WCView, layout: MastersheetLayout,
     r = kopf_zeile + 1
     ref = 1
     zeilen_rows: dict[tuple[str, str], list[int]] = {}   # (seite,klasse) -> rows
-
-    def sumifs(p: str, klasse: str, na_de: str) -> str:
-        return (f"=SUMIFS({layout.bereich(layout.perioden_spalten[p])},"
-                f"{layout.bereich(layout.spalte_klasse)},\"{klasse}\","
-                f"{layout.bereich(layout.spalte_na)},\"{_krit(na_de)}\")")
 
     def summe_zeile(label: str, rows: list[int], fett=True, fill=None) -> int:
         nonlocal r
@@ -284,9 +433,13 @@ def _schreibe_working_capital(wb, wc: WCView, layout: MastersheetLayout,
         rows: list[int] = []
         for z in zeilen:
             ws.cell(r, 2, ref).font = _normal
-            ws.cell(r, 3, f"{z.na_de} / {z.na_en}").font = _normal
+            aufriss = refs.get(z.na_de)
+            quelle = f"  [{aufriss.sheetname}]" if aufriss else ""
+            ws.cell(r, 3, f"{z.na_de} / {z.na_en}{quelle}").font = _normal
             for i, p in enumerate(perioden):
-                cell = ws.cell(r, p0 + i, sumifs(p, klasse, z.na_de))
+                # Jede Zeile zieht aus GENAU EINEM Aufriss: gemischte Position ->
+                # operating-Summe, sonst -> Aufriss-Summe.
+                cell = ws.cell(r, p0 + i, _ref_formel(aufriss, p, nd_teil=False))
                 cell.number_format = ZAHLENFORMAT
                 cell.font = _normal
             rows.append(r)

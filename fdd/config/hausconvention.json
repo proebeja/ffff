@@ -1,6 +1,6 @@
 {
-  "version": "2.3",
-  "stand": "2026-07-13",
+  "version": "2.4",
+  "stand": "2026-07-22",
   "name": "Hausconvention FDD-Mapping",
   "geltungsbereich": "SKR03 und SKR04 (DATEV). Fuer non-DATEV-ERP sinngemaess uebertragbar.",
   "kernprinzip_v2": [
@@ -494,7 +494,8 @@
         ],
         "klasse": "ND",
         "prioritaet": 112,
-        "hinweis": "Langfristige Personalrueckstellung, debt-like -> ND (bestaetigt SAP H096600000)."
+        "hinweis": "Langfristige Personalrueckstellung, debt-like -> ND (bestaetigt SAP H096600000).",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-personalkosten-generisch",
@@ -503,7 +504,10 @@
         ],
         "klasse": "OWC",
         "prioritaet": 95,
-        "hinweis": "Generische Personalkosten-Rst -> OWC (bestaetigt Eckart 0965). Abgrenzung: Jubilaeum/Pension -> ND."
+        "hinweis": "Generische Personalkosten-Rst -> OWC (bestaetigt Eckart 0965). Abgrenzung: Jubilaeum/Pension -> ND. | v2.4: Kategoriename, kein Inhalt -> nur Default, Aufriss zwingend anfordern.",
+        "review": true,
+        "pflichtfrage": "aufriss",
+        "regeltyp": "kategorieregel"
       },
       {
         "id": "rst-ausstehende-rechnungen-abk",
@@ -517,7 +521,8 @@
         "klasse": "OWC",
         "prioritaet": 95,
         "verhaltenspruefung": true,
-        "hinweis": "SAP-Abkuerzung 'RSt.ausst.Rg. LuL'. Operativ OWC wenn wiederkehrend."
+        "hinweis": "SAP-Abkuerzung 'RSt.ausst.Rg. LuL'. Operativ OWC wenn wiederkehrend.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-honorare-lizenzen",
@@ -528,7 +533,8 @@
         "klasse": "OWC",
         "prioritaet": 92,
         "verhaltenspruefung": true,
-        "hinweis": "Noch nicht abgerechnete operative Leistungen -> OWC wenn wiederkehrend."
+        "hinweis": "Noch nicht abgerechnete operative Leistungen -> OWC wenn wiederkehrend.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-schwerbehindertenabgabe",
@@ -538,7 +544,8 @@
         ],
         "klasse": "OWC",
         "prioritaet": 92,
-        "hinweis": "Operative Abgabe -> OWC."
+        "hinweis": "Operative Abgabe -> OWC.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-sammelposition",
@@ -550,7 +557,8 @@
         "prioritaet": 50,
         "review": true,
         "pflichtfrage": "aufriss",
-        "hinweis": "Sammelkonto -> Default OWC. PFLICHT: Aufriss je Stichtag anfordern (Art, Fristigkeit, Berechnungsgrundlage); falls Hauptbuch vorhanden, selbst aufdroeseln."
+        "hinweis": "Sammelkonto -> Default OWC. PFLICHT: Aufriss je Stichtag anfordern (Art, Fristigkeit, Berechnungsgrundlage); falls Hauptbuch vorhanden, selbst aufdroeseln.",
+        "regeltyp": "kategorieregel"
       },
       {
         "id": "rst-kundenboni",
@@ -566,7 +574,8 @@
         "hinweis": "Kundenboni/Rabatte = operativ -> OWC. Bedingung: 'Kunde' UND Bonus-Wort. Vorrang vor rst-boni.",
         "wenn_alle": [
           "kunde"
-        ]
+        ],
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-urlaub",
@@ -575,7 +584,8 @@
           "urlaubsgeld"
         ],
         "klasse": "OWC",
-        "prioritaet": 100
+        "prioritaet": 100,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-gewaehrleistung",
@@ -584,7 +594,8 @@
           "garantie"
         ],
         "klasse": "OWC",
-        "prioritaet": 100
+        "prioritaet": 100,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-abschluss-pruefung",
@@ -594,7 +605,8 @@
           "pruef"
         ],
         "klasse": "OWC",
-        "prioritaet": 100
+        "prioritaet": 100,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-archivierung",
@@ -603,7 +615,8 @@
           "aufbewahr"
         ],
         "klasse": "OWC",
-        "prioritaet": 100
+        "prioritaet": 100,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-ausstehende-rechnungen",
@@ -613,7 +626,8 @@
           "ausstehende eingangsrechnung"
         ],
         "klasse": "OWC",
-        "prioritaet": 100
+        "prioritaet": 100,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-boni",
@@ -630,7 +644,8 @@
           "kunde",
           "kunden"
         ],
-        "hinweis": "Mitarbeiterboni -> ND. Feuert nicht bei 'Kunden' (siehe rst-kundenboni)."
+        "hinweis": "Mitarbeiterboni -> ND. Feuert nicht bei 'Kunden' (siehe rst-kundenboni).",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-restrukturierung",
@@ -639,7 +654,8 @@
           "umstruktur"
         ],
         "klasse": "ND",
-        "prioritaet": 100
+        "prioritaet": 100,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-drohverluste",
@@ -649,7 +665,8 @@
           "schwebendes geschaeft"
         ],
         "klasse": "ND",
-        "prioritaet": 100
+        "prioritaet": 100,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-rueckbau",
@@ -659,7 +676,8 @@
           "renaturier"
         ],
         "klasse": "ND",
-        "prioritaet": 100
+        "prioritaet": 100,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-personal-generic",
@@ -670,7 +688,8 @@
         "klasse": "ND",
         "prioritaet": 50,
         "review": true,
-        "hinweis": "Default ND (Annahme Boni). Aufriss anfordern; wenn Urlaubsanteil, dorthin OWC."
+        "hinweis": "Default ND (Annahme Boni). Aufriss anfordern; wenn Urlaubsanteil, dorthin OWC.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-sonstige-generic",
@@ -681,7 +700,8 @@
         "klasse": "OWC",
         "prioritaet": 40,
         "review": true,
-        "hinweis": "Inhalt unklar — Aufriss anfordern."
+        "hinweis": "Inhalt unklar — Aufriss anfordern.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-berufsgenossenschaft",
@@ -690,7 +710,8 @@
           "bg-beitrag"
         ],
         "klasse": "OWC",
-        "prioritaet": 100
+        "prioritaet": 100,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-reisekosten",
@@ -699,7 +720,8 @@
           "reisekosten"
         ],
         "klasse": "OWC",
-        "prioritaet": 100
+        "prioritaet": 100,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "rst-direktversicherung",
@@ -709,7 +731,8 @@
         "klasse": "REVIEW",
         "prioritaet": 90,
         "review": true,
-        "hinweis": "Pensionsnah — Rueckfrage Zusageart (Beitrags-/Leistungszusage), Deckungsvermoegen, Bewertung."
+        "hinweis": "Pensionsnah — Rueckfrage Zusageart (Beitrags-/Leistungszusage), Deckungsvermoegen, Bewertung.",
+        "regeltyp": "inhaltsregel"
       }
     ],
     "sonstige_vermoegensgegenstaende": [
@@ -723,7 +746,8 @@
         ],
         "klasse": "ND",
         "prioritaet": 112,
-        "hinweis": "Ertragsteuer-Forderung -> ND (bestaetigt Eckart 1540/1549)."
+        "hinweis": "Ertragsteuer-Forderung -> ND (bestaetigt Eckart 1540/1549).",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-deb-kreditoren-abk",
@@ -735,7 +759,8 @@
         ],
         "klasse": "OWC",
         "prioritaet": 90,
-        "hinweis": "SAP-Abkuerzung. Lieferant mit Soll-Saldo = operativ OWC. Einmaligkeit aendert die Klasse NICHT (nur Normalisierung/Frage)."
+        "hinweis": "SAP-Abkuerzung. Lieferant mit Soll-Saldo = operativ OWC. Einmaligkeit aendert die Klasse NICHT (nur Normalisierung/Frage).",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-abschlagszahlungen",
@@ -746,7 +771,8 @@
         "klasse": "OWC",
         "prioritaet": 88,
         "verhaltenspruefung": true,
-        "hinweis": "Operativ OWC. Verhaltenspruefung: wenn nicht wiederkehrend und wesentlich -> Flag/Frage (Normalisierung), Klasse bleibt OWC."
+        "hinweis": "Operativ OWC. Verhaltenspruefung: wenn nicht wiederkehrend und wesentlich -> Flag/Frage (Normalisierung), Klasse bleibt OWC.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-sonstige-forderungen-cpd",
@@ -756,7 +782,11 @@
           "cpd"
         ],
         "klasse": "OWC",
-        "prioritaet": 86
+        "prioritaet": 86,
+        "review": true,
+        "pflichtfrage": "aufriss",
+        "regeltyp": "kategorieregel",
+        "hinweis": "v2.4: Kategoriename, kein Inhalt -> nur Default, Aufriss zwingend anfordern."
       },
       {
         "id": "sva-hinterlegte-sicherheiten",
@@ -767,7 +797,8 @@
         "klasse": "OWC",
         "prioritaet": 86,
         "review": true,
-        "hinweis": "Wie Kaution: Annahme operativ OWC, Frage nach Zweck/Laufzeit."
+        "hinweis": "Wie Kaution: Annahme operativ OWC, Frage nach Zweck/Laufzeit.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-arbeitsagentur",
@@ -779,7 +810,8 @@
         "klasse": "OWC",
         "prioritaet": 86,
         "verhaltenspruefung": true,
-        "hinweis": "Operativ OWC. Frage falls lang ausstehend / nicht wiederkehrend."
+        "hinweis": "Operativ OWC. Frage falls lang ausstehend / nicht wiederkehrend.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-abstimmkonto",
@@ -791,7 +823,8 @@
         "klasse": "OWC",
         "prioritaet": 84,
         "review": true,
-        "hinweis": "Technisches Abstimmkonto, vermutlich operativ. Bei Wesentlichkeit Frage/Hauptbuch."
+        "hinweis": "Technisches Abstimmkonto, vermutlich operativ. Bei Wesentlichkeit Frage/Hauptbuch.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-sammelposition",
@@ -802,7 +835,8 @@
         "prioritaet": 50,
         "review": true,
         "pflichtfrage": "aufriss",
-        "hinweis": "Sammelkonto ohne Inhaltshinweis -> Default OWC. PFLICHT: Aufriss anfordern; falls Hauptbuch vorhanden, selbst aufdroeseln und Bestandteile verteilen."
+        "hinweis": "Sammelkonto ohne Inhaltshinweis -> Default OWC. PFLICHT: Aufriss anfordern; falls Hauptbuch vorhanden, selbst aufdroeseln und Bestandteile verteilen.",
+        "regeltyp": "kategorieregel"
       },
       {
         "id": "sva-rueckdeckung",
@@ -815,7 +849,8 @@
         "klasse": "ND",
         "prioritaet": 115,
         "review": true,
-        "hinweis": "Anspruch aus Rueckdeckungsversicherung = Deckungsvermoegen zu Pensionen. Pflichtfrage: Saldierung mit Pensionsrueckstellung nach Paragraph 246 Abs. 2 HGB?"
+        "hinweis": "Anspruch aus Rueckdeckungsversicherung = Deckungsvermoegen zu Pensionen. Pflichtfrage: Saldierung mit Pensionsrueckstellung nach Paragraph 246 Abs. 2 HGB?",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-darlehen",
@@ -824,7 +859,8 @@
         ],
         "klasse": "ND",
         "prioritaet": 110,
-        "hinweis": "Darlehen = Finanzierungsforderung -> ND (Vertragspartner/Konditionen per Frage bestaetigen)."
+        "hinweis": "Darlehen = Finanzierungsforderung -> ND (Vertragspartner/Konditionen per Frage bestaetigen).",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-versicherungserstattung",
@@ -836,7 +872,8 @@
           "erstattung versicherung"
         ],
         "klasse": "ND",
-        "prioritaet": 110
+        "prioritaet": 110,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-geldtransit",
@@ -845,7 +882,8 @@
         ],
         "klasse": "ND",
         "prioritaet": 110,
-        "hinweis": "Durchlaufkonto Geld -> wirtschaftlich Cash (ND)."
+        "hinweis": "Durchlaufkonto Geld -> wirtschaftlich Cash (ND).",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-ust-vorauszahlung",
@@ -861,7 +899,8 @@
         ],
         "klasse": "OWC",
         "prioritaet": 85,
-        "hinweis": "USt/Vorsteuer-naher operativer Posten -> OWC (auch auslaendische, z.B. PLN USt-Vorauszahlung)."
+        "hinweis": "USt/Vorsteuer-naher operativer Posten -> OWC (auch auslaendische, z.B. PLN USt-Vorauszahlung).",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-belege-reise",
@@ -877,7 +916,8 @@
         ],
         "klasse": "OWC",
         "prioritaet": 80,
-        "hinweis": "Operative Verrechnungs-/Belegkonten -> OWC."
+        "hinweis": "Operative Verrechnungs-/Belegkonten -> OWC.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-factoring",
@@ -886,7 +926,8 @@
         ],
         "klasse": "OWC",
         "prioritaet": 80,
-        "hinweis": "Forderung aus Factoring -> operatives OWC."
+        "hinweis": "Forderung aus Factoring -> operatives OWC.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-debitorische-kreditoren",
@@ -895,7 +936,8 @@
           "kreditorische debitoren"
         ],
         "klasse": "OWC",
-        "prioritaet": 80
+        "prioritaet": 80,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-vorsteuer",
@@ -905,7 +947,8 @@
         ],
         "klasse": "OWC",
         "prioritaet": 100,
-        "hinweis": "Nur echte Vorsteuer-Forderungskonten; Steuerschluessel-Suffix vorher beim HGB-Mapping ausgeschlossen."
+        "hinweis": "Nur echte Vorsteuer-Forderungskonten; Steuerschluessel-Suffix vorher beim HGB-Mapping ausgeschlossen.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-ertragsteuer",
@@ -916,7 +959,8 @@
           "steuerforderung ertrag"
         ],
         "klasse": "ND",
-        "prioritaet": 100
+        "prioritaet": 100,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-gesellschafter",
@@ -924,7 +968,8 @@
           "gesellschafter"
         ],
         "klasse": "ND",
-        "prioritaet": 100
+        "prioritaet": 100,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-personal",
@@ -937,7 +982,8 @@
         ],
         "klasse": "OWC",
         "prioritaet": 90,
-        "hinweis": "Forderungen gegen Personal -> operatives OWC."
+        "hinweis": "Forderungen gegen Personal -> operatives OWC.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-kaution",
@@ -949,7 +995,8 @@
         "klasse": "OWC",
         "prioritaet": 80,
         "review": true,
-        "hinweis": "Annahme Mietkaution -> OWC. Frage: Mietkaution oder sonstige Sicherheit? Laufzeit?"
+        "hinweis": "Annahme Mietkaution -> OWC. Frage: Mietkaution oder sonstige Sicherheit? Laufzeit?",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "sva-generic",
@@ -960,7 +1007,8 @@
         ],
         "klasse": "OWC",
         "prioritaet": 40,
-        "review": true
+        "review": true,
+        "regeltyp": "inhaltsregel"
       }
     ],
     "sonstige_verbindlichkeiten": [
@@ -974,7 +1022,8 @@
         ],
         "klasse": "OWC",
         "prioritaet": 92,
-        "hinweis": "SAP-Abkuerzung. Kunde mit Haben-Saldo (Ueberzahlung/Gutschrift) = operative Verbindlichkeit aus L+L -> OWC. ND nur bei dauerhaft stehengelassenem Saldo ggue. nahestehender Partei. Einmaligkeit aendert die Klasse NICHT."
+        "hinweis": "SAP-Abkuerzung. Kunde mit Haben-Saldo (Ueberzahlung/Gutschrift) = operative Verbindlichkeit aus L+L -> OWC. ND nur bei dauerhaft stehengelassenem Saldo ggue. nahestehender Partei. Einmaligkeit aendert die Klasse NICHT.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-altersvorsorge-gekoppelt",
@@ -987,7 +1036,8 @@
         "review": true,
         "pflichtfrage": "pension",
         "gekoppelt_mit": "sva-rueckdeckung",
-        "hinweis": "ND als Default. GEKOPPELTES PENSIONSTHEMA: gemeinsam mit Rueckdeckungsversicherung (Aktivseite) behandeln. Pflichtfrage: (1) Zusageart Beitrags- oder Leistungszusage, (2) warum stehen Verbindlichkeit UND Vermoegen fuer Altersvorsorge gleichzeitig, (3) Deckungsvermoegen/Saldierung Paragraph 246 Abs 2 HGB, (4) Bewertungszins/stille Lasten."
+        "hinweis": "ND als Default. GEKOPPELTES PENSIONSTHEMA: gemeinsam mit Rueckdeckungsversicherung (Aktivseite) behandeln. Pflichtfrage: (1) Zusageart Beitrags- oder Leistungszusage, (2) warum stehen Verbindlichkeit UND Vermoegen fuer Altersvorsorge gleichzeitig, (3) Deckungsvermoegen/Saldierung Paragraph 246 Abs 2 HGB, (4) Bewertungszins/stille Lasten.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-kreditkarte",
@@ -996,7 +1046,8 @@
           "kreditkartenabrechnung"
         ],
         "klasse": "OWC",
-        "prioritaet": 90
+        "prioritaet": 90,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-loehne-gehaelter",
@@ -1007,7 +1058,8 @@
         ],
         "klasse": "OWC",
         "prioritaet": 90,
-        "hinweis": "Kurzfristige Lohnverbindlichkeit -> OWC."
+        "hinweis": "Kurzfristige Lohnverbindlichkeit -> OWC.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-sonstige-steuern",
@@ -1017,7 +1069,8 @@
         ],
         "klasse": "OWC",
         "prioritaet": 90,
-        "hinweis": "Operative Steuern (KfZ, Grund etc.) -> OWC, KEINE Pflichtfrage."
+        "hinweis": "Operative Steuern (KfZ, Grund etc.) -> OWC, KEINE Pflichtfrage.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-einbehaltungen",
@@ -1026,7 +1079,8 @@
           "sonst.einbehalt"
         ],
         "klasse": "OWC",
-        "prioritaet": 88
+        "prioritaet": 88,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-avmg-brsg",
@@ -1037,7 +1091,8 @@
         ],
         "klasse": "OWC",
         "prioritaet": 95,
-        "hinweis": "Laufende lohnbezogene Verbindlichkeit der Periode (Entgeltumwandlung/Zuschuss), NICHT die Pensionsverpflichtung selbst -> OWC. Diese steckt in der Pensionsrueckstellung."
+        "hinweis": "Laufende lohnbezogene Verbindlichkeit der Periode (Entgeltumwandlung/Zuschuss), NICHT die Pensionsverpflichtung selbst -> OWC. Diese steckt in der Pensionsrueckstellung.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-sonst-verb-operativ",
@@ -1047,7 +1102,8 @@
           "haussortiment"
         ],
         "klasse": "OWC",
-        "prioritaet": 86
+        "prioritaet": 86,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-sammelposition",
@@ -1058,7 +1114,8 @@
         "prioritaet": 50,
         "review": true,
         "pflichtfrage": "aufriss",
-        "hinweis": "Sammelkonto -> Default OWC. PFLICHT: Aufriss anfordern; falls Hauptbuch vorhanden, selbst aufdroeseln und in OL verteilen."
+        "hinweis": "Sammelkonto -> Default OWC. PFLICHT: Aufriss anfordern; falls Hauptbuch vorhanden, selbst aufdroeseln und in OL verteilen.",
+        "regeltyp": "kategorieregel"
       },
       {
         "id": "svb-altersvorsorge",
@@ -1069,7 +1126,8 @@
         "klasse": "ND",
         "prioritaet": 95,
         "review": true,
-        "hinweis": "Altersvorsorge-Verbindlichkeit pensionsnah -> Pflichtfrage Zusageart/Charakter."
+        "hinweis": "Altersvorsorge-Verbindlichkeit pensionsnah -> Pflichtfrage Zusageart/Charakter.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-darlehen",
@@ -1077,7 +1135,8 @@
           "darlehen"
         ],
         "klasse": "ND",
-        "prioritaet": 110
+        "prioritaet": 110,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-geldtransit",
@@ -1086,7 +1145,8 @@
         ],
         "klasse": "ND",
         "prioritaet": 110,
-        "hinweis": "Durchlaufkonto Geld -> Cash (ND)."
+        "hinweis": "Durchlaufkonto Geld -> Cash (ND).",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-belege-reise",
@@ -1101,7 +1161,8 @@
           "paypal"
         ],
         "klasse": "OWC",
-        "prioritaet": 85
+        "prioritaet": 85,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-provision",
@@ -1111,7 +1172,8 @@
         ],
         "klasse": "OWC",
         "prioritaet": 85,
-        "hinweis": "Provisions-Verbindlichkeit -> operativ OWC."
+        "hinweis": "Provisions-Verbindlichkeit -> operativ OWC.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-kreditorische-debitoren",
@@ -1120,7 +1182,8 @@
           "debitorische kreditoren"
         ],
         "klasse": "OWC",
-        "prioritaet": 85
+        "prioritaet": 85,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-vorsteuer-passiv",
@@ -1131,7 +1194,8 @@
         ],
         "klasse": "OWC",
         "prioritaet": 80,
-        "hinweis": "Kleiner Vorsteuer-Saldo auf Passivseite -> operativ OWC."
+        "hinweis": "Kleiner Vorsteuer-Saldo auf Passivseite -> operativ OWC.",
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-umsatzsteuer",
@@ -1142,7 +1206,8 @@
           "ust"
         ],
         "klasse": "OWC",
-        "prioritaet": 100
+        "prioritaet": 100,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-lohnsteuer",
@@ -1156,7 +1221,8 @@
           "sv-beitrag"
         ],
         "klasse": "OWC",
-        "prioritaet": 100
+        "prioritaet": 100,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-ertragsteuer",
@@ -1167,7 +1233,8 @@
           "steuerverbindlichkeit ertrag"
         ],
         "klasse": "ND",
-        "prioritaet": 100
+        "prioritaet": 100,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-gesellschafter",
@@ -1175,7 +1242,8 @@
           "gesellschafter"
         ],
         "klasse": "ND",
-        "prioritaet": 100
+        "prioritaet": 100,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-leasing",
@@ -1184,7 +1252,8 @@
           "finanzierung"
         ],
         "klasse": "ND",
-        "prioritaet": 90
+        "prioritaet": 90,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-personal",
@@ -1194,7 +1263,8 @@
           "gehalt"
         ],
         "klasse": "OWC",
-        "prioritaet": 80
+        "prioritaet": 80,
+        "regeltyp": "inhaltsregel"
       },
       {
         "id": "svb-generic",
@@ -1205,7 +1275,8 @@
         ],
         "klasse": "OWC",
         "prioritaet": 40,
-        "review": true
+        "review": true,
+        "regeltyp": "inhaltsregel"
       }
     ]
   },
@@ -1276,7 +1347,19 @@
     "net_debt_verschaerfung_prozent": 1.0,
     "konfigurierbar_pro_engagement": true,
     "anzeige": "Tool zeigt resultierende EUR-Schwellen vor dem Lauf zur Bestaetigung an.",
-    "pruefung": "je Stichtag UND ueber Zeitverlauf (einmalige Ausschlaege werden erfasst)."
+    "pruefung": "je Stichtag UND ueber Zeitverlauf (einmalige Ausschlaege werden erfasst).",
+    "_geltungsbereich": {
+      "gilt_fuer": [
+        "Verhaltenspruefung (ob Auffaelligkeit zur Frage wird)",
+        "KI-Urteilsschicht (ob die KI ueberhaupt gerufen wird)",
+        "Rueckfragen zu unklarer Klassifizierung"
+      ],
+      "gilt_NICHT_fuer": [
+        "Aufriss-Fragen (pflichtfrage='aufriss') — diese gehen IMMER raus, unabhaengig vom Betrag",
+        "Pflichtfrage Pension — geht immer raus"
+      ],
+      "begruendung": "Nutzer-Entscheidung: lieber eine Frage zu viel und aussortieren, als einen Befund verpassen."
+    }
   },
   "prozess_kaskade_unklare_konten": [
     "Stufe 1 Bezeichnung: Hausconvention-Regel oder eindeutiger HGB-Pfad -> erledigt.",
@@ -1576,7 +1659,7 @@
       "Normalisierung: markiert Ausreisser, die bei der Bildung der WC-Referenz (Target Working Capital) geglaettet werden sollten, damit die Referenz ein normales Niveau abbildet.",
       "Rueckfrage: erzeugt eine Frage nach dem Hintergrund, wenn ein wesentliches Konto untypisch auftritt."
     ],
-    "gate": "Laeuft NUR fuer Konten oberhalb der Wesentlichkeitsschwelle. Unwesentliche Konten erhalten einen vertretbaren Default plus Bearbeiter-Hinweis, keine Frage.",
+    "gate": "Wesentlichkeit entscheidet nur, ob aus einer Auffaelligkeit eine FRAGE wird. Unwesentliche Auffaelligkeiten erzeugen einen Bearbeiter-Hinweis (z.B. 'nicht wiederkehrend, moegliche WC-Bereinigung, unter Schwelle').",
     "kriterien": {
       "wiederkehrend": "Konto in allen (oder nahezu allen) Perioden mit Saldo vorhanden.",
       "stabil": "Schwankung um den Mittelwert innerhalb der konfigurierten Bandbreite.",
@@ -1588,7 +1671,9 @@
       "auffaellig_und_wesentlich": "Klasse bleibt unveraendert. Setzt Normalisierungs-Flag + erzeugt Rueckfrage nach dem Hintergrund.",
       "auffaellig_und_unwesentlich": "Klasse bleibt. Bearbeiter-Hinweis, keine Frage."
     },
-    "konfigurierbar_pro_engagement": true
+    "konfigurierbar_pro_engagement": true,
+    "_umfang": "QUERSCHNITTSPRUEFUNG: laeuft automatisch ueber ALLE Konten mit Salden ueber mehrere Perioden. KEIN Regel-Attribut. Die frueheren per-Regel-Flags 'verhaltenspruefung: true' sind nur noch dokumentarischer Hinweis, NICHT der Ausloeser.",
+    "_warum": "Konto 1530 'Forderungen gegen Personal' trug kein Flag, brauchte die Pruefung aber genauso wie das geflaggte 1544. Wiederkehr ist eine Eigenschaft der Daten, nicht der Regel."
   },
   "ki_urteilsschicht": {
     "_zweck": "Flexibler Anteil. Regeln sind zu starr fuer den Rest. Die KI gibt einen begruendeten Vorschlag, wo die deterministischen Schichten nicht aufloesen.",
@@ -1683,5 +1768,16 @@
         "folge": "Basis fuer die Verhaltenspruefung (Wiederkehr ueber Perioden) und die WC-Referenzbildung."
       }
     ]
+  },
+  "_aenderungen_v2_4": [
+    "KORREKTUR 1 (Kategorienamen): Regeln, deren Stichwort nur eine KATEGORIE benennt (Personalkosten, sonstige Forderungen CPD/OP), setzen jetzt nur einen Default + Pflichtfrage Aufriss statt einer verbindlichen Klasse. Neues Prinzip 'inhalt_vs_kategorie'.",
+    "KORREKTUR 2 (Verhaltenspruefung): von Regel-Attribut zu QUERSCHNITTSPRUEFUNG umgebaut. Laeuft automatisch ueber ALLE Konten mit Salden, nicht nur ueber Regeln mit Flag. Grund: Konto 1530 trug kein Flag, brauchte die Pruefung aber genauso.",
+    "KORREKTUR 3 (Aufriss-Frage): von der Wesentlichkeit ENTKOPPELT. Aufriss-Fragen gehen immer raus. Wesentlichkeit bleibt Tuersteher nur fuer Verhaltenspruefung und KI-Schicht."
+  ],
+  "prinzip_inhalt_vs_kategorie": {
+    "_zweck": "Unterscheidet, wann eine Typ-2-Regel die Klasse verbindlich setzen darf und wann nur einen Default.",
+    "inhaltsregel": "Stichwort benennt einen konkreten INHALT (Urlaub, Gewaehrleistung, Berufsgenossenschaft, Jubilaeum, Kreditkarte, Loehne). -> Klasse verbindlich, keine Pflichtfrage.",
+    "kategorieregel": "Stichwort benennt nur eine KATEGORIE / einen Sammelnamen (Personalkosten, sonstige Forderungen, sonstige Rueckstellungen, sonstige Verbindlichkeiten, sonstige Vermoegensgegenstaende, CPD, OP gefuehrt). -> Klasse nur als DEFAULT, zwingend review=true + pflichtfrage='aufriss'.",
+    "begruendung": "Beispiel 0965 'Rueckstellungen Personalkosten': kann Urlaub (OWC) oder Mitarbeiterboni/Abfindung (ND) sein. Der Name disambiguiert nicht. Ein selbstsicherer Klassenansatz waere hier falsch."
   }
 }
