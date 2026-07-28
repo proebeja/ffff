@@ -105,3 +105,59 @@ def test_eckart_laeuft_ohne_kn_im_default_modus():
     res = run(datei(ECKART), "/tmp/eckart_probe.xlsx", verbose=False)
     assert res["setup"].modus == "vorlaeufig"
     assert res["recon"] is None
+
+
+# ---- Realer Eckart-Kontennachweis (Excel, ein Blatt je Jahr) --------------
+ECKART_KN = "Kontennachweis_Eckart_2022-2024.xlsx"
+
+
+@pytest.fixture(scope="module")
+def eckart_mit_kn():
+    from fdd.cli import run
+    return run(datei(ECKART), "/tmp/eckart_kn.xlsx", verbose=False,
+               kontennachweis=datei(ECKART_KN))
+
+
+def test_eckart_kn_wird_erkannt_und_perioden_abgebildet(eckart_mit_kn):
+    kn = eckart_mit_kn["kn"]
+    assert "Eckart" in kn.entity
+    assert len(kn.konten) > 50
+    # Blattjahre werden auf die SuSa-Perioden abgebildet
+    salden = kn.konten["1630"].salden
+    assert {"2022/S1", "2023/12", "2024/12"} <= set(salden)
+
+
+def test_eckart_modus_ist_abschlusstreu(eckart_mit_kn):
+    assert eckart_mit_kn["setup"].ist_abschlusstreu
+
+
+@pytest.mark.parametrize("konto,betrag", [("1631", -543505.97), ("1665", -15440.0)])
+def test_fehlende_eckart_konten_kommen_ueber_kn_ins_mastersheet(
+        eckart_mit_kn, konto, betrag):
+    """1631 und 1665 fehlen in der SuSa und kommen aus dem Kontennachweis."""
+    from fdd.core.model import Klasse, Quelle
+    by = {m.konto: m for m in eckart_mit_kn["mapped"]}
+    assert konto in by, f"{konto} fehlt im Mastersheet"
+    m = by[konto]
+    assert m.quelle == Quelle.KONTENNACHWEIS
+    assert m.saldo("2024/12") == pytest.approx(betrag, abs=0.01)
+    assert m.klasse == Klasse.ND
+    assert konto in eckart_mit_kn["recon"].nur_im_kn
+
+
+def test_eckart_bilanzdifferenz_bleibt_klein(eckart_mit_kn):
+    """Die Recon verschiebt im Wesentlichen zwischen Positionen — über die
+    gesamte Bilanz bleibt nur ein kleiner Rest stehen."""
+    rec = eckart_mit_kn["recon"]
+    bil = [z for z in rec.zeilen if z.hgb_pfad.startswith(("/Aktiva", "/Passiva"))]
+    gesamt = sum(z.differenz("2024/12") for z in bil)
+    assert abs(gesamt) < 50_000, f"Bilanzdifferenz {gesamt:,.0f} unerwartet groß"
+
+
+def test_kn_schlaegt_skr_default_bei_eckart(eckart_mit_kn):
+    """Konten, die der Kontennachweis führt, kommen aus ihm — nicht aus SKR."""
+    from fdd.core.model import Quelle
+    kn_konten = set(eckart_mit_kn["kn"].konten)
+    for m in eckart_mit_kn["mapped"]:
+        if m.konto in kn_konten:
+            assert m.quelle == Quelle.KONTENNACHWEIS, m.konto

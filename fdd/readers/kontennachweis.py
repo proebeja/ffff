@@ -82,6 +82,13 @@ _CROSSWALK: list[tuple[str, Optional[str], str]] = [
     ("erhaltene anzahlungen", "PASSIVA", f"{_PAS}/C Verbindlichkeiten/Erhaltene Anzahlungen auf Bestellungen"),
     ("verbindlichkeiten aus lieferungen und leistungen", "PASSIVA", f"{_PAS}/C Verbindlichkeiten/Verbindlichkeiten aus Lieferungen und Leistungen"),
     ("verbindlichkeiten gegenueber verbundenen unternehmen", "PASSIVA", f"{_PAS}/C Verbindlichkeiten/Verbindlichkeiten gegenueber verbundenen Unternehmen"),
+    # Gesellschafter-Positionen: §266 kennt keine eigene Zeile dafür. Die
+    # Hausconvention führt sie (Regeln hgb-gesellschafter-*) unter den
+    # verbundenen Unternehmen — hier explizit, damit die Zuordnung nicht
+    # stillschweigend von der Vorgängerposition geerbt wird.
+    ("verbindlichkeiten gegenueber gesellschaftern", "PASSIVA", f"{_PAS}/C Verbindlichkeiten/Verbindlichkeiten gegenueber verbundenen Unternehmen"),
+    ("verbindlichkeiten gegenueber gmbh-gesellschaftern", "PASSIVA", f"{_PAS}/C Verbindlichkeiten/Verbindlichkeiten gegenueber verbundenen Unternehmen"),
+    ("forderungen gegen gesellschafter", "AKTIVA", f"{_FORD}/Forderungen gegen verbundene Unternehmen"),
     ("sonstige verbindlichkeiten", "PASSIVA", f"{_PAS}/C Verbindlichkeiten/Sonstige Verbindlichkeiten"),
     ("rechnungsabgrenzungsposten", "PASSIVA", f"{_PAS}/D Rechnungsabgrenzungsposten"),
     ("passive latente steuern", "PASSIVA", f"{_PAS}/E Passive latente Steuern"),
@@ -299,10 +306,27 @@ class KontennachweisPdfReader:
 
 
 class KontennachweisExcelReader:
-    """Liest einen Kontennachweis aus Excel: Positionsüberschriften in einer
-    Textspalte, darunter Einzelkonten (Kontonummer + Bezeichnung + Beträge)."""
+    """Liest einen Kontennachweis aus Excel.
+
+    Reales Layout (Eckart): **ein Blatt je Geschäftsjahr**; in der ersten
+    Spalte stehen abwechselnd §266-Positionsüberschriften ("3. Andere Anlagen,
+    Betriebs- und Geschäftsausstattung") und Kontozeilen, bei denen
+    **Kontonummer und Bezeichnung in derselben Zelle** stehen ("0410
+    Geschäftsausstattung"); der Wert steht in der Wertspalte daneben.
+
+    Zwischenüberschriften ohne §266-Charakter ("Bankguthaben", "davon aus
+    Steuern") greifen bewusst nicht — die zuletzt erkannte Position bleibt
+    stehen, sodass die darunter stehenden Konten korrekt zugeordnet werden.
+
+    Vorzeichen: Kontennachweise weisen die Passivseite positiv aus. Für die
+    Reconciliation gegen die SuSa (Soll positiv / Haben negativ) werden
+    Passiv-Werte negiert, damit beide Seiten dieselbe Sprache sprechen.
+    """
 
     name = "kontennachweis_excel"
+
+    #: Kontozeile: führende Kontonummer, dann die Bezeichnung.
+    _KONTO_ZEILE = re.compile(r"^(?P<konto>\d{3,5})\s+(?P<bez>\S.*)$")
 
     @classmethod
     def kann_lesen(cls, pfad: str) -> bool:
@@ -315,10 +339,18 @@ class KontennachweisExcelReader:
             return False
         try:
             for ws in wb.worksheets:
-                for row in ws.iter_rows(min_row=1, max_row=40, values_only=True):
-                    txt = " ".join(str(c) for c in row if c)
-                    if "kontennachweis" in normalisiere(txt):
+                treffer = 0
+                for row in ws.iter_rows(min_row=1, max_row=60, values_only=True):
+                    txt = " ".join(str(c) for c in row if c is not None)
+                    low = normalisiere(txt)
+                    if "kontennachweis" in low:
                         return True
+                    if cls._KONTO_ZEILE.match(str(row[0]).strip() if row and row[0] else ""):
+                        treffer += 1
+                # Ein Blatt mit vielen "NNNN Bezeichnung"-Zeilen ist ein
+                # Kontennachweis, auch ohne das Wort im Kopf.
+                if treffer >= 8:
+                    return True
             return False
         finally:
             wb.close()
@@ -329,55 +361,94 @@ class KontennachweisExcelReader:
         warnungen: list[str] = []
         konten: dict[str, KNKonto] = {}
         entity = "Unbekannt"
-        sektion: Optional[str] = None
-        aktueller_pfad: Optional[str] = None
-        erkannte_perioden: list[str] = list(perioden or [])
+        blatt_perioden: list[str] = []
 
         for ws in wb.worksheets:
+            periode = self._periode_des_blatts(ws.title, perioden)
+            if periode is None:
+                continue
+            blatt_perioden.append(periode)
+            sektion: Optional[str] = None
+            aktueller_pfad: Optional[str] = None
+
             for row in ws.iter_rows(values_only=True):
-                zellen = [c for c in row if c is not None and str(c).strip() != ""]
-                if not zellen:
+                if not row or row[0] is None:
                     continue
-                text = " ".join(str(c).strip() for c in zellen)
-                low = normalisiere(text)
-                if "gmbh" in low and entity == "Unbekannt":
-                    entity = text.strip()[:60]
-                if not erkannte_perioden:
-                    jahre = re.findall(r"(?:31\.12\.)?(20\d{2})", text)
-                    if len(jahre) >= 2 and "kontennachweis" not in low:
-                        erkannte_perioden = [f"31.12.{j}" for j in jahre[:3]]
-                if low.startswith("aktiva"):
-                    sektion = "AKTIVA"; continue
-                if low.startswith("passiva"):
-                    sektion = "PASSIVA"; continue
-                if "g.u.v" in low or low.startswith("guv"):
-                    sektion = "GUV"; continue
+                label = str(row[0]).strip()
+                if not label:
+                    continue
+                low = normalisiere(label)
+                if entity == "Unbekannt":
+                    for zelle in row[1:3]:
+                        if zelle and "gmbh" in normalisiere(str(zelle)):
+                            entity = str(zelle).strip()
+                if low in ("aktiva", "passiva"):
+                    sektion = low.upper()
+                    continue
                 if any(low.startswith(n) for n in _NOISE):
                     continue
 
-                erste = str(zellen[0]).strip()
-                zahlen = [parse_deutsche_zahl(c) for c in zellen[1:]
-                          if isinstance(c, (int, float)) or _BETRAG_RE.fullmatch(str(c).strip())]
-                if re.fullmatch(r"\d{3,5}", erste) and zahlen:
+                wert = self._erster_wert(row)
+                m = self._KONTO_ZEILE.match(label)
+                if m:
                     if aktueller_pfad is None:
-                        warnungen.append(f"Konto {erste} ohne Positionsüberschrift.")
+                        warnungen.append(
+                            f"Konto {m.group('konto')} ohne erkannte "
+                            "Positionsüberschrift — fällt auf die übrige Kaskade zurück.")
                         continue
-                    bez = str(zellen[1]).strip() if len(zellen) > 1 else ""
-                    per = erkannte_perioden or ["Berichtsjahr"]
-                    salden = {p: (zahlen[i] if i < len(zahlen) else 0.0)
-                              for i, p in enumerate(per)}
-                    konten.setdefault(erste, KNKonto(erste, bez, aktueller_pfad, salden))
+                    if wert is None:
+                        continue          # Konto ohne Saldo in dieser Periode
+                    if sektion == "PASSIVA":
+                        wert = -wert
+                    konto = m.group("konto")
+                    bez = re.sub(r"\s+", " ", m.group("bez")).strip()
+                    vorhanden = konten.get(konto)
+                    if vorhanden is None:
+                        konten[konto] = KNKonto(konto=konto, bezeichnung=bez,
+                                                hgb_pfad=aktueller_pfad,
+                                                salden={periode: wert})
+                    else:
+                        # Dieselbe Kontonummer kann mehrfach vorkommen
+                        # (z.B. drei Bankkonten unter 1210) -> aufsummieren.
+                        vorhanden.salden[periode] = vorhanden.salden.get(periode, 0.0) + wert
                     continue
 
-                treffer = _match_ueberschrift(text, sektion)
+                treffer = _match_ueberschrift(label, sektion)
                 if treffer:
                     aktueller_pfad = treffer
 
         wb.close()
+        erkannt = perioden if perioden else blatt_perioden
         return Kontennachweis(
-            konten=konten, perioden=erkannte_perioden or ["Berichtsjahr"],
-            entity=entity, quelle_datei=pfad, fingerprint=fingerprint(pfad),
+            konten=konten, perioden=list(erkannt), entity=entity,
+            quelle_datei=pfad, fingerprint=fingerprint(pfad),
             warnungen=warnungen)
+
+    @staticmethod
+    def _erster_wert(row) -> Optional[float]:
+        """Erster numerischer Wert der Zeile (die Wertspalte des Blatts)."""
+        for zelle in row[1:]:
+            if isinstance(zelle, (int, float)):
+                return float(zelle)
+            if isinstance(zelle, str) and _BETRAG_RE.fullmatch(zelle.strip()):
+                return parse_deutsche_zahl(zelle)
+        return None
+
+    @staticmethod
+    def _periode_des_blatts(titel: str, perioden: Optional[list[str]]) -> Optional[str]:
+        """Blattname -> Periode. Das Jahr im Blattnamen ("Bilanz Konso 2023")
+        wird auf die passende Ledger-Periode ("2023/12") abgebildet, damit
+        Kontennachweis und SuSa dieselbe Zeitachse benutzen."""
+        m = re.search(r"(20\d{2})", titel)
+        if not m:
+            return None
+        jahr = m.group(1)
+        if perioden:
+            for p in perioden:
+                if jahr in str(p):
+                    return p
+            return None
+        return jahr
 
 
 def lies_kontennachweis(pfad: str, perioden: Optional[list[str]] = None) -> Kontennachweis:
