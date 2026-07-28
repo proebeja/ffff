@@ -1,6 +1,6 @@
 {
-  "version": "2.4",
-  "stand": "2026-07-22",
+  "version": "2.5",
+  "stand": "2026-07-28",
   "name": "Hausconvention FDD-Mapping",
   "geltungsbereich": "SKR03 und SKR04 (DATEV). Fuer non-DATEV-ERP sinngemaess uebertragbar.",
   "kernprinzip_v2": [
@@ -22,7 +22,9 @@
     "ND": "Net Debt / Nettofinanzverbindlichkeiten",
     "EQ": "Equity / Eigenkapital",
     "DT": "Deferred Tax / Latente Steuern",
-    "PL": "Profit and Loss / GuV (keine WC/ND-Klassifizierung)"
+    "PL": "Profit and Loss / GuV (keine WC/ND-Klassifizierung)",
+    "OA": "Operating Assets / Operatives Umlaufvermoegen (Aktivseite des Working Capital; Teilmenge von TWC+OWC)",
+    "OL": "Operating Liabilities / Operative Verbindlichkeiten (Passivseite des Working Capital; Teilmenge von TWC+OWC)"
   },
   "pfad_woerterbuch_de_en": {
     "Aktiva": "Assets",
@@ -150,31 +152,36 @@
       "hgb_pfad": "/Aktiva/B Umlaufvermoegen/I Vorraete/Roh- Hilfs- und Betriebsstoffe",
       "klasse": "TWC",
       "na_de": "Vorraete",
-      "na_en": "Inventories"
+      "na_en": "Inventories",
+      "seite": "OA"
     },
     {
       "hgb_pfad": "/Aktiva/B Umlaufvermoegen/I Vorraete/Unfertige Erzeugnisse und Leistungen",
       "klasse": "TWC",
       "na_de": "Vorraete",
-      "na_en": "Inventories"
+      "na_en": "Inventories",
+      "seite": "OA"
     },
     {
       "hgb_pfad": "/Aktiva/B Umlaufvermoegen/I Vorraete/Fertige Erzeugnisse und Waren",
       "klasse": "TWC",
       "na_de": "Vorraete",
-      "na_en": "Inventories"
+      "na_en": "Inventories",
+      "seite": "OA"
     },
     {
       "hgb_pfad": "/Aktiva/B Umlaufvermoegen/I Vorraete/Geleistete Anzahlungen",
       "klasse": "TWC",
       "na_de": "Geleistete Anzahlungen",
-      "na_en": "Advance payments made"
+      "na_en": "Advance payments made",
+      "seite": "OA"
     },
     {
       "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Forderungen aus Lieferungen und Leistungen",
       "klasse": "TWC",
       "na_de": "Forderungen aus L+L",
-      "na_en": "Trade receivables"
+      "na_en": "Trade receivables",
+      "seite": "OA"
     },
     {
       "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Forderungen gegen verbundene Unternehmen",
@@ -188,7 +195,8 @@
       "klasse": "MIXED",
       "split_regelset": "sonstige_vermoegensgegenstaende",
       "na_de": "Sonstige Vermoegensgegenstaende",
-      "na_en": "Other assets"
+      "na_en": "Other assets",
+      "seite_operating": "OA"
     },
     {
       "hgb_pfad": "/Aktiva/B Umlaufvermoegen/III Wertpapiere",
@@ -206,7 +214,8 @@
       "hgb_pfad": "/Aktiva/C Rechnungsabgrenzungsposten",
       "klasse": "OWC",
       "na_de": "Aktive Rechnungsabgrenzung",
-      "na_en": "Prepaid expenses"
+      "na_en": "Prepaid expenses",
+      "seite": "OA"
     },
     {
       "hgb_pfad": "/Aktiva/D Aktive latente Steuern",
@@ -237,7 +246,8 @@
       "klasse": "MIXED",
       "split_regelset": "sonstige_rueckstellungen",
       "na_de": "Sonstige Rueckstellungen",
-      "na_en": "Other provisions"
+      "na_en": "Other provisions",
+      "seite_operating": "OL"
     },
     {
       "hgb_pfad": "/Passiva/C Verbindlichkeiten/Anleihen",
@@ -255,13 +265,15 @@
       "hgb_pfad": "/Passiva/C Verbindlichkeiten/Erhaltene Anzahlungen auf Bestellungen",
       "klasse": "TWC",
       "na_de": "Erhaltene Anzahlungen",
-      "na_en": "Advances received"
+      "na_en": "Advances received",
+      "seite": "OL"
     },
     {
       "hgb_pfad": "/Passiva/C Verbindlichkeiten/Verbindlichkeiten aus Lieferungen und Leistungen",
       "klasse": "TWC",
       "na_de": "Verbindlichkeiten aus L+L",
-      "na_en": "Trade payables"
+      "na_en": "Trade payables",
+      "seite": "OL"
     },
     {
       "hgb_pfad": "/Passiva/C Verbindlichkeiten/Verbindlichkeiten gegenueber verbundenen Unternehmen",
@@ -275,13 +287,15 @@
       "klasse": "MIXED",
       "split_regelset": "sonstige_verbindlichkeiten",
       "na_de": "Sonstige Verbindlichkeiten",
-      "na_en": "Other liabilities"
+      "na_en": "Other liabilities",
+      "seite_operating": "OL"
     },
     {
       "hgb_pfad": "/Passiva/D Rechnungsabgrenzungsposten",
       "klasse": "OWC",
       "na_de": "Passive Rechnungsabgrenzung",
-      "na_en": "Deferred income"
+      "na_en": "Deferred income",
+      "seite": "OL"
     },
     {
       "hgb_pfad": "/Passiva/E Passive latente Steuern",
@@ -585,7 +599,9 @@
         ],
         "klasse": "OWC",
         "prioritaet": 100,
-        "regeltyp": "inhaltsregel"
+        "regeltyp": "inhaltsregel",
+        "standardfrage": "Enthaelt die Urlaubsrueckstellung Urlaub aus Vorjahren (aufgestauter Alturlaub)? Falls ja, Umfang und Entwicklung erlaeutern.",
+        "hinweis": "Klasse bleibt OWC. Standardfrage ist Vollstaendigkeits-/Strukturhinweis, keine Umklassifizierung."
       },
       {
         "id": "rst-gewaehrleistung",
@@ -685,11 +701,11 @@
           "personalkost",
           "personal"
         ],
-        "klasse": "ND",
+        "klasse": "OWC",
         "prioritaet": 50,
-        "review": true,
-        "hinweis": "Default ND (Annahme Boni). Aufriss anfordern; wenn Urlaubsanteil, dorthin OWC.",
-        "regeltyp": "inhaltsregel"
+        "hinweis": "Kategoriename Personal -> Default OWC + Aufriss zwingend (Urlaub=OWC, Boni/Abfindung=ND erst nach Aufriss). Vereinheitlicht mit rst-personalkosten-generisch.",
+        "regeltyp": "kategorieregel",
+        "pflichtfrage": "aufriss"
       },
       {
         "id": "rst-sonstige-generic",
@@ -1779,5 +1795,25 @@
     "inhaltsregel": "Stichwort benennt einen konkreten INHALT (Urlaub, Gewaehrleistung, Berufsgenossenschaft, Jubilaeum, Kreditkarte, Loehne). -> Klasse verbindlich, keine Pflichtfrage.",
     "kategorieregel": "Stichwort benennt nur eine KATEGORIE / einen Sammelnamen (Personalkosten, sonstige Forderungen, sonstige Rueckstellungen, sonstige Verbindlichkeiten, sonstige Vermoegensgegenstaende, CPD, OP gefuehrt). -> Klasse nur als DEFAULT, zwingend review=true + pflichtfrage='aufriss'.",
     "begruendung": "Beispiel 0965 'Rueckstellungen Personalkosten': kann Urlaub (OWC) oder Mitarbeiterboni/Abfindung (ND) sein. Der Name disambiguiert nicht. Ein selbstsicherer Klassenansatz waere hier falsch."
+  },
+  "_aenderungen_v2_5": [
+    "OA/OL-Ableitung ergaenzt: Operating Assets (OA) vs Operating Liabilities (OL) folgen deterministisch aus der Bilanzseite des HGB-Pfads. /Aktiva + (OWC oder TWC) -> OA. /Passiva + (OWC oder TWC) -> OL. Damit ARAP -> OA und PRAP -> OL automatisch.",
+    "Urlaubsrueckstellung: Standardfrage ergaenzt (enthaelt die Rueckstellung Urlaub aus Vorjahren?). Klasse bleibt OWC, Frage ist Vollstaendigkeits-/Werthaltigkeitsfrage.",
+    "Widerspruch bereinigt: rst-personal-generic stand auf ND(review), rst-personalkosten-generisch auf OWC(aufriss). Beide auf OWC + Pflichtfrage Aufriss (Kategorieregel) vereinheitlicht — konsistent mit der bestaetigten Nutzer-Einordnung."
+  ],
+  "oa_ol_ableitung": {
+    "_zweck": "OA/OL sind keine eigene Klasse, sondern die Seite des Working Capital. Sie werden deterministisch aus der Bilanzseite des HGB-Pfads abgeleitet.",
+    "regel": {
+      "OA": "HGB-Pfad beginnt mit /Aktiva UND Klasse in (TWC, OWC) -> Operating Asset",
+      "OL": "HGB-Pfad beginnt mit /Passiva UND Klasse in (TWC, OWC) -> Operating Liability",
+      "keine_seite": "Klassen FA, ND, EQ, DT tragen keine WC-Seite (sie sind nicht Teil des Working Capital)."
+    },
+    "wichtig": "Aendert NICHT die Klasse. ARAP bleibt OWC, liegt aber auf der OA-Seite; PRAP bleibt OWC auf der OL-Seite. Net Working Capital = Summe OA minus Summe OL.",
+    "beispiele": {
+      "0980 Aktive Rechnungsabgrenzung": "OWC -> OA",
+      "PRAP": "OWC -> OL",
+      "1400 Forderungen aL": "TWC -> OA",
+      "1600 Verbindlichkeiten aL": "TWC -> OL"
+    }
   }
 }

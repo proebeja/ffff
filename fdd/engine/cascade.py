@@ -138,6 +138,7 @@ class Engine:
             account=account, hgb_pfad=hgb_pfad, hgb_pfad_en=pfad_en,
             klasse=klasse, na_de=reg.na_de, na_en=reg.na_en,
             quelle=quelle, regel_id=regel_id, review=False,
+            seite=_seite(hgb_pfad, klasse, reg),
             begruendung=begruendung + f" Klasse {klasse.value} via Reklassifizierung.",
         )
 
@@ -172,7 +173,8 @@ class Engine:
             quelle=quelle, regel_id=r2.id, review=review, aus_mixed=True,
             # v2.3-Marker durchreichen — nur Status/Anzeige, keine Logik:
             pflichtfrage=r2.pflichtfrage, verhaltenspruefung=r2.verhaltenspruefung,
-            gekoppelt_mit=r2.gekoppelt_mit,
+            gekoppelt_mit=r2.gekoppelt_mit, standardfrage=r2.standardfrage,
+            seite=_seite(hgb_pfad, klasse, reg),
             begruendung=begruendung + f" Gemischt -> {klasse.value} via Typ-2 '{r2.id}'."
                         + (f" {r2.hinweis}" if r2.hinweis else ""),
         )
@@ -202,6 +204,27 @@ class Engine:
             quelle=Quelle.SKR_DEFAULT, regel_id=None, review=False,
             begruendung=f"Technisches Konto (>= {self.hc.tech_ab}) — nicht im Databook.",
         )
+
+
+def _seite(hgb_pfad: str, klasse: Klasse, reg) -> Optional[str]:
+    """WC-Seite (OA/OL) nach ``oa_ol_ableitung`` (Hausconvention v2.5).
+
+    OA/OL sind keine eigene Klasse, sondern die Seite des Working Capital:
+    /Aktiva + (TWC|OWC) -> OA, /Passiva + (TWC|OWC) -> OL. FA/ND/EQ/DT tragen
+    keine Seite. Die Ableitung aus der Bilanzseite ist maßgeblich; das
+    ``seite``-Feld der Reklass-Regel dient als Gegenprobe (Konfigfehler
+    würden sonst stillschweigend durchlaufen).
+    """
+    if klasse not in (Klasse.TWC, Klasse.OWC):
+        return None
+    abgeleitet = "OA" if hgb_pfad.startswith("/Aktiva") else "OL"
+    konfiguriert = getattr(reg, "seite", None)
+    if konfiguriert and konfiguriert != abgeleitet:
+        raise ValueError(
+            f"Hausconvention-Widerspruch: Pfad '{reg.hgb_pfad}' ist laut "
+            f"Bilanzseite {abgeleitet}, trägt aber seite={konfiguriert}."
+        )
+    return abgeleitet
 
 
 def _letztes_bekanntes_segment(hgb_pfad: str) -> str:

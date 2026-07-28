@@ -27,20 +27,43 @@ from ..views.working_capital import WCView
 
 # ---- Hausformat-Konstanten ------------------------------------------------
 ZAHLENFORMAT = '#,##0;(#,##0);"-"'
+ZAHLENFORMAT_CHECK = '#,##0.00;(#,##0.00);"-"'   # Kontroll-/Abstimmzeilen
 FONT_NAME = "Arial"
-TEAL = "1F6F6F"           # Kopf-/Akzentfarbe
-TEAL_HELL = "D6E8E8"      # Zwischensummen-Hinterlegung
-GRAU_HELL = "F2F2F2"
+
+# Teal-Hauspalette
+TEAL_DK = "005858"        # Titel
+TEAL = "008888"           # Header-Bänder, Zwischenüberschriften
+TEAL_PRI = "00B0B0"       # Akzent
+TINT1 = "E0F8F8"          # helle Zeilen-Bänderung
+TINT2 = "C8F0F0"          # zweite Bänderungsstufe
+MINT = "88E0D8"           # Hervorhebung
+GELB = "FFF2A8"           # Flag / zu prüfen
+
+# Schriftfarben-Konvention: Herkunft des Werts auf einen Blick
+FARBE_INPUT = "0000FF"    # blau  = hartcodierter Input
+FARBE_FORMEL = "000000"   # schwarz = Formel im selben Blatt
+FARBE_LINK = "008000"     # grün  = Querverweis auf ein anderes Blatt
 
 _kopf_fill = PatternFill("solid", fgColor=TEAL)
-_sub_fill = PatternFill("solid", fgColor=TEAL_HELL)
-_grau_fill = PatternFill("solid", fgColor=GRAU_HELL)
+_sub_fill = PatternFill("solid", fgColor=TINT1)
+_grau_fill = PatternFill("solid", fgColor=TINT2)
+_gelb_fill = PatternFill("solid", fgColor=GELB)
 _kopf_font = Font(name=FONT_NAME, bold=True, color="FFFFFF", size=10)
 _bold = Font(name=FONT_NAME, bold=True, size=10)
 _normal = Font(name=FONT_NAME, size=10)
+_input = Font(name=FONT_NAME, size=10, color=FARBE_INPUT)
+_link = Font(name=FONT_NAME, size=10, color=FARBE_LINK)
+_link_bold = Font(name=FONT_NAME, size=10, bold=True, color=FARBE_LINK)
+_hinweis = Font(name=FONT_NAME, italic=True, size=9, color="808080")
 _duenn = Side(style="thin", color="BFBFBF")
 _rahmen = Border(bottom=_duenn)
 _top_double = Border(top=Side(style="double", color=TEAL))
+
+
+def _titel(ws, zeile: int, spalte: int, text: str, groesse: int = 11):
+    c = ws.cell(zeile, spalte, text)
+    c.font = Font(name=FONT_NAME, bold=True, size=groesse, color=TEAL_DK)
+    return c
 
 
 @dataclass
@@ -111,18 +134,109 @@ def schreibe_databook(pfad: str, mapped: list[MappedAccount], nd: NetDebtView,
                       review: list[ReviewEintrag], perioden: list[str],
                       entity: str, meta: Optional[dict] = None,
                       wc: "Optional[WCView]" = None,
-                      schedules: "Optional[Schedules]" = None) -> None:
+                      schedules: "Optional[Schedules]" = None,
+                      recon=None, setup=None) -> None:
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
     layout = _schreibe_mastersheet(wb, mapped, perioden, entity)
     refs = _schreibe_schedules(wb, schedules, layout, perioden, entity) if schedules else {}
-    _schreibe_net_debt(wb, nd, layout, perioden, entity, refs)
+    _schreibe_net_debt(wb, nd, layout, perioden, entity, refs, setup)
     if wc is not None:
-        _schreibe_working_capital(wb, wc, layout, perioden, entity, refs)
+        _schreibe_working_capital(wb, wc, layout, perioden, entity, refs, setup)
+    if recon is not None:
+        _schreibe_reconciliation(wb, recon, perioden, entity)
     _schreibe_review(wb, review, perioden)
     if meta:
         _schreibe_info(wb, meta)
     wb.save(pfad)
+
+
+def _vorlaeufig_banner(ws, zeile: int, setup) -> None:
+    """Kennzeichnet das Blatt als vorläufig, wenn kein Kontennachweis vorlag."""
+    if setup is None or getattr(setup, "ist_abschlusstreu", True):
+        return
+    c = ws.cell(zeile, 2, "VORLÄUFIG — NICHT ABSCHLUSSTREU: kein Kontennachweis; "
+                          "Struktur aus Hausconvention/SKR-Default")
+    c.font = Font(name=FONT_NAME, bold=True, size=9, color="9C0006")
+    c.fill = _gelb_fill
+
+
+# ---- Reconciliation SuSa vs. Kontennachweis ------------------------------
+def _schreibe_reconciliation(wb, recon, perioden, entity) -> None:
+    ws = wb.create_sheet("Recon SuSa-KN")
+    ws.sheet_view.showGridLines = False
+    _titel(ws, 1, 2, f"Reconciliation SuSa gegen Kontennachweis — {entity}")
+    ws.cell(2, 2, "in EUR · Differenz = SuSa − Kontennachweis · Differenzen sind "
+                  "Information (Abschlussbuchungen/Umgliederungen), nicht per se Fehler"
+            ).font = _hinweis
+
+    hz = 4
+    ws.cell(hz, 2, "HGB-Position").font = _kopf_font
+    ws.cell(hz, 2).fill = _kopf_fill
+    spalten: list[tuple[int, str]] = []
+    c = 3
+    for p in perioden:
+        for lab in (f"{p} SuSa", f"{p} KN", f"{p} Diff"):
+            cell = ws.cell(hz, c, lab); cell.font = _kopf_font; cell.fill = _kopf_fill
+            spalten.append((c, lab)); c += 1
+    letzte_spalte = c - 1
+
+    r = hz + 1
+    erste = r
+    for z in recon.zeilen:
+        ws.cell(r, 2, z.hgb_pfad).font = _normal
+        cc = 3
+        for p in perioden:
+            for wert, fmt in ((z.susa.get(p, 0.0), ZAHLENFORMAT),
+                              (z.kn.get(p, 0.0), ZAHLENFORMAT),
+                              (z.differenz(p), ZAHLENFORMAT_CHECK)):
+                cell = ws.cell(r, cc, round(wert, 2))
+                cell.number_format = fmt
+                cell.font = _normal
+                if fmt == ZAHLENFORMAT_CHECK and abs(wert) > 0.005:
+                    cell.fill = _gelb_fill
+                    cell.font = _bold
+                cc += 1
+        r += 1
+    letzte = r - 1
+
+    # Summenzeile über alle Positionen
+    ws.cell(r, 2, "Summe (muss je Spalte aufgehen)").font = _bold
+    for col in range(3, letzte_spalte + 1):
+        L = get_column_letter(col)
+        cell = ws.cell(r, col, f"=SUM({L}{erste}:{L}{letzte})")
+        cell.number_format = ZAHLENFORMAT_CHECK
+        cell.font = _bold
+        cell.fill = _sub_fill
+        cell.border = _top_double
+    r += 2
+
+    # Mengen-Differenzen: Konten, die nur eine Seite kennt
+    for titel, konten in (("Nur im Kontennachweis (fehlten in der SuSa)", recon.nur_im_kn),
+                          ("Nur in der SuSa (im Abschluss nicht nachgewiesen)", recon.nur_in_susa)):
+        h = ws.cell(r, 2, f"{titel}: {len(konten)}")
+        h.font = _bold
+        h.fill = _grau_fill
+        r += 1
+        for konto in konten:
+            bez, salden = recon.details.get(konto, ("", {}))
+            ws.cell(r, 2, f"{konto}  {bez}").font = _normal
+            cc = 3
+            for p in perioden:
+                cell = ws.cell(r, cc, round(salden.get(p, 0.0), 2))
+                cell.number_format = ZAHLENFORMAT
+                cell.font = _input
+                cc += 3          # unter der jeweiligen SuSa-Spalte
+            r += 1
+        if not konten:
+            ws.cell(r, 2, "(keine)").font = _hinweis
+            r += 1
+        r += 1
+
+    _breiten(ws, {2: 62})
+    for col, _ in spalten:
+        ws.column_dimensions[get_column_letter(col)].width = 15
+    ws.freeze_panes = ws.cell(hz + 1, 3)
 
 
 # ---- Aufriss-Schicht (Schedules) -----------------------------------------
@@ -168,7 +282,7 @@ def _schreibe_einfacher_aufriss(wb, a: Aufriss, layout, perioden) -> AufrissRef:
         kc = ws.cell(r, 4, m.klasse.value); kc.font = _bold; kc.fill = _klasse_fill(m.klasse)
         for i, p in enumerate(perioden):
             cell = ws.cell(r, p0 + i, "=" + layout.wert_zelle(m, p))
-            cell.number_format = ZAHLENFORMAT; cell.font = _normal
+            cell.number_format = ZAHLENFORMAT; cell.font = _link   # gruen: Querverweis
         r += 1
     letzte = r - 1
     total = {}
@@ -216,7 +330,7 @@ def _schreibe_mixed_aufriss(wb, a: Aufriss, layout, perioden) -> AufrissRef:
             op = ws.cell(r, op_col[p], f'=IF({kz}="OWC",{wert},IF({kz}="TWC",{wert},0))')
             nd = ws.cell(r, nd_col[p], f'=IF({kz}="ND",{wert},0)')
             for cell in (op, nd):
-                cell.number_format = ZAHLENFORMAT; cell.font = _normal
+                cell.number_format = ZAHLENFORMAT; cell.font = _link   # gruen: Querverweis
         r += 1
     letzte = r - 1
     tc = ws.cell(r, 3, "Summe (operating -> WC-Lead / thereof ND -> ND-Lead)"); tc.font = _bold
@@ -265,7 +379,7 @@ def _schreibe_mastersheet(wb, mapped, perioden, entity) -> MastersheetLayout:
         for i, p in enumerate(perioden):
             cell = ws.cell(r, perioden_start + i, round(m.saldo(p), 2))
             cell.number_format = ZAHLENFORMAT
-            cell.font = _normal
+            cell.font = _input          # blau: hartcodierter Input
         r += 1
     letzte = r - 1
 
@@ -281,15 +395,16 @@ def _schreibe_mastersheet(wb, mapped, perioden, entity) -> MastersheetLayout:
 
 # ---- Net-Debt-Tab (zieht aus Aufrissen, Kontrollzeile prüft Mastersheet) --
 def _schreibe_net_debt(wb, nd: NetDebtView, layout: MastersheetLayout,
-                       perioden, entity, refs: dict[str, AufrissRef]) -> None:
+                       perioden, entity, refs: dict[str, AufrissRef],
+                       setup=None) -> None:
     ws = wb.create_sheet("Net Debt")
     ws.sheet_view.showGridLines = False
     p0 = 4  # erste Perioden-Spalte (nach Ref./NA-DE/NA-EN)
 
     # Titelblock
     t = ws.cell(1, 2, f"Net Debt — {entity}"); t.font = Font(name=FONT_NAME, bold=True, size=13, color=TEAL)
-    ws.cell(2, 2, "in EUR · jede Zeile zieht aus genau einem Aufriss").font = Font(
-        name=FONT_NAME, italic=True, size=9)
+    ws.cell(2, 2, "in EUR · jede Zeile zieht aus genau einem Aufriss").font = _hinweis
+    _vorlaeufig_banner(ws, 3, setup)
 
     kopf_zeile = 4
     ws.cell(kopf_zeile, 2, "Ref."); ws.cell(kopf_zeile, 3, "Net-Asset-Position")
@@ -333,7 +448,7 @@ def _schreibe_net_debt(wb, nd: NetDebtView, layout: MastersheetLayout,
                 cell = ws.cell(r, col)
                 cell.value = _ref_formel(aufriss, p, nd_teil=True)
                 cell.number_format = ZAHLENFORMAT
-                cell.font = _normal
+                cell.font = _link          # gruen: zieht aus dem Aufriss
             daten_zeilen.append(r)
             ref += 1
             r += 1
@@ -372,8 +487,9 @@ def _schreibe_net_debt(wb, nd: NetDebtView, layout: MastersheetLayout,
             f"{layout.bereich(layout.spalte_klasse)},\"ND\")"
         )
         cell = ws.cell(k, col, f"={gesamt_nd}-{spalte}{sub_zeile}")
-        cell.number_format = ZAHLENFORMAT
-        cell.font = Font(name=FONT_NAME, italic=True, size=9)
+        cell.number_format = ZAHLENFORMAT_CHECK
+        cell.font = Font(name=FONT_NAME, italic=True, size=9, color=FARBE_LINK)
+        cell.fill = _gelb_fill
 
     _breiten(ws, {2: 6, 3: 58})
     for i in range(len(perioden)):
@@ -383,7 +499,8 @@ def _schreibe_net_debt(wb, nd: NetDebtView, layout: MastersheetLayout,
 
 # ---- Working-Capital-Tab (zieht aus Aufrissen, Kontrollzeile prüft MS) ----
 def _schreibe_working_capital(wb, wc: WCView, layout: MastersheetLayout,
-                              perioden, entity, refs: dict[str, AufrissRef]) -> None:
+                              perioden, entity, refs: dict[str, AufrissRef],
+                              setup=None) -> None:
     ws = wb.create_sheet("Working Capital")
     ws.sheet_view.showGridLines = False
     p0 = 4
@@ -391,8 +508,8 @@ def _schreibe_working_capital(wb, wc: WCView, layout: MastersheetLayout,
     ws.cell(1, 2, f"Working Capital (Ist je Periode) — {entity}").font = Font(
         name=FONT_NAME, bold=True, size=13, color=TEAL)
     ws.cell(2, 2, "in EUR · jede Zeile zieht aus genau einem Aufriss · WC-Definition "
-                  "über alle Perioden identisch · noch keine normalisierte Referenz").font = Font(
-        name=FONT_NAME, italic=True, size=9)
+                  "über alle Perioden identisch · noch keine normalisierte Referenz").font = _hinweis
+    _vorlaeufig_banner(ws, 3, setup)
 
     kopf_zeile = 4
     ws.cell(kopf_zeile, 2, "Ref."); ws.cell(kopf_zeile, 3, "Net-Asset-Position")
@@ -441,7 +558,7 @@ def _schreibe_working_capital(wb, wc: WCView, layout: MastersheetLayout,
                 # operating-Summe, sonst -> Aufriss-Summe.
                 cell = ws.cell(r, p0 + i, _ref_formel(aufriss, p, nd_teil=False))
                 cell.number_format = ZAHLENFORMAT
-                cell.font = _normal
+                cell.font = _link          # gruen: zieht aus dem Aufriss
             rows.append(r)
             zeilen_rows.setdefault((seite, klasse), []).append(r)
             ref += 1
@@ -484,8 +601,9 @@ def _schreibe_working_capital(wb, wc: WCView, layout: MastersheetLayout,
         kl = layout.bereich(layout.spalte_klasse)
         gesamt = f"SUMIFS({rng},{kl},\"TWC\")+SUMIFS({rng},{kl},\"OWC\")"
         cell = ws.cell(r, col, f"={gesamt}-{sp}{nwc_row}")
-        cell.number_format = ZAHLENFORMAT
-        cell.font = Font(name=FONT_NAME, italic=True, size=9)
+        cell.number_format = ZAHLENFORMAT_CHECK
+        cell.font = Font(name=FONT_NAME, italic=True, size=9, color=FARBE_LINK)
+        cell.fill = _gelb_fill
 
     _breiten(ws, {2: 6, 3: 58})
     for i in range(len(perioden)):

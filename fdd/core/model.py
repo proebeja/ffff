@@ -104,6 +104,10 @@ class MappedAccount:
     pflichtfrage: Optional[str] = None      # "aufriss" | "pension"
     verhaltenspruefung: bool = False        # Wiederkehr-/Stabilitätsprüfung offen
     gekoppelt_mit: Optional[str] = None     # Regel-ID einer gekoppelten Position
+    standardfrage: str = ""                 # v2.5: Vollständigkeits-/Werthaltigkeitsfrage
+    # v2.5: WC-Seite (OA/OL), abgeleitet aus der Bilanzseite des HGB-Pfads.
+    # Keine eigene Klasse; None für FA/ND/EQ/DT.
+    seite: Optional[str] = None
     # Audit-Spur bei manuellem Override der abgeleiteten Klasse:
     override_von: Optional[Klasse] = None
     override_begruendung: str = ""

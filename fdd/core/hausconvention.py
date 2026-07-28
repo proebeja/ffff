@@ -42,6 +42,10 @@ class ReklassRegel:
     na_en: str
     split_regelset: Optional[str] = None
     hinweis: str = ""
+    # v2.5: WC-Seite (OA/OL). Keine eigene Klasse, sondern die Seite des
+    # Working Capital — bei gemischten Positionen als ``seite_operating``.
+    # None für FA/ND/EQ/DT (nicht Teil des Working Capital).
+    seite: Optional[str] = None
 
 
 @dataclass
@@ -70,6 +74,7 @@ class Typ2Regel:
     pflichtfrage: Optional[str] = None      # "aufriss" | "pension"
     verhaltenspruefung: bool = False
     gekoppelt_mit: Optional[str] = None
+    standardfrage: str = ""                 # v2.5
 
 
 class Hausconvention:
@@ -107,6 +112,7 @@ class Hausconvention:
             hgb_pfad=r["hgb_pfad"], klasse=r["klasse"],
             na_de=r.get("na_de", ""), na_en=r.get("na_en", ""),
             split_regelset=r.get("split_regelset"), hinweis=r.get("hinweis", ""),
+            seite=r.get("seite") or r.get("seite_operating"),
         )
 
     @staticmethod
@@ -130,6 +136,7 @@ class Hausconvention:
             pflichtfrage=r.get("pflichtfrage"),
             verhaltenspruefung=r.get("verhaltenspruefung", False),
             gekoppelt_mit=r.get("gekoppelt_mit"),
+            standardfrage=r.get("standardfrage", ""),
         )
 
     # ---- Zugriffe ---------------------------------------------------------

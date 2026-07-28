@@ -70,7 +70,9 @@ class WCView:
 
 
 def _seite(m: MappedAccount) -> str:
-    return "OA" if m.hgb_pfad.startswith("/Aktiva") else "OL"
+    """WC-Seite des Kontos. Kommt aus der Engine (``oa_ol_ableitung``, v2.5);
+    der Pfad-Fallback greift nur für Konten, die vor v2.5 gemappt wurden."""
+    return m.seite or ("OA" if m.hgb_pfad.startswith("/Aktiva") else "OL")
 
 
 def baue_working_capital(mapped: list[MappedAccount], perioden: list[str],

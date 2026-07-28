@@ -15,7 +15,11 @@ import sys
 from .core.hausconvention import Hausconvention
 from .engine.cascade import Engine
 from .engine.decision_log import Entscheidungsprotokoll
+from .engine.kontennachweis_apply import wende_kontennachweis_an
+from .engine.reconciliation import reconcile
+from .engine.setup import setup
 from .readers.detect import waehle_reader
+from .readers.kontennachweis import lies_kontennachweis
 from .views.net_debt import baue_net_debt
 from .views.review_queue import baue_review_queue
 from .views.schedules import baue_schedules
@@ -24,14 +28,25 @@ from .export import excel
 
 
 def run(eingabe: str, ausgabe: str, hc_pfad: str | None = None,
-        verbose: bool = True) -> dict:
+        verbose: bool = True, kontennachweis: str | None = None) -> dict:
     hc = Hausconvention.laden(hc_pfad) if hc_pfad else Hausconvention.laden()
     reader = waehle_reader(eingabe)
     ledger = reader.lesen(eingabe)
+    susa_konten = {a.konto for a in ledger.accounts}
+
+    # Setup-Dialog: der Kontennachweis ist die erste Frage und entscheidet
+    # über den Modus (abschlusstreu vs. vorläufiger Default-Modus).
+    kn = None
+    if kontennachweis:
+        kn = lies_kontennachweis(kontennachweis, ledger.perioden)
+        ledger = wende_kontennachweis_an(ledger, kn)
+    mit_kn_struktur = sum(1 for a in ledger.accounts if a.fs_pfad)
+    setup_ergebnis = setup(kontennachweis, len(ledger.accounts), mit_kn_struktur)
 
     protokoll = Entscheidungsprotokoll()
     engine = Engine(hc, protokoll=protokoll)
     mapped = engine.map_ledger(ledger)
+    recon = reconcile(mapped, kn, ledger.perioden, susa_konten) if kn else None
 
     nd = baue_net_debt(mapped, ledger.perioden, ledger.entity)
     wc = baue_working_capital(mapped, ledger.perioden, ledger.entity)
@@ -44,6 +59,8 @@ def run(eingabe: str, ausgabe: str, hc_pfad: str | None = None,
         "Entity": ledger.entity,
         "Perioden": ", ".join(ledger.perioden),
         "Kontennachweis vorhanden": "ja" if ledger.hat_kontennachweis else "nein",
+        "Modus": setup_ergebnis.databook_kennzeichen,
+        "Setup-Meldung": setup_ergebnis.meldung,
         "Hausconvention-Version": hc.version,
         "Fingerprint (SHA-256/16)": ledger.fingerprint,
         "Konten gesamt": len(mapped),
@@ -60,15 +77,21 @@ def run(eingabe: str, ausgabe: str, hc_pfad: str | None = None,
         "WC-Konten ohne NA-Zeile (Raster-Löcher)": len(wc.ohne_na_zeile),
         "Aufrisse (Schedules)": len(schedules.aufrisse),
         "Konten ohne Aufriss": len(schedules.ohne_aufriss),
+        "Struktur aus Kontennachweis": f"{mit_kn_struktur} von {len(ledger.accounts)} Konten",
+        "Konten nur im Kontennachweis": len(recon.nur_im_kn) if recon else 0,
     }
+    if setup_ergebnis.anforderung:
+        meta["Datenanforderung"] = setup_ergebnis.anforderung
     excel.schreibe_databook(ausgabe, mapped, nd, review,
                             ledger.perioden, ledger.entity, meta=meta, wc=wc,
-                            schedules=schedules)
+                            schedules=schedules, recon=recon,
+                            setup=setup_ergebnis)
 
     if verbose:
         _zusammenfassung(ledger, mapped, nd, review, ausgabe, meta)
     return {"ledger": ledger, "mapped": mapped, "nd": nd, "wc": wc,
-            "schedules": schedules, "review": review, "meta": meta}
+            "schedules": schedules, "review": review, "meta": meta,
+            "recon": recon, "setup": setup_ergebnis, "kn": kn}
 
 
 def _zusammenfassung(ledger, mapped, nd, review, ausgabe, meta) -> None:
@@ -95,12 +118,15 @@ def main(argv=None) -> int:
     ap.add_argument("eingabe", help="SuSa/SAP-Export/PDF-Kontennachweis")
     ap.add_argument("-o", "--ausgabe", default=None, help="Ziel-Excel (.xlsx)")
     ap.add_argument("--hausconvention", default=None, help="Pfad zu hausconvention.json")
+    ap.add_argument("--kontennachweis", default=None,
+                    help="Kontennachweis (PDF/Excel) — maßgebliche Strukturquelle")
     args = ap.parse_args(argv)
 
     ausgabe = args.ausgabe or (os.path.splitext(os.path.basename(args.eingabe))[0]
                                + "_Databook.xlsx")
     try:
-        run(args.eingabe, ausgabe, args.hausconvention)
+        run(args.eingabe, ausgabe, args.hausconvention,
+            kontennachweis=args.kontennachweis)
     except Exception as e:
         print(f"FEHLER: {e}", file=sys.stderr)
         return 1
