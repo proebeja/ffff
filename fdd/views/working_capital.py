@@ -3,8 +3,11 @@
 Gleiche Mechanik wie die Net-Debt-View: rein aus dem Datenmodell abgeleitet,
 gefiltert nach Klasse (TWC/OWC) und Net-Asset-Zeile. Keine eigene Rechenlogik.
 
-Zweigeteilt nach Operating Assets / Operating Liabilities (Seite aus dem
-HGB-Pfad: /Aktiva vs. /Passiva), innerhalb je getrennt nach TWC und OWC.
+Primäre Gruppierung ist die klassische FDD-Schnittrichtung: erst der
+TWC-Block (alle Trade-Positionen, Assets wie Liabilities), dann der OWC-Block,
+darunter NWC = Saldo TWC + Saldo OWC. Die OA/OL-Ableitung (`seite`, aus der
+Engine bzw. dem HGB-Pfad) bleibt vollständig im Datenmodell und wird im Lead
+je Zeile als Spalte ausgewiesen — sie ist nur nicht mehr die Gliederungsebene.
 
 Bewusst NICHT enthalten: die normalisierte Referenz / das Target Working
 Capital. Dieser Tab zeigt nur das **Ist-Working-Capital je Periode**; die
@@ -68,6 +71,13 @@ class WCView:
     def zeilen_fuer(self, seite: str, klasse: str) -> list[WCZeile]:
         return [z for z in self.zeilen if z.seite == seite and z.klasse == klasse]
 
+    def zeilen_je_klasse(self, klasse: str) -> list[WCZeile]:
+        """Alle Zeilen einer WC-Klasse, Assets vor Liabilities.
+
+        Primäre Schnittrichtung des Leads: erst TWC, dann OWC — die
+        OA/OL-Unterscheidung bleibt als Attribut je Zeile erhalten."""
+        return [z for z in self.zeilen if z.klasse == klasse]
+
 
 def _seite(m: MappedAccount) -> str:
     """WC-Seite des Kontos. Kommt aus der Engine (``oa_ol_ableitung``, v2.5);
@@ -101,8 +111,10 @@ def baue_working_capital(mapped: list[MappedAccount], perioden: list[str],
     ordnung = _na_reihenfolge()
     geordnet = sorted(
         zeilen.values(),
-        key=lambda z: (0 if z.seite == "OA" else 1,      # Assets vor Liabilities
-                       0 if z.klasse == "TWC" else 1,     # TWC vor OWC
+        # TWC vor OWC (primäre Gruppierung des Leads), darin Assets vor
+        # Liabilities. Die OA/OL-Ableitung bleibt im Datenmodell erhalten.
+        key=lambda z: (0 if z.klasse == "TWC" else 1,
+                       0 if z.seite == "OA" else 1,
                        ordnung.get(z.na_de, 500), z.na_de),
     )
     return WCView(perioden=list(perioden), zeilen=geordnet, entity=entity,

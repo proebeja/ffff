@@ -12,7 +12,7 @@ laufen, und der Prüfer sieht nachvollziehbare Formeln.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Optional
 
 import openpyxl
@@ -58,6 +58,7 @@ _hinweis = Font(name=FONT_NAME, italic=True, size=9, color="808080")
 _duenn = Side(style="thin", color="BFBFBF")
 _rahmen = Border(bottom=_duenn)
 _top_double = Border(top=Side(style="double", color=TEAL))
+_top_thin = Border(top=Side(style="thin", color=TEAL))
 
 
 def _titel(ws, zeile: int, spalte: int, text: str, groesse: int = 11):
@@ -128,6 +129,10 @@ class AufrissRef:
     total: dict[str, str]        # nicht-gemischt: Periode -> Summenzelle
     operating: dict[str, str]    # gemischt: Periode -> operating-Summenzelle
     thereof_nd: dict[str, str]   # gemischt: Periode -> thereof-ND-Summenzelle
+    # gemischt: Konto -> Periode -> Zelle der thereof-ND-Spalte. Speist die
+    # aufklappbaren Detailzeilen des Net-Debt-Leads — dieselbe Spalte, aus der
+    # auch die Summenzeile zieht, nur eine Ebene tiefer.
+    konto_thereof_nd: dict[str, dict[str, str]] = field(default_factory=dict)
 
 
 def schreibe_databook(pfad: str, mapped: list[MappedAccount], nd: NetDebtView,
@@ -319,10 +324,13 @@ def _schreibe_mixed_aufriss(wb, a: Aufriss, layout, perioden) -> AufrissRef:
             cell = ws.cell(hz, col, lab); cell.font = _kopf_font; cell.fill = _kopf_fill
     r = hz + 1
     erste = r
+    konto_nd: dict[str, dict[str, str]] = {}
     for m in a.konten:
         ws.cell(r, 2, m.konto).font = _normal
         ws.cell(r, 3, m.bezeichnung).font = _normal
         kc = ws.cell(r, 4, m.klasse.value); kc.font = _bold; kc.fill = _klasse_fill(m.klasse)
+        konto_nd[m.konto] = {
+            p: f"'{a.sheetname}'!${get_column_letter(nd_col[p])}${r}" for p in perioden}
         kz = layout.klasse_zelle(m)
         for p in perioden:
             wert = layout.wert_zelle(m, p)
@@ -347,7 +355,7 @@ def _schreibe_mixed_aufriss(wb, a: Aufriss, layout, perioden) -> AufrissRef:
         ws.column_dimensions[get_column_letter(p0 + i)].width = 14
     if a.ist_leer:
         ws.sheet_state = "hidden"
-    return AufrissRef(a.sheetname, True, {}, operating, thereof_nd)
+    return AufrissRef(a.sheetname, True, {}, operating, thereof_nd, konto_nd)
 
 
 # ---- Mastersheet (Single Source of Truth) --------------------------------
@@ -394,23 +402,48 @@ def _schreibe_mastersheet(wb, mapped, perioden, entity) -> MastersheetLayout:
 
 
 # ---- Net-Debt-Tab (zieht aus Aufrissen, Kontrollzeile prüft Mastersheet) --
+def _lead_outline(ws) -> None:
+    """Outline-Ausrichtung der Lead-Tabs: Summenzeilen stehen ÜBER ihren
+    Detailzeilen, die einklappbare Quellenspalte links neben ihrer Gruppe."""
+    ws.sheet_properties.outlinePr.summaryBelow = False
+    ws.sheet_properties.outlinePr.summaryRight = False
+
+
+def _quelle_spalte(ws, spalte: int = 4) -> None:
+    """Die Spalte mit den Aufriss-Verweisen wird gruppiert: im Arbeitsmodus
+    sichtbar, für den Report-Export mit einem Klick ausgeblendet."""
+    ws.column_dimensions[get_column_letter(spalte)].outline_level = 1
+
+
+def _lead_kopf(ws, kopf_zeile: int, p0: int, perioden, kontext: str) -> None:
+    for c, txt in ((2, "Ref."), (3, "Net-Asset-Position"), (4, "Quelle"), (5, kontext)):
+        ws.cell(kopf_zeile, c, txt)
+    for i, p in enumerate(perioden):
+        ws.cell(kopf_zeile, p0 + i, p)
+    _style_kopf_row(ws, kopf_zeile, 2, p0 + len(perioden) - 1)
+
+
+def _hgb_position(m: MappedAccount) -> str:
+    """Herkunftsposition eines Kontos: das Blatt seines HGB-Pfads."""
+    return m.hgb_pfad.rstrip("/").rsplit("/", 1)[-1] if m.hgb_pfad else ""
+
+
 def _schreibe_net_debt(wb, nd: NetDebtView, layout: MastersheetLayout,
                        perioden, entity, refs: dict[str, AufrissRef],
                        setup=None) -> None:
     ws = wb.create_sheet("Net Debt")
     ws.sheet_view.showGridLines = False
-    p0 = 4  # erste Perioden-Spalte (nach Ref./NA-DE/NA-EN)
+    _lead_outline(ws)
+    p0 = 6  # erste Perioden-Spalte (nach Ref./Position/Quelle/Herkunft)
 
     # Titelblock
     t = ws.cell(1, 2, f"Net Debt — {entity}"); t.font = Font(name=FONT_NAME, bold=True, size=13, color=TEAL)
-    ws.cell(2, 2, "in EUR · jede Zeile zieht aus genau einem Aufriss").font = _hinweis
+    ws.cell(2, 2, "in EUR · jede Zeile zieht aus genau einem Aufriss · Umgliederungs"
+                  "zeilen links aufklappbar · Spalte 'Quelle' für den Report ausblendbar").font = _hinweis
     _vorlaeufig_banner(ws, 3, setup)
 
     kopf_zeile = 4
-    ws.cell(kopf_zeile, 2, "Ref."); ws.cell(kopf_zeile, 3, "Net-Asset-Position")
-    for i, p in enumerate(perioden):
-        ws.cell(kopf_zeile, p0 + i, p)
-    _style_kopf_row(ws, kopf_zeile, 2, p0 + len(perioden) - 1)
+    _lead_kopf(ws, kopf_zeile, p0, perioden, "Herkunft")
 
     r = kopf_zeile + 1
     ref = 1
@@ -429,7 +462,30 @@ def _schreibe_net_debt(wb, nd: NetDebtView, layout: MastersheetLayout,
             "Reklassifizierung/aus_mixed-Zuordnung."
         )
 
-    def schreibe_gruppe(titel: str, zeilen) -> None:
+    def detailzeilen(z, aufriss: Optional[AufrissRef]) -> None:
+        """Einzelkonten des thereof-ND-Teils, eingeklappt unter ihrer
+        Summenzeile. Die Werte kommen aus derselben thereof-ND-Spalte des
+        Aufrisses, aus der auch die Summenzeile zieht — keine zweite Quelle."""
+        nonlocal r
+        if aufriss is None or not aufriss.konto_thereof_nd:
+            return
+        for m in sorted(z.konten, key=lambda m: m.konto):
+            zellen = aufriss.konto_thereof_nd.get(m.konto)
+            if zellen is None:
+                continue
+            ws.cell(r, 2, m.konto).font = _normal
+            ws.cell(r, 3, f"    {m.bezeichnung}").font = _normal
+            ws.cell(r, 4, aufriss.sheetname).font = _hinweis
+            ws.cell(r, 5, _hgb_position(m)).font = _hinweis
+            for i, p in enumerate(perioden):
+                cell = ws.cell(r, p0 + i, "=" + zellen[p])
+                cell.number_format = ZAHLENFORMAT
+                cell.font = _link          # gruen: zieht aus dem Aufriss
+            ws.row_dimensions[r].outline_level = 1
+            ws.row_dimensions[r].hidden = True
+            r += 1
+
+    def schreibe_gruppe(titel: str, zeilen, mit_details: bool = False) -> None:
         nonlocal r, ref
         if not zeilen:
             return
@@ -438,25 +494,29 @@ def _schreibe_net_debt(wb, nd: NetDebtView, layout: MastersheetLayout,
         for z in zeilen:
             ws.cell(r, 2, ref).font = _normal
             aufriss = refs.get(z.na_de)
-            quelle = f"  [{aufriss.sheetname}]" if aufriss else ""
-            ws.cell(r, 3, f"{z.na_de} / {z.na_en}{quelle}").font = _normal
+            ws.cell(r, 3, f"{z.na_de} / {z.na_en}").font = _normal
+            if aufriss:
+                ws.cell(r, 4, aufriss.sheetname).font = _hinweis
             for i, p in enumerate(perioden):
-                col = p0 + i
                 # Jede Zeile zieht aus GENAU EINEM Aufriss: gemischte Position ->
                 # thereof-ND-Summe, sonst -> Aufriss-Summe. Kein direkter
                 # Mastersheet-Zugriff mehr (nur die Kontrollzeile prüft dagegen).
-                cell = ws.cell(r, col)
+                cell = ws.cell(r, p0 + i)
                 cell.value = _ref_formel(aufriss, p, nd_teil=True)
                 cell.number_format = ZAHLENFORMAT
                 cell.font = _link          # gruen: zieht aus dem Aufriss
             daten_zeilen.append(r)
             ref += 1
             r += 1
+            if mit_details:
+                detailzeilen(z, aufriss)
 
     schreibe_gruppe("Direkte Net-Debt-Positionen", nd.direkt)
-    schreibe_gruppe("Umgliederung aus NWC in ND (thereof ND)", nd.umgliederung)
+    schreibe_gruppe("Umgliederung aus NWC in ND (thereof ND)", nd.umgliederung,
+                    mit_details=True)
 
-    # Zwischensumme Net Debt
+    # Zwischensumme Net Debt — summiert ausschließlich die Summenzeilen, nie
+    # die aufgeklappten Detailzeilen (sonst doppelte Zählung).
     sub_zeile = r
     ws.cell(sub_zeile, 3, "Netto-Finanzvermögen / -Verbindlichkeiten (Net cash / Net debt)").font = _bold
     for i, p in enumerate(perioden):
@@ -491,7 +551,8 @@ def _schreibe_net_debt(wb, nd: NetDebtView, layout: MastersheetLayout,
         cell.font = Font(name=FONT_NAME, italic=True, size=9, color=FARBE_LINK)
         cell.fill = _gelb_fill
 
-    _breiten(ws, {2: 6, 3: 58})
+    _breiten(ws, {2: 10, 3: 52, 4: 14, 5: 30})
+    _quelle_spalte(ws)
     for i in range(len(perioden)):
         ws.column_dimensions[get_column_letter(p0 + i)].width = 15
     ws.freeze_panes = ws.cell(kopf_zeile + 1, p0)
@@ -501,25 +562,31 @@ def _schreibe_net_debt(wb, nd: NetDebtView, layout: MastersheetLayout,
 def _schreibe_working_capital(wb, wc: WCView, layout: MastersheetLayout,
                               perioden, entity, refs: dict[str, AufrissRef],
                               setup=None) -> None:
+    """Gliederung nach der klassischen FDD-Schnittrichtung: Block TWC, Block
+    OWC, darunter NWC. Die OA/OL-Ableitung bleibt je Zeile als Spalte sichtbar.
+
+    Gemischte Positionen erscheinen in der Reported-Sicht: Bilanzwert, darunter
+    nachrichtlich der in den Net Debt umgegliederte Teil, darunter der
+    operative Rest — und nur dieser läuft in den Blocksaldo."""
     ws = wb.create_sheet("Working Capital")
     ws.sheet_view.showGridLines = False
-    p0 = 4
+    _lead_outline(ws)
+    p0 = 6
 
     ws.cell(1, 2, f"Working Capital (Ist je Periode) — {entity}").font = Font(
         name=FONT_NAME, bold=True, size=13, color=TEAL)
     ws.cell(2, 2, "in EUR · jede Zeile zieht aus genau einem Aufriss · WC-Definition "
-                  "über alle Perioden identisch · noch keine normalisierte Referenz").font = _hinweis
+                  "über alle Perioden identisch · gemischte Positionen in der "
+                  "Reported-Sicht (= operating + thereof ND aus dem Aufriss; Konten "
+                  "der Position, die noch in der Review-Queue stehen, sind darin "
+                  "nicht enthalten) · noch keine normalisierte Referenz").font = _hinweis
     _vorlaeufig_banner(ws, 3, setup)
 
     kopf_zeile = 4
-    ws.cell(kopf_zeile, 2, "Ref."); ws.cell(kopf_zeile, 3, "Net-Asset-Position")
-    for i, p in enumerate(perioden):
-        ws.cell(kopf_zeile, p0 + i, p)
-    _style_kopf_row(ws, kopf_zeile, 2, p0 + len(perioden) - 1)
+    _lead_kopf(ws, kopf_zeile, p0, perioden, "OA/OL")
 
     r = kopf_zeile + 1
     ref = 1
-    zeilen_rows: dict[tuple[str, str], list[int]] = {}   # (seite,klasse) -> rows
 
     def summe_zeile(label: str, rows: list[int], fett=True, fill=None) -> int:
         nonlocal r
@@ -539,56 +606,90 @@ def _schreibe_working_capital(wb, wc: WCView, layout: MastersheetLayout,
         r += 1
         return zr
 
-    def klasse_block(seite: str, klasse: str) -> None:
+    def position(z) -> int:
+        """Schreibt eine WC-Position und gibt die Zeile zurück, die in den
+        Blocksaldo läuft. Gemischte Positionen bekommen drei Zeilen
+        (reported / davon ND / operativ), alle anderen genau eine."""
         nonlocal r, ref
-        zeilen = wc.zeilen_fuer(seite, klasse)
-        if not zeilen:
-            return
-        label = "Trade Working Capital (TWC)" if klasse == "TWC" else "Other Working Capital (OWC)"
-        h = ws.cell(r, 3, label); h.font = _bold; h.fill = _grau_fill
-        r += 1
-        rows: list[int] = []
-        for z in zeilen:
-            ws.cell(r, 2, ref).font = _normal
-            aufriss = refs.get(z.na_de)
-            quelle = f"  [{aufriss.sheetname}]" if aufriss else ""
-            ws.cell(r, 3, f"{z.na_de} / {z.na_en}{quelle}").font = _normal
+        aufriss = refs.get(z.na_de)
+        quelle = aufriss.sheetname if aufriss else ""
+        gemischt = aufriss is not None and aufriss.is_mixed
+
+        ws.cell(r, 2, ref).font = _normal
+        ws.cell(r, 3, f"{z.na_de} / {z.na_en}"
+                      + (" (reported)" if gemischt else "")).font = _normal
+        ws.cell(r, 4, quelle).font = _hinweis
+        ws.cell(r, 5, z.seite).font = _hinweis
+        ref += 1
+
+        if not gemischt:
             for i, p in enumerate(perioden):
-                # Jede Zeile zieht aus GENAU EINEM Aufriss: gemischte Position ->
-                # operating-Summe, sonst -> Aufriss-Summe.
                 cell = ws.cell(r, p0 + i, _ref_formel(aufriss, p, nd_teil=False))
                 cell.number_format = ZAHLENFORMAT
                 cell.font = _link          # gruen: zieht aus dem Aufriss
-            rows.append(r)
-            zeilen_rows.setdefault((seite, klasse), []).append(r)
-            ref += 1
+            zr = r
             r += 1
-        summe_zeile(f"  davon {label}", rows, fett=True)
+            return zr
 
-    def seiten_block(seite: str, titel: str) -> int:
-        nonlocal r
-        t = ws.cell(r, 3, titel); t.font = Font(name=FONT_NAME, bold=True, color=TEAL)
+        # Reported = operating + thereof ND, beides aus demselben Aufriss.
+        rep = r
+        for i, p in enumerate(perioden):
+            cell = ws.cell(r, p0 + i,
+                           f"={aufriss.operating[p]}+{aufriss.thereof_nd[p]}")
+            cell.number_format = ZAHLENFORMAT
+            cell.font = _link
         r += 1
-        klasse_block(seite, "TWC")
-        klasse_block(seite, "OWC")
-        alle_rows = zeilen_rows.get((seite, "TWC"), []) + zeilen_rows.get((seite, "OWC"), [])
-        return summe_zeile(titel + " gesamt", alle_rows, fett=True, fill=_sub_fill)
 
-    oa_row = seiten_block("OA", "Operating Assets")
-    ol_row = seiten_block("OL", "Operating Liabilities")
+        # Nachrichtlicher Abzug — der Betrag selbst wird ausschließlich im
+        # Net-Debt-Tab geführt, hier steht er nur als Überleitungsposten.
+        dav = r
+        ws.cell(r, 3, "    davon ND (umgegliedert in Net Debt)").font = _hinweis
+        ws.cell(r, 4, quelle).font = _hinweis
+        for i, p in enumerate(perioden):
+            cell = ws.cell(r, p0 + i, f"=-{aufriss.thereof_nd[p]}")
+            cell.number_format = ZAHLENFORMAT
+            cell.font = _hinweis
+        r += 1
 
-    # Net Working Capital = Operating Assets + Operating Liabilities (Passiva
-    # sind vorzeichenrichtig negativ gespeichert => OA − |OL|).
+        # Operativer Rest — nur diese Zeile läuft in den Blocksaldo.
+        op = r
+        ws.cell(r, 3, "    → operativer Anteil im Working Capital").font = _normal
+        ws.cell(r, 5, z.seite).font = _hinweis
+        for i, p in enumerate(perioden):
+            sp = get_column_letter(p0 + i)
+            cell = ws.cell(r, p0 + i, f"={sp}{rep}+{sp}{dav}")
+            cell.number_format = ZAHLENFORMAT
+            cell.font = _normal
+            cell.border = _top_thin
+        r += 1
+        return op
+
+    def klasse_block(klasse: str, titel: str, saldo_label: str) -> int:
+        nonlocal r
+        h = ws.cell(r, 3, titel); h.font = Font(name=FONT_NAME, bold=True, color=TEAL)
+        h.fill = _grau_fill
+        r += 1
+        rows = [position(z) for z in wc.zeilen_je_klasse(klasse)]
+        return summe_zeile(saldo_label, rows, fett=True, fill=_sub_fill)
+
+    twc_row = klasse_block(
+        "TWC", "Block 1 — Trade Working Capital", "Saldo Trade Working Capital (TWC)")
+    owc_row = klasse_block(
+        "OWC", "Block 2 — Other Working Capital", "Saldo Other Working Capital (OWC)")
+
+    # NWC = Saldo TWC + Saldo OWC (Passiva sind vorzeichenrichtig negativ
+    # gespeichert, die Salden addieren sich daher schlicht).
     nwc_row = r
-    ws.cell(nwc_row, 3, "Net Working Capital (Operating Assets − Operating Liabilities)").font = _bold
+    ws.cell(nwc_row, 3, "Net Working Capital (TWC + OWC)").font = _bold
     for i, p in enumerate(perioden):
         col = p0 + i
         sp = get_column_letter(col)
-        cell = ws.cell(nwc_row, col, f"={sp}{oa_row}+{sp}{ol_row}")
+        cell = ws.cell(nwc_row, col, f"={sp}{twc_row}+{sp}{owc_row}")
         cell.number_format = ZAHLENFORMAT
         cell.font = _bold
         cell.fill = _sub_fill
         cell.border = _top_double
+    ws.cell(nwc_row, 2).fill = _sub_fill
     r += 2
 
     # Kontrollzeile: alle TWC+OWC im Mastersheet minus NWC = 0.
@@ -605,7 +706,8 @@ def _schreibe_working_capital(wb, wc: WCView, layout: MastersheetLayout,
         cell.font = Font(name=FONT_NAME, italic=True, size=9, color=FARBE_LINK)
         cell.fill = _gelb_fill
 
-    _breiten(ws, {2: 6, 3: 58})
+    _breiten(ws, {2: 10, 3: 52, 4: 14, 5: 30})
+    _quelle_spalte(ws)
     for i in range(len(perioden)):
         ws.column_dimensions[get_column_letter(p0 + i)].width = 15
     ws.freeze_panes = ws.cell(kopf_zeile + 1, p0)
