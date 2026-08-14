@@ -53,8 +53,18 @@ _SHEETNAME: dict[str, str] = {
     "Sonstige Rueckstellungen": "NA_OP",
 }
 
-# Diese Klassen speisen ND- bzw. WC-Lead und bekommen daher einen Aufriss.
-_LEAD_KLASSEN = (Klasse.ND, Klasse.TWC, Klasse.OWC)
+# Diese Klassen speisen einen Lead und bekommen daher einen Aufriss. Neben
+# ND/TWC/OWC (Net Debt, Working Capital) auch FA/EQ/DT für den Lead NA und PL
+# für den Lead PL — damit gilt die Uniformitätsregel im ganzen Databook:
+# keine Lead-Zeile ohne Aufriss dahinter.
+_LEAD_KLASSEN = (Klasse.ND, Klasse.TWC, Klasse.OWC,
+                 Klasse.FA, Klasse.EQ, Klasse.DT, Klasse.PL)
+
+#: Welchen Lead eine Klasse speist.
+_SPEIST_JE_KLASSE = {
+    Klasse.ND: "ND", Klasse.TWC: "WC", Klasse.OWC: "WC",
+    Klasse.FA: "NA", Klasse.EQ: "NA", Klasse.DT: "NA", Klasse.PL: "PL",
+}
 
 
 @dataclass
@@ -85,7 +95,7 @@ class Aufriss:
 class Schedules:
     aufrisse: list[Aufriss]
     perioden: list[str]
-    # Konten mit Lead-Klasse (ND/TWC/OWC), die in keinem Aufriss landen:
+    # Konten mit Lead-Klasse, die in keinem Aufriss landen:
     ohne_aufriss: list[MappedAccount] = field(default_factory=list)
 
     def by_na(self, na_de: str) -> Aufriss | None:
@@ -107,8 +117,7 @@ def _sheetname(na_de: str) -> str:
 def _speist(is_mixed: bool, konten: list[MappedAccount]) -> str:
     if is_mixed:
         return "beide"
-    kl = konten[0].klasse
-    return "ND" if kl == Klasse.ND else "WC"
+    return _SPEIST_JE_KLASSE.get(konten[0].klasse, "NA")
 
 
 def baue_schedules(mapped: list[MappedAccount], perioden: list[str]) -> Schedules:
@@ -133,6 +142,6 @@ def baue_schedules(mapped: list[MappedAccount], perioden: list[str]) -> Schedule
         ))
 
     # Anzeigereihenfolge: ND-Aufrisse, dann WC, dann gemischte; je nach Namen
-    reihenfolge = {"ND": 0, "WC": 1, "beide": 2}
+    reihenfolge = {"ND": 0, "WC": 1, "beide": 2, "NA": 3, "PL": 4}
     aufrisse.sort(key=lambda a: (reihenfolge[a.speist], a.sheetname))
     return Schedules(aufrisse=aufrisse, perioden=list(perioden), ohne_aufriss=ohne)

@@ -55,6 +55,12 @@ class Engine:
         # SKR-nummerierten Konten OHNE gelieferte FS-Struktur. Liefert der
         # Abschluss den Pfad (z.B. SAP mit 10-stelligen Kontonummern), ist die
         # SKR-Schwelle bedeutungslos und der Abschluss hat bereits selektiert.
+        # Der Reader kann ein Konto ausdrücklich als nicht abschlussrelevant
+        # melden (SAP-Knoten "AUS — ausgesonderte Konten": IFRS-Brutto- und
+        # Steuerbilanzkonten). Diese Aussage der Quelle sticht — sonst landeten
+        # sie mangels HGB-Pfad in der Review-Queue und blähten sie auf.
+        if account.kontotyp == "technisch":
+            return self._tech(account)
         if account.fs_pfad is None and self.hc.ist_technisch(account.konto):
             return self._tech(account)
 

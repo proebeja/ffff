@@ -140,16 +140,23 @@ def schreibe_databook(pfad: str, mapped: list[MappedAccount], nd: NetDebtView,
                       entity: str, meta: Optional[dict] = None,
                       wc: "Optional[WCView]" = None,
                       schedules: "Optional[Schedules]" = None,
-                      recon=None, setup=None) -> None:
+                      recon=None, setup=None, lead_na=None, lead_pl=None,
+                      ja_recon=None) -> None:
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
     layout = _schreibe_mastersheet(wb, mapped, perioden, entity)
     refs = _schreibe_schedules(wb, schedules, layout, perioden, entity) if schedules else {}
+    if lead_na is not None and lead_na.bloecke:
+        _schreibe_lead_na(wb, lead_na, layout, perioden, refs, setup)
     _schreibe_net_debt(wb, nd, layout, perioden, entity, refs, setup)
     if wc is not None:
         _schreibe_working_capital(wb, wc, layout, perioden, entity, refs, setup)
+    if lead_pl is not None and lead_pl.bloecke:
+        _schreibe_lead_pl(wb, lead_pl, layout, perioden, refs, setup)
     if recon is not None:
         _schreibe_reconciliation(wb, recon, perioden, entity)
+    if ja_recon is not None:
+        _schreibe_ja_reconciliation(wb, ja_recon, entity)
     _schreibe_review(wb, review, perioden)
     if meta:
         _schreibe_info(wb, meta)
@@ -265,7 +272,8 @@ def _aufriss_kopf(ws, a: Aufriss) -> None:
     ws.cell(1, 2, f"Aufriss {a.sheetname}: {a.na_de} / {a.na_en}").font = Font(
         name=FONT_NAME, bold=True, size=12, color=TEAL)
     speist = {"ND": "Net-Debt-Lead", "WC": "Working-Capital-Lead",
-              "beide": "WC-Lead (operating) + ND-Lead (thereof ND)"}[a.speist]
+              "beide": "WC-Lead (operating) + ND-Lead (thereof ND)",
+              "NA": "Lead NA", "PL": "Lead PL"}[a.speist]
     ws.cell(2, 2, f"in EUR · Einzelkonten je Periode aus dem Mastersheet · speist {speist}").font = Font(
         name=FONT_NAME, italic=True, size=9)
 
@@ -711,6 +719,239 @@ def _schreibe_working_capital(wb, wc: WCView, layout: MastersheetLayout,
     for i in range(len(perioden)):
         ws.column_dimensions[get_column_letter(p0 + i)].width = 15
     ws.freeze_panes = ws.cell(kopf_zeile + 1, p0)
+
+
+# ---- Lead NA / Lead PL (ziehen aus Aufrissen, Kontrollzeile prüft MS) ----
+def _schreibe_uebersichts_lead(wb, view, layout, perioden, refs, setup,
+                               tabname: str, titel: str, hinweis: str,
+                               gesamt_label: str, klassen: tuple[str, ...],
+                               gegenprobe: tuple[str, str] | None = None) -> None:
+    """Gemeinsamer Aufbau für Lead NA und Lead PL: Blöcke mit Zwischensumme,
+    Gesamtsumme, Kontrollzeile gegen das Mastersheet. Jede Positionszeile zieht
+    aus genau einem Aufriss — bei gemischten Positionen aus der Summe beider
+    Spalten, denn der Lead zeigt hier den Bilanzwert."""
+    ws = wb.create_sheet(tabname)
+    ws.sheet_view.showGridLines = False
+    _lead_outline(ws)
+    p0 = 6
+
+    ws.cell(1, 2, f"{titel} — {view.entity}").font = Font(
+        name=FONT_NAME, bold=True, size=13, color=TEAL)
+    ws.cell(2, 2, hinweis).font = _hinweis
+    _vorlaeufig_banner(ws, 3, setup)
+
+    kopf_zeile = 4
+    _lead_kopf(ws, kopf_zeile, p0, perioden, "Klasse")
+    r = kopf_zeile + 1
+    ref = 1
+    block_rows: list[int] = []
+
+    def summe_zeile(label, rows, fill=None, doppel=False) -> int:
+        nonlocal r
+        c = ws.cell(r, 3, label); c.font = _bold
+        if fill:
+            c.fill = fill
+        for i, p in enumerate(perioden):
+            sp = get_column_letter(p0 + i)
+            formel = ("=" + "+".join(f"{sp}{z}" for z in rows)) if rows else 0
+            cell = ws.cell(r, p0 + i, formel)
+            cell.number_format = ZAHLENFORMAT
+            cell.font = _bold
+            if fill:
+                cell.fill = fill
+            if doppel:
+                cell.border = _top_double
+        zr = r
+        r += 1
+        return zr
+
+    def positions_zeilen(zeilen) -> list[int]:
+        nonlocal r, ref
+        rows = []
+        for z in zeilen:
+            aufriss = refs.get(z.na_de)
+            ws.cell(r, 2, ref).font = _normal
+            ws.cell(r, 3, f"{z.na_de} / {z.na_en}").font = _normal
+            if aufriss:
+                ws.cell(r, 4, aufriss.sheetname).font = _hinweis
+            kc = ws.cell(r, 5, z.klasse); kc.font = _hinweis
+            for i, p in enumerate(perioden):
+                cell = ws.cell(r, p0 + i, _lead_wert(aufriss, p, z.klasse))
+                cell.number_format = ZAHLENFORMAT
+                cell.font = _link          # gruen: zieht aus dem Aufriss
+            rows.append(r)
+            ref += 1
+            r += 1
+        return rows
+
+    for b in view.bloecke:
+        h = ws.cell(r, 3, b.titel); h.font = Font(name=FONT_NAME, bold=True, color=TEAL)
+        h.fill = _grau_fill
+        r += 1
+        rows = positions_zeilen(b.zeilen)
+        block_rows.append(summe_zeile(f"Saldo {b.titel}", rows, fill=_sub_fill))
+
+    gesamt = summe_zeile(gesamt_label, block_rows, fill=_sub_fill, doppel=True)
+    ws.cell(gesamt, 2).fill = _sub_fill
+
+    # Gegenprobe (Lead NA): Eigenkapital als eigene Zeile, danach muss
+    # Net Assets + Eigenkapital null sein — die Bilanz schließt.
+    ek_rows: list[int] = []
+    if gegenprobe and view.nachrichtlich:
+        r += 1
+        h = ws.cell(r, 3, gegenprobe[0]); h.font = Font(name=FONT_NAME, bold=True, color=TEAL)
+        h.fill = _grau_fill
+        r += 1
+        ek_rows = positions_zeilen(view.nachrichtlich)
+
+    k = r + 1
+    ws.cell(k, 3, f"Kontrollzeile (Σ {'/'.join(klassen)} Mastersheet − {gesamt_label}, muss 0 sein)").font = Font(
+        name=FONT_NAME, italic=True, size=9)
+    for i, p in enumerate(perioden):
+        sp = get_column_letter(p0 + i)
+        rng = layout.bereich(layout.perioden_spalten[p])
+        kl = layout.bereich(layout.spalte_klasse)
+        summe = "+".join(f'SUMIFS({rng},{kl},"{c}")' for c in klassen)
+        cell = ws.cell(k, p0 + i, f"={summe}-{sp}{gesamt}")
+        cell.number_format = ZAHLENFORMAT_CHECK
+        cell.font = Font(name=FONT_NAME, italic=True, size=9, color=FARBE_LINK)
+        cell.fill = _gelb_fill
+
+    if ek_rows:
+        # Noch nicht klassifizierte Konten (Review-Queue) gehören zur Bilanz,
+        # aber in keinen Net-Asset-Block. Ohne sie ginge die Schlussprobe genau
+        # um ihren Betrag daneben — deshalb stehen sie hier ausdrücklich.
+        rq = k + 1
+        ws.cell(rq, 3, "nachrichtlich: noch offen (Review-Queue, in keinem Block)").font = Font(
+            name=FONT_NAME, italic=True, size=9)
+        for i, p in enumerate(perioden):
+            rng = layout.bereich(layout.perioden_spalten[p])
+            kl = layout.bereich(layout.spalte_klasse)
+            cell = ws.cell(rq, p0 + i, f'=SUMIFS({rng},{kl},"REVIEW")')
+            cell.number_format = ZAHLENFORMAT
+            cell.font = Font(name=FONT_NAME, italic=True, size=9, color=FARBE_LINK)
+
+        k2 = rq + 1
+        ws.cell(k2, 3, f"Kontrollzeile ({gesamt_label} + Eigenkapital + Review, "
+                       "muss 0 sein — die Bilanz schließt)").font = Font(
+            name=FONT_NAME, italic=True, size=9)
+        for i, p in enumerate(perioden):
+            sp = get_column_letter(p0 + i)
+            ek = "+".join(f"{sp}{z}" for z in ek_rows)
+            cell = ws.cell(k2, p0 + i, f"={sp}{gesamt}+{ek}+{sp}{rq}")
+            cell.number_format = ZAHLENFORMAT_CHECK
+            cell.font = Font(name=FONT_NAME, italic=True, size=9, color=FARBE_LINK)
+            cell.fill = _gelb_fill
+
+    _breiten(ws, {2: 10, 3: 52, 4: 14, 5: 30})
+    _quelle_spalte(ws)
+    for i in range(len(perioden)):
+        ws.column_dimensions[get_column_letter(p0 + i)].width = 15
+    ws.freeze_panes = ws.cell(kopf_zeile + 1, p0)
+
+
+def _lead_wert(aufriss, periode: str, klasse: str) -> str:
+    """Wert einer Lead-Zeile aus ihrem Aufriss.
+
+    Eine gemischte Position erscheint im Lead NA zweimal — mit ihrem
+    operativen Teil im Working-Capital-Block und mit ihrem thereof-ND-Teil im
+    Net-Debt-Block. Jede Zeile zieht deshalb genau ihren Teil; zöge sie den
+    vollen Bilanzwert, stünde die Position doppelt in den Net Assets."""
+    if aufriss is None:
+        return "0"
+    if aufriss.is_mixed:
+        zelle = aufriss.thereof_nd[periode] if klasse == "ND" else aufriss.operating[periode]
+        return "=" + zelle
+    return "=" + aufriss.total[periode]
+
+
+def _schreibe_lead_na(wb, view, layout, perioden, refs, setup=None) -> None:
+    _schreibe_uebersichts_lead(
+        wb, view, layout, perioden, refs, setup, "Lead NA", "Lead NA (Net Assets)",
+        "in EUR · jede Zeile zieht aus genau einem Aufriss · Net-Asset-Brücke: "
+        "Anlagevermögen + Working Capital + Net Debt + latente Steuern",
+        "Net Assets", ("FA", "TWC", "OWC", "ND", "DT"),
+        gegenprobe=("Gegenprobe: Eigenkapital", "EQ"))
+
+
+def _schreibe_lead_pl(wb, view, layout, perioden, refs, setup=None) -> None:
+    _schreibe_uebersichts_lead(
+        wb, view, layout, perioden, refs, setup, "Lead PL", "Lead PL (Gewinn- und Verlustrechnung)",
+        "in EUR · jede Zeile zieht aus genau einem Aufriss · Vorzeichen wie im "
+        "Mastersheet (Erträge negativ, Aufwendungen positiv) · Summe = Ergebnis "
+        "mit umgekehrtem Vorzeichen",
+        "Summe GuV (= Jahresergebnis, Vorzeichen invers)", ("PL",))
+
+
+
+# ---- Reconciliation gegen den Jahresabschluss ----------------------------
+def _schreibe_ja_reconciliation(wb, rec, entity) -> None:
+    """Positionssummen des Databooks gegen die Bilanz/GuV nach Jahresabschluss.
+    Der Abschluss ist hier Abstimmziel, nicht Strukturquelle."""
+    ws = wb.create_sheet("Recon Databook-JA")
+    ws.sheet_view.showGridLines = False
+    _titel(ws, 1, 2, f"Reconciliation Databook gegen Jahresabschluss — {entity}")
+    ws.cell(2, 2, "in EUR · Differenz = Databook − Jahresabschluss · der Abschluss "
+                  "ist Abstimmziel, er ändert kein Mapping").font = _hinweis
+    r = 3
+    for h in rec.hinweise:
+        c = ws.cell(r, 2, h)
+        c.font = Font(name=FONT_NAME, bold=True, size=9, color="9C0006")
+        c.fill = _gelb_fill
+        r += 1
+
+    perioden = rec.perioden
+    if not perioden:
+        ws.cell(r + 1, 2, "Keine gemeinsame Periode — es gibt nichts abzustimmen.").font = _bold
+        _breiten(ws, {2: 96})
+        return
+
+    kopf = r + 1
+    ws.cell(kopf, 2, "HGB-Position (Jahresabschluss)")
+    ws.cell(kopf, 3, "Kanonischer Pfad")
+    for i, p in enumerate(perioden):
+        for j, lab in enumerate(("Databook", "Jahresabschluss", "Differenz")):
+            ws.cell(kopf, 4 + i * 3 + j, f"{p} {lab}")
+    _style_kopf_row(ws, kopf, 2, 3 + len(perioden) * 3)
+
+    zeile = kopf + 1
+    for z in rec.zeilen:
+        ws.cell(zeile, 2, z.label[:70]).font = _normal
+        ws.cell(zeile, 3, z.hgb_pfad[-52:]).font = _hinweis
+        for i, p in enumerate(perioden):
+            for j, wert in enumerate((z.databook.get(p, 0.0), z.ja.get(p, 0.0),
+                                      z.differenz(p))):
+                c = ws.cell(zeile, 4 + i * 3 + j, wert)
+                c.number_format = ZAHLENFORMAT
+                c.font = _bold if j == 2 else _normal
+                if j == 2 and abs(wert) > 0.005:
+                    c.fill = _gelb_fill
+        zeile += 1
+
+    zeile += 1
+    ws.cell(zeile, 2, "Gesamtdifferenz").font = _bold
+    for i, p in enumerate(perioden):
+        c = ws.cell(zeile, 6 + i * 3, rec.gesamtdifferenz(p))
+        c.number_format = ZAHLENFORMAT
+        c.font = _bold
+        c.fill = _sub_fill
+        c.border = _top_double
+
+    zeile += 2
+    ws.cell(zeile, 2, f"Positionen nur im Databook ({len(rec.nur_im_databook)})").font = _bold
+    for p in rec.nur_im_databook[:40]:
+        zeile += 1
+        ws.cell(zeile, 2, p).font = _hinweis
+    zeile += 2
+    ws.cell(zeile, 2, f"Zeilen des Abschlusses ohne Zuordnung ({len(rec.nur_im_ja)})").font = _bold
+    for p in rec.nur_im_ja[:40]:
+        zeile += 1
+        ws.cell(zeile, 2, p).font = _hinweis
+
+    _breiten(ws, {2: 62, 3: 46})
+    for i in range(len(perioden) * 3):
+        ws.column_dimensions[get_column_letter(4 + i)].width = 16
+    ws.freeze_panes = ws.cell(kopf + 1, 4)
 
 
 # ---- Review-Queue ---------------------------------------------------------
