@@ -92,9 +92,10 @@ class AbschlussRecon:
 def _positionssummen(mapped: list[MappedAccount], periode: str) -> dict[str, float]:
     out: dict[str, float] = {}
     for m in mapped:
-        if m.hgb_pfad.startswith("("):
+        pfad = m.pfad_in(periode)     # v2.8: Seitenwechsel wirkt je Periode
+        if pfad.startswith("("):
             continue
-        out[m.hgb_pfad] = out.get(m.hgb_pfad, 0.0) + m.saldo(periode)
+        out[pfad] = out.get(pfad, 0.0) + m.saldo(periode)
     return out
 
 
@@ -270,8 +271,10 @@ def reconcile_aggregiert(mapped: list[MappedAccount], periode: str,
     for label, praefix in _EBENEN:
         if label not in bericht:
             continue
+        # v2.8: der Seitenwechsel wirkt je Periode — sonst stünde Konto 701
+        # in FY2022 unter den Forderungen statt unter den Verbindlichkeiten.
         db = sum(m.saldo(periode) for m in mapped
-                 if m.hgb_pfad.startswith(praefix))
+                 if m.pfad_in(periode).startswith(praefix))
         zeilen.append(AggregatZeile(label=label, ebene=praefix, databook=db,
                                     bericht=bericht[label],
                                     ueberleitung=list((ueberleitung or {}).get(label, []))))

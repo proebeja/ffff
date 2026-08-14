@@ -26,8 +26,13 @@ from .core.hausconvention import Hausconvention
 from .engine.cascade import Engine
 from .engine.recon_abschluss import (Ueberleitung, reconcile_aggregiert,
                                      reconcile_gegen_kontennachweis)
-from .engine.spalten_status import (ABGELEITET, ABSCHLUSSTREU, AGGREGIERT,
-                                    VORLAEUFIG, baue_status)
+from .engine.einfrierung import (lade_snapshot, schreibe_snapshot,
+                                 wende_einfrierung_an)
+from .engine.laufprotokoll import Laufprotokoll
+from .engine.qa import baue_qa_report
+from .engine.spalten_status import baue_status
+from .engine.v28 import (loese_saldenvortraege, pruefe_verhalten,
+                         setze_vorlaeufige_pfade, wende_seitenwechsel_an)
 from .engine.kontennachweis_apply import wende_kontennachweis_an
 from .export import excel
 from .readers.datev_ja_pdf import lies_datev_ja
@@ -67,26 +72,64 @@ class Quellen:
     pruefbericht: Optional[str] = None
 
 
-def run(quellen: Quellen, ausgabe: str, verbose: bool = True) -> dict:
-    hc = Hausconvention.laden()
-    ledger, diagnose = SusaDatabookReader().lesen_mit_diagnose(quellen.susa)
-    susa_konten = {a.konto for a in ledger.accounts}
+def run(quellen: Quellen, ausgabe: str, verbose: bool = True,
+        snapshot: Optional[str] = None) -> dict:
+    """``snapshot`` ist das Entscheidungsprotokoll eines früheren Laufs. Ist es
+    gesetzt, werden nur die Konten neu hergeleitet, die eine der benannten
+    Änderungen berührt — alle übrigen behalten ihr eingefrorenes Ergebnis."""
+    lp = Laufprotokoll()
+    with lp.phase("Setup") as d:
+        hc = Hausconvention.laden()
+        d["detail"] = f"Hausconvention v{hc.version}"
 
-    # --- Strukturquellen, in der Reihenfolge ihrer Belastbarkeit -----------
+    with lp.phase("Einlesen SuSa") as d:
+        ledger, diagnose = SusaDatabookReader().lesen_mit_diagnose(quellen.susa)
+        d["detail"] = f"{diagnose.kontozeilen} Kontozeilen, {len(ledger.accounts)} Konten"
+
     ja = kn = None
-    if quellen.jahresabschluss:
-        ja = lies_datev_ja(quellen.jahresabschluss)
-        kn = ja.als_kontennachweis(PERIODE_JA, PERIODE_VJ)
-        ledger = wende_kontennachweis_an(ledger, kn)
+    with lp.phase("Einlesen Jahresabschluss (PDF)") as d:
+        if quellen.jahresabschluss:
+            ja = lies_datev_ja(quellen.jahresabschluss)
+            kn = ja.als_kontennachweis(PERIODE_JA, PERIODE_VJ)
+            ledger = wende_kontennachweis_an(ledger, kn)
+            d["detail"] = f"{len(ja.eintraege)} Kontennachweis-Einträge, 9 Seiten"
 
     plan = None
-    if quellen.kontenplan:
-        plan = lies_kontenplan(quellen.kontenplan)
-        ledger = wende_kontenplan_an(ledger, plan)
-        ledger.warnungen.extend(_hinweise_zu_duplikaten(diagnose, plan))
+    with lp.phase("Einlesen Kontenplan (PDF)") as d:
+        if quellen.kontenplan:
+            plan = lies_kontenplan(quellen.kontenplan)
+            ledger = wende_kontenplan_an(ledger, plan)
+            ledger.warnungen.extend(_hinweise_zu_duplikaten(diagnose, plan))
+            d["detail"] = f"{len(plan.eintraege)} Einträge, 4 Seiten"
 
     protokoll_ledger = ledger
-    mapped = Engine(hc).map_ledger(ledger)
+    with lp.phase("Mapping (Kaskade)") as d:
+        engine = Engine(hc)
+        mapped = engine.map_ledger(ledger)
+        d["detail"] = f"{len(mapped)} Konten durch 4 Kaskadenstufen"
+
+    with lp.phase("v2.8-Nachlauf") as d:
+        mapped, saldenvortrag = loese_saldenvortraege(mapped, ledger.perioden, hc)
+        mapped, seitenwechsel = wende_seitenwechsel_an(
+            mapped, ledger.perioden, hc, _nachgewiesene_seiten(ja))
+        mapped, ungeloest = setze_vorlaeufige_pfade(mapped, ledger.perioden, hc)
+        schwelle = _wesentlichkeitsschwelle(mapped, ledger.perioden, hc)
+        verhalten = pruefe_verhalten(mapped, ledger.perioden, hc, schwelle)
+        d["detail"] = (f"{len(seitenwechsel)} Seitenwechsel, "
+                       f"{len(saldenvortrag)} Saldenvorträge, "
+                       f"{len(ungeloest)} vorläufige Pfade, "
+                       f"{len(verhalten)} Verhaltensbefunde")
+
+    einfrierung = None
+    with lp.phase("Einfrierung / Delta") as d:
+        if snapshot and os.path.exists(snapshot):
+            einfrierung = wende_einfrierung_an(mapped, lade_snapshot(snapshot), hc)
+            mapped = einfrierung.mapped
+            d["detail"] = (f"{einfrierung.eingefroren} eingefroren, "
+                           f"{einfrierung.neu_hergeleitet} neu hergeleitet, "
+                           f"{len(einfrierung.defekte)} Defekte")
+        else:
+            d["detail"] = "kein Snapshot — vollständige Herleitung"
 
     # --- Spaltenweiser Status ---------------------------------------------
     quellen_je_periode = {
@@ -100,16 +143,24 @@ def run(quellen: Quellen, ausgabe: str, verbose: bool = True) -> dict:
         quellen=quellen_je_periode)
 
     # --- Views -------------------------------------------------------------
-    nd = baue_net_debt(mapped, ledger.perioden, ledger.entity)
-    wc = baue_working_capital(mapped, ledger.perioden, ledger.entity)
-    lead_na = baue_lead_na(mapped, ledger.perioden, ledger.entity)
-    lead_pl = baue_lead_pl(mapped, ledger.perioden, ledger.entity)
-    schedules = baue_schedules(mapped, ledger.perioden)
-    review = baue_review_queue(mapped, ledger.perioden)
-    benchmark = baue_benchmark(mapped, diagnose.benchmark, ledger.entity)
+    with lp.phase("Views (Leads, Net Debt, WC, Benchmark)") as d:
+        nd = baue_net_debt(mapped, ledger.perioden, ledger.entity)
+        wc = baue_working_capital(mapped, ledger.perioden, ledger.entity)
+        lead_na = baue_lead_na(mapped, ledger.perioden, ledger.entity)
+        lead_pl = baue_lead_pl(mapped, ledger.perioden, ledger.entity)
+        review = baue_review_queue(mapped, ledger.perioden)
+        benchmark = baue_benchmark(mapped, diagnose.benchmark, ledger.entity)
+        d["detail"] = f"{len(lead_na.bloecke)} NA-Blöcke, {len(review)} Review"
+
+    with lp.phase("Aufrisse (Schedules)") as d:
+        schedules = baue_schedules(mapped, ledger.perioden)
+        d["detail"] = f"{len(schedules.aufrisse)} Aufrisse"
 
     # --- Abstimmungen ------------------------------------------------------
-    recon_kn = reconcile_gegen_kontennachweis(mapped, ja, PERIODE_JA) if ja else None
+    with lp.phase("Abstimmungen") as d:
+        recon_kn = reconcile_gegen_kontennachweis(mapped, ja, PERIODE_JA) if ja else None
+        d["detail"] = ("FY2023 Kontennachweis + FY2022 Prüfbericht"
+                       if recon_kn else "keine")
     recon_agg = None
     if quellen.pruefbericht:
         recon_agg = reconcile_aggregiert(
@@ -122,21 +173,75 @@ def run(quellen: Quellen, ausgabe: str, verbose: bool = True) -> dict:
                       "nicht bereinigt."],
             ueberleitung=_ueberleitung_2022(mapped, ja))
 
+    with lp.phase("QA-Diagnose") as d:
+        qa = baue_qa_report(
+            diagnose=diagnose, mapped=mapped, perioden=ledger.perioden, ja=ja,
+            plan=plan, recon_kn=recon_kn, benchmark=benchmark, status=status,
+            ungeloest=ungeloest, seitenwechsel=seitenwechsel,
+            saldenvortrag=saldenvortrag, ja_pdf_pfad=quellen.jahresabschluss)
+        d["detail"] = (f"{len(qa.pruefungen)} Einzelprüfungen, "
+                       f"{len(qa.durchgefallen)} nicht bestanden")
+
     meta = _meta(quellen, ledger, mapped, diagnose, status, plan, kn,
                  review, schedules, benchmark, hc)
-    excel.schreibe_databook(
-        ausgabe, mapped, nd, review, ledger.perioden, ledger.entity, meta=meta,
-        wc=wc, schedules=schedules, lead_na=lead_na, lead_pl=lead_pl,
-        status=status, benchmark=benchmark, recon_abschluss=recon_kn,
-        recon_aggregiert=recon_agg)
+    with lp.phase("Excel-Ausgabe") as d:
+        excel.schreibe_databook(
+            ausgabe, mapped, nd, review, ledger.perioden, ledger.entity, meta=meta,
+            wc=wc, schedules=schedules, lead_na=lead_na, lead_pl=lead_pl,
+            status=status, benchmark=benchmark, recon_abschluss=recon_kn,
+            recon_aggregiert=recon_agg, qa=qa, verhalten=verhalten,
+            einfrierung=einfrierung)
+        d["detail"] = os.path.basename(ausgabe)
+    lp.zaehle_arbeitsmappe(ausgabe)
+    lp.ki_aufrufe.extend(getattr(engine, "ki_aufrufe", []))
 
     if verbose:
         _zusammenfassung(meta, ledger, diagnose, status, ausgabe)
-    return {"ledger": protokoll_ledger, "mapped": mapped, "diagnose": diagnose,
+    return {"laufprotokoll": lp, "qa": qa, "einfrierung": einfrierung,
+            "seitenwechsel": seitenwechsel, "saldenvortrag": saldenvortrag,
+            "ungeloest": ungeloest, "verhalten": verhalten,
+            "ledger": protokoll_ledger, "mapped": mapped, "diagnose": diagnose,
             "kn": kn, "ja": ja, "plan": plan, "status": status, "nd": nd,
             "wc": wc, "lead_na": lead_na, "lead_pl": lead_pl,
             "schedules": schedules, "review": review, "benchmark": benchmark,
             "recon_kn": recon_kn, "recon_agg": recon_agg, "meta": meta}
+
+
+def _nachgewiesene_seiten(ja) -> dict[str, dict[str, str]]:
+    """Welche Bilanzseite weist der Kontennachweis je Konto und Periode aus?
+
+    Nur für die beiden Perioden, die er abdeckt. Für FY2024 und YTD Jul25
+    liegt kein Abschluss vor — dort bleibt die Vorzeichenableitung."""
+    if ja is None:
+        return {}
+    je_konto: dict[str, dict[str, str]] = {}
+    eintraege: dict[str, list] = {}
+    for e in ja.eintraege:
+        eintraege.setdefault(e.konto, []).append(e)
+    for konto, es in eintraege.items():
+        netto_gj = sum(e.vorzeichenrichtig() for e in es)
+        netto_vj = sum(e.vorzeichenrichtig(vorjahr=True) for e in es)
+        seiten = {}
+        for periode, netto, feld in ((PERIODE_JA, netto_gj, "gj"),
+                                     (PERIODE_VJ, netto_vj, "vj")):
+            relevant = [e for e in es if abs(getattr(e, feld)) > 0.005]
+            if not relevant:
+                continue
+            # Bei Saldenspaltung entscheidet die Seite des Nettosaldos.
+            seiten[periode] = ("AKTIVA" if netto >= 0 else "PASSIVA") \
+                if len({e.sektion for e in relevant}) > 1 else relevant[0].sektion
+        if seiten:
+            je_konto[konto] = seiten
+    return je_konto
+
+
+def _wesentlichkeitsschwelle(mapped, perioden, hc) -> float:
+    """Schwelle für die Verhaltensprüfung: Anteil der Bilanzsumme laut
+    Hausconvention, gemessen an der größten Periode."""
+    prozent = hc.wesentlichkeit.get("bilanzsumme_prozent", 2) / 100.0
+    summen = [sum(m.saldo(p) for m in mapped if m.hgb_pfad.startswith("/Aktiva"))
+              for p in perioden]
+    return max(summen or [0.0]) * prozent
 
 
 def _hinweise_zu_duplikaten(diagnose, plan) -> list[str]:
@@ -174,35 +279,15 @@ def _ueberleitung_2022(mapped, ja) -> dict[str, list[Ueberleitung]]:
     2. Ein negatives Eigenkapital wird nach § 268 Abs. 3 HGB als "nicht durch
        Eigenkapital gedeckter Fehlbetrag" auf die **Aktivseite** umgestellt.
        Das Databook kennt diese Umstellung nicht — sie ist reine Darstellung.
-    3. Konto 701 0 (Cash-Pool) steht 2022 auf der Passivseite und 2023 auf der
-       Aktivseite; das Mastersheet führt einen Pfad je Konto und folgt dem
-       jüngeren Abschluss."""
+    Der frühere dritte Posten — Konto 701 0 auf der falschen Bilanzseite — ist
+    mit der Seitenwechsel-Regel (v2.8) entfallen: die Bilanzseite folgt jetzt je
+    Periode dem Vorzeichen, damit steht das Konto FY2022 dort, wo es der
+    Abschluss auch ausweist. Was bleibt, ist die Saldenspaltung von 1600 0."""
     if ja is None:
         return {}
     ergebnis = sum(m.saldo(PERIODE_VJ) for m in mapped
                    if m.hgb_pfad.startswith("/GuV"))
     fehlbetrag = 2_902_421.91
-
-    # Ein Seitenwechsel liegt vor, wenn der **Nettosaldo** die Seite wechselt.
-    # Dass ein Konto in einem Jahr gespalten ist und im anderen nicht, ist
-    # dagegen bloße Darstellung und kein Wechsel.
-    seitenwechsel = 0.0
-    je_konto: dict[str, list] = {}
-    for e in ja.eintraege:
-        je_konto.setdefault(e.konto, []).append(e)
-    for konto, eintraege in je_konto.items():
-        # Nur Konten, die der Abschluss überhaupt auf beiden Seiten führt,
-        # können die Seite wechseln. Ein Konto mit nur einer Seite ändert
-        # allenfalls sein Saldovorzeichen (1789 0 Umsatzsteuer) und bleibt
-        # dabei in derselben Position — das ist kein Wechsel.
-        if len({e.sektion for e in eintraege}) < 2:
-            continue
-        netto_gj = sum(e.vorzeichenrichtig() for e in eintraege)
-        netto_vj = sum(e.vorzeichenrichtig(vorjahr=True) for e in eintraege)
-        if abs(netto_gj) < 0.005 or abs(netto_vj) < 0.005:
-            continue
-        if (netto_gj >= 0) != (netto_vj >= 0):
-            seitenwechsel += netto_vj
 
     return {
         "A. Eigenkapital": [
@@ -213,14 +298,9 @@ def _ueberleitung_2022(mapped, ja) -> dict[str, list[Ueberleitung]]:
                          fehlbetrag),
         ],
         "II. Forderungen und sonstige Vermögensgegenstände": [
-            Ueberleitung("Konto 701 0 Cash-Pool: 2022 Verbindlichkeit, 2023 "
-                         "Forderung — das Mastersheet folgt dem jüngeren "
-                         "Abschluss", seitenwechsel),
             Ueberleitung("Saldenspaltung Konto 1600 0 im Vorjahr", -895.99),
         ],
         "C. Verbindlichkeiten": [
-            Ueberleitung("Gegenposten zum Seitenwechsel Konto 701 0",
-                         -seitenwechsel),
             Ueberleitung("Gegenposten zur Saldenspaltung Konto 1600 0", 895.99),
         ],
     }

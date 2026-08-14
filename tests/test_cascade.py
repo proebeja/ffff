@@ -59,9 +59,20 @@ def test_guv_konto_wird_pl(eng):
     assert m.hgb_pfad.startswith("/GuV")
 
 
-def test_technisches_konto_ausgeklammert(eng):
-    m = eng.map_account(_konto("9000", "Saldenvortrag Sachkonten"), False)
+def test_statistikkonto_ausgeklammert(eng):
+    """Statistikkonten sind TECH — sie saldieren paarweise auf null und
+    erzeugen keine Bilanzposition."""
+    m = eng.map_account(_konto("9140", "Auftragsbestand"), False)
     assert m.klasse == Klasse.TECH
+
+
+def test_saldenvortragskonto_ist_kein_statistikkonto(eng):
+    """v2.8: Saldenvortragskonten tragen den Eröffnungsbestand und dürfen
+    nicht als TECH aus dem Databook fallen — sonst wäre das Eigenkapital der
+    betroffenen Spalte nicht fortgeschrieben. Sie werden nachgelagert
+    abgestimmt (engine/v28.loese_saldenvortraege)."""
+    m = eng.map_account(_konto("9000", "Saldenvortrag Sachkonten"), False)
+    assert m.klasse != Klasse.TECH
 
 
 # ---- Typ-2-Split der gemischten Positionen --------------------------------

@@ -97,6 +97,12 @@ class MappedAccount:
     review: bool = False
     begruendung: str = ""
     wesentlich: Optional[bool] = None
+    # v2.8 Seitenwechsel: Periode -> abweichender HGB-Pfad. Der Basispfad
+    # bleibt in ``hgb_pfad``; das Mastersheet weist die Abweichung als eigene
+    # Spalte aus, damit die Ableitung sichtbar bleibt.
+    pfad_je_periode: dict = field(default_factory=dict)
+    #: Periode -> (na_de, na_en) der abweichenden Position (Seitenwechsel).
+    na_je_periode: dict = field(default_factory=dict)
     # True, wenn die Klasse über den Typ-2-Split einer der drei gemischten
     # Positionen entstand (thereof-ND-Logik der Net-Debt-View).
     aus_mixed: bool = False
@@ -122,6 +128,23 @@ class MappedAccount:
 
     def saldo(self, periode: str) -> float:
         return self.account.saldo(periode)
+
+    def pfad_in(self, periode: str) -> str:
+        """Wirksamer HGB-Pfad in dieser Periode. Weicht nur bei einem
+        Seitenwechsel vom Basispfad ab (v2.8)."""
+        return self.pfad_je_periode.get(periode, self.hgb_pfad)
+
+    def na_in(self, periode: str) -> tuple[str, str]:
+        return self.na_je_periode.get(periode, (self.na_de, self.na_en))
+
+    def saldo_fuer_pfad(self, periode: str, pfad: str) -> float:
+        """Beitrag zu genau dieser Position in dieser Periode. Ein Konto mit
+        Seitenwechsel trägt je Periode nur zu einer der beiden Seiten bei."""
+        return self.saldo(periode) if self.pfad_in(periode) == pfad else 0.0
+
+    @property
+    def alle_pfade(self) -> list[str]:
+        return list(dict.fromkeys([self.hgb_pfad, *self.pfad_je_periode.values()]))
 
 
 @dataclass

@@ -51,15 +51,20 @@ def baue_net_debt(mapped: list[MappedAccount], perioden: list[str],
         if m.klasse != Klasse.ND:
             continue
         ziel = mixed if m.aus_mixed else direkt
-        zeile = ziel.get(m.na_de)
-        if zeile is None:
-            zeile = NetDebtZeile(na_de=m.na_de, na_en=m.na_en,
-                                 betraege={p: 0.0 for p in perioden},
-                                 aus_mixed=m.aus_mixed)
-            ziel[m.na_de] = zeile
-        for p in perioden:
-            zeile.betraege[p] += m.saldo(p)
-        zeile.konten.append(m)
+        # Ein Konto mit Seitenwechsel trägt je Periode zu einer anderen
+        # NA-Zeile bei; es erscheint deshalb in beiden und liefert je Periode
+        # nur dorthin, wo es in dieser Periode steht.
+        for periode in perioden:
+            na_de, na_en = m.na_in(periode)
+            zeile = ziel.get(na_de)
+            if zeile is None:
+                zeile = NetDebtZeile(na_de=na_de, na_en=na_en,
+                                     betraege={q: 0.0 for q in perioden},
+                                     aus_mixed=m.aus_mixed)
+                ziel[na_de] = zeile
+            zeile.betraege[periode] += m.saldo(periode)
+            if m not in zeile.konten:
+                zeile.konten.append(m)
 
     ordnung = _na_reihenfolge()
 

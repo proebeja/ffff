@@ -99,14 +99,16 @@ def _gruppiere(mapped: list[MappedAccount], klassen: tuple[Klasse, ...],
             continue
         if not m.na_de or m.na_de.startswith("("):
             continue
-        z = zeilen.get(m.na_de)
-        if z is None:
-            z = LeadZeile(na_de=m.na_de, na_en=m.na_en, klasse=m.klasse.value,
-                          betraege={p: 0.0 for p in perioden})
-            zeilen[m.na_de] = z
-        for p in perioden:
-            z.betraege[p] += m.saldo(p)
-        z.konten.append(m)
+        for periode in perioden:
+            na_de, na_en = m.na_in(periode)
+            z = zeilen.get(na_de)
+            if z is None:
+                z = LeadZeile(na_de=na_de, na_en=na_en, klasse=m.klasse.value,
+                              betraege={q: 0.0 for q in perioden})
+                zeilen[na_de] = z
+            z.betraege[periode] += m.saldo(periode)
+            if m not in z.konten:
+                z.konten.append(m)
     return list(zeilen.values())
 
 

@@ -1,6 +1,6 @@
 {
-  "version": "2.6",
-  "stand": "2026-07-28",
+  "version": "2.8",
+  "stand": "2026-08-14",
   "name": "Hausconvention FDD-Mapping",
   "geltungsbereich": "SKR03 und SKR04 (DATEV). Fuer non-DATEV-ERP sinngemaess uebertragbar.",
   "kernprinzip_v2": [
@@ -10,6 +10,178 @@
     "Der HGB-Pfad darf bei den drei gemischten Positionen eine Ebene tiefer gehen (z.B. '.../Sonstige Vermoegensgegenstaende/Forderungen gegen Personal'). Die HGB-Bilanz aggregiert auf der Paragraph-266-Ebene; der jeweilige Aufriss nutzt die tiefere Ebene fuer seine Unterzeilen. Ein String, mehrere Leser.",
     "Zweisprachig: jeder HGB-Pfad existiert auf Deutsch (kanonisch) und Englisch (gespiegelt ueber das Pfad-Woerterbuch). Die NA-Zeilen tragen ebenfalls beide Sprachen."
   ],
+  "qa_eingangsdiagnose": {
+    "_zweck": "Deterministische Pruefung der Rohdaten VOR dem Mapping. Beurteilt die DATEI, nicht das Konto. Alles, was eine Zuordnung voraussetzt, gehoert nicht hierher sondern in die Verhaltenspruefung.",
+    "_position_in_der_kaskade": "Laeuft nach dem Setup-Dialog und vor der Mapping-Kaskade.",
+    "_grundsaetze": [
+      "Ausschliesslich deterministisch. Keine KI-Entscheidung. Die KI darf einen Befund erlaeutern oder eine Frage formulieren, nie einen Befund erzeugen oder aufloesen.",
+      "Repariert nie stillschweigend. Jeder Eingriff in die Rohdaten ist eine protokollierte Entscheidung mit Vorher- und Nachherwert.",
+      "Zwei Schweregrade. ABBRUCH nur, wenn die Software nicht weiss, WAS sie liest. FLAG in allen anderen Faellen, dann laeuft das Mapping weiter.",
+      "Jede bestaetigte QA-Annahme wird im Entscheidungsprotokoll des Mandats eingefroren und beim Rerun wiederverwendet.",
+      "Der QA-Report ist ein eigener Tab im Databook, keine Konsolenausgabe. Er ist Teil der Akte.",
+      "Vor jeder Aggregation ueber eine Achse (Zeit, Konto, Position) muss die Logik dieser Achse geprueft und bestaetigt sein.",
+      "Die Freigabe nach dem QA-Lauf folgt dem bestehenden Prinzip in software_oberflaeche.interaktionen (Anhalten nach jeder Schicht).",
+      "Rundung: alle ausgewiesenen Differenz- und Restspalten werden auf zwei Nachkommastellen gerundet. Fliesskommareste wie -2,9e-11 duerfen in einer Spalte, die auf null gelesen wird, nicht erscheinen."
+    ],
+    "A_struktur": {
+      "A1_blockgrenze": {
+        "test": "Finde die erste Zeile, ab der Spalte A keine gueltigen Kontoschluessel mehr enthaelt, oder ab der eine Kontrollzeile mit Nullsumme steht. Alles danach ist Nebenrechnung.",
+        "hinweis": "Kontonummern koennen unterhalb des Datenblocks erneut auftauchen (Delta-Zeilen, Eigenkapitalentwicklung, freie Rechenbloecke). Wer das ganze Blatt liest, bekommt Scheinkonten und falsche Summen.",
+        "ausgabe": "erkannte Zeilenspanne und Anzahl Kontozeilen",
+        "schwere": "ABBRUCH bei nicht eindeutiger Grenze"
+      },
+      "A2_bilanzidentitaet": {
+        "test": "Summe aller Kontosalden je Periodenspalte muss null ergeben.",
+        "toleranz_eur": 1,
+        "schwere": "FLAG",
+        "bei_abweichung": [
+          "Mapping laeuft weiter. Der Lauf wird nicht blockiert.",
+          "Die Differenz wird als eigene benannte Zeile 'nicht zugeordnete Differenz' im Lead NA und im Reconciliation-Tab gefuehrt, je Periodenspalte beziffert.",
+          "Die betroffene Spalte traegt den Statusvermerk 'Bilanzidentitaet nicht erfuellt'.",
+          "Die Differenz darf niemals auf bestehende Positionen verteilt oder in einer Sammelposition aufgeloest werden.",
+          "Befund geht unveraendert in die Info Request."
+        ],
+        "begruendung": "Das Mapping zu verweigern haelt die Arbeit auf. Die Differenz zu verstecken waere schlimmer, weil das Databook dann optisch aufgeht."
+      },
+      "A3_schluesseleindeutigkeit": {
+        "test": "Jeder Kontoschluessel (Konto plus Unterkonto) darf im Datenblock nur einmal vorkommen.",
+        "bei_duplikat": "Periodenueberschneidung pruefen. Disjunkte Perioden deuten auf Umbenennung, konsolidieren mit Protokoll. Ueberschneidende Perioden sind ungeklaert und gehen in die Review-Queue.",
+        "schwere": "FLAG"
+      },
+      "A4_schluesselformat": {
+        "test": "Kontoschluessel numerisch und im Rahmen des Kontenrahmens aus dem Setup-Dialog (siehe setup_dialog.kontenrahmen).",
+        "schwere": "FLAG"
+      },
+      "A5_nullkonten": {
+        "test": "Konten ohne Saldo in allen Perioden.",
+        "regel": "Mitfuehren und markieren, nicht entfernen. Erzeugt keine Frage.",
+        "schwere": "FLAG"
+      },
+      "A6_ungeloeste_konten": {
+        "_zweck": "Verhindert, dass ungeloeste Konten als Ausgleichsposten ausserhalb der Bilanz haengen.",
+        "_warum": "Kitchenstories: FY2024 hingen 349.821 in der Review-Zeile ausserhalb jeder Position, bei einer Bilanzsumme von 1,2 Mio. Die Kontrollzeile ging nur auf, weil sie diese Zeile mitrechnete.",
+        "regel": [
+          "Jedes Konto erhaelt einen vorlaeufigen HGB-Pfad und landet in einer Bilanzposition, auch wenn es in der Review-Queue steht. Der Review-Status wird zusaetzlich gefuehrt, nicht statt der Zuordnung.",
+          "Ist wirklich kein Pfad bestimmbar, erscheint der Betrag als eigene SICHTBARE Zeile 'noch nicht zugeordnet' INNERHALB der Bilanz, mit Betrag je Periode.",
+          "Keine Kontrollzeile darf eine Review-, Ergebnis- oder Technikzeile als Ausgleichsposten verwenden. Kontrollzeilen pruefen, sie gleichen nicht aus.",
+          "Der Gesamtbetrag der noch nicht zugeordneten Konten wird im QA-Tab je Periode ausgewiesen und ins Verhaeltnis zur Bilanzsumme gesetzt."
+        ]
+      }
+    },
+    "B_zeitachse": {
+      "B1_kumulativ_oder_periodisch": {
+        "test": "Bei GuV-Konten pruefen, ob die Monatswerte monoton in Richtung des Jahresvorzeichens laufen und der Dezemberwert dem Jahreswert entspricht. Trifft beides zu, sind die Spalten kumuliert.",
+        "regel": "Ergebnis muss ausgewiesen und bestaetigt sein, BEVOR Monatswerte addiert werden. Bei kumulierten Spalten Periodenwerte durch Differenzbildung, Januarwert gleich Periodenwert.",
+        "schwere": "ABBRUCH bei uneindeutigem Befund"
+      },
+      "B2_jahresanker": {
+        "test": "FY-Spalte muss dem letzten Monat des jeweiligen Geschaeftsjahres entsprechen.",
+        "schwere": "FLAG"
+      },
+      "B3_vorgerechnete_spalten": {
+        "test": "Gelieferte LTM- und YTD-Spalten nie uebernehmen. Immer selbst nachrechnen und Differenz ausweisen.",
+        "schwere": "FLAG bei Abweichung"
+      },
+      "B4_bilanzkontinuitaet": {
+        "_voraussetzung": "Nur pruefbar, wenn Eroeffnungsbilanz oder Saldenvortragskonten vorliegen. Eine Summen- und Saldenliste mit reinen Schlusssalden erlaubt diese Pruefung NICHT.",
+        "test": "Sofern Eroeffnungswerte vorliegen: Schlusssaldo der Vorperiode gleich Eroeffnungssaldo der Folgeperiode je Bestandskonto.",
+        "ersatzpruefung_ohne_eroeffnungsbilanz": [
+          "Bestandskonten, die die Bilanzseite wechseln (siehe seitenwechsel)",
+          "Bestandskonten, die zwischen zwei Perioden vollstaendig wegfallen oder neu auftreten",
+          "Positionen, deren Vorjahresspalte im Abschluss vom Databook abweicht"
+        ],
+        "schwere": "FLAG"
+      },
+      "B5_saldenvortragspraesenz": {
+        "test": "Pruefen, ob Saldenvortragskonten nur in einzelnen Periodenspalten Salden tragen.",
+        "bei_befund": "Die Spalten sind dann nicht gleich aufgebaut. Vor jedem Periodenvergleich klaeren, ob die betroffene Spalte Eroeffnungswerte enthaelt und die uebrigen nicht.",
+        "schwere": "FLAG"
+      }
+    },
+    "C_quellen_und_abdeckung": {
+      "C1_strukturquellen_abdeckung": {
+        "test": "Je Periode und getrennt fuer Bilanz und GuV pruefen, ob eine Strukturquelle (Kontennachweis oder eingebettete FS-Hierarchie) vorliegt.",
+        "regel": "Der Abschlusstreue-Status wird SPALTENWEISE gesetzt, nie pauschal fuer das Databook. Perioden ohne Strukturquelle tragen den Status 'vorlaeufig, nicht abschlusstreu'.",
+        "verweis": "setup_dialog.jahresabschluss beantwortet die Frage nur global. Diese Pruefung verfeinert sie je Periode und je Rechenwerk.",
+        "schwere": "FLAG"
+      },
+      "C2_reconciliation_kontenebene": {
+        "test": "Jedes Konto der Rohdaten gegen den Kontennachweis derselben Periode stellen.",
+        "toleranz_eur": 1,
+        "ausgabe": "Getrennte Darstellung von erklaerten Abstimmposten und echten Differenzen. Echte Differenzen gehen unveraendert in die Info Request.",
+        "schwere": "FLAG"
+      },
+      "C3_bekannte_abstimmmuster": {
+        "muster": [
+          "Saldenspaltung im Abschluss gegen Nettodarstellung in der Summen- und Saldenliste (debitorische Kreditoren, kreditorische Debitoren)",
+          "Verrechnung von Steuerkonten (Vorauszahlungen gegen laufende Steuer)",
+          "Umgliederung von Forderungen und Verbindlichkeiten gegenueber verbundenen Unternehmen"
+        ],
+        "regel": "Als erklaerten Abstimmposten kennzeichnen und beziffern. Nicht wegrechnen und nicht als Fehler ausweisen.",
+        "schwere": "FLAG"
+      },
+      "C4_kontenstamm_abdeckung": {
+        "test": "Konten in den Rohdaten ohne Eintrag im Kontenplan und umgekehrt zaehlen und listen.",
+        "hinweis": "Ein Kontenplan mit Stichtag deckt nur die zu diesem Stichtag bebuchten Konten ab und ist fuer frueherer Perioden unvollstaendig. Stichtag immer ausweisen. Der Kontenplan ist KEINE Strukturquelle, er liefert nur Bezeichnungen und die DATEV-Funktionscodes (Geldkonto, Sammelkonto Debitor, Sammelkonto Kreditor).",
+        "schwere": "FLAG"
+      },
+      "C5_parser_selbstkontrolle": {
+        "_zweck": "Jede Strukturquelle, die aus einem PDF oder einem fremden Layout gelesen wird, muss sich selbst beweisen. Ein Parser scheitert leise: er liefert zu wenige Konten und sieht dabei erfolgreich aus.",
+        "tests": [
+          "Summe der je Position gelesenen Konten muss der gedruckten Positionssumme entsprechen.",
+          "Summe der Positionen muss der gedruckten Bilanzsumme entsprechen, je Seite und je Spalte (Geschaeftsjahr und Vorjahr).",
+          "Aktiva-Summe gleich Passiva-Summe.",
+          "Uebertragszeilen duerfen nicht als Position oder Konto gelesen werden. Kontrolle: kein gelesener Wert darf doppelt in zwei Positionen erscheinen.",
+          "Anzahl gelesener Konten gegen Anzahl der Kontonummern im Rohtext derselben Seiten."
+        ],
+        "toleranz_eur": 1,
+        "schwere": "ABBRUCH DER QUELLE, nicht des Laufs",
+        "bei_fehlschlag": [
+          "Der Kontennachweis wird fuer die betroffene Periode VERWORFEN und NICHT teilweise verwendet.",
+          "Die Periode faellt auf SKR-Default zurueck und traegt den Status 'vorlaeufig, nicht abschlusstreu' (siehe C1).",
+          "Im QA-Tab wird ausgewiesen, dass die Quelle vorlag, aber nicht verlaesslich gelesen werden konnte. Das ist ein Bau-Befund, kein Datenlage-Befund.",
+          "Kein Mapping auf Basis einer unvollstaendig gelesenen Strukturquelle. Eine halb gelesene Quelle ist schlechter als keine, weil sie Abschlusstreue vortaeuscht."
+        ],
+        "bekannte_bruchstellen": [
+          "Mehrzeilige Positionsbezeichnungen (Umbruch mitten im Wort mit Bindestrich)",
+          "Uebertragszeilen am Seitenende und Seitenanfang",
+          "Nachgestelltes Minuszeichen statt vorangestelltem",
+          "Kontonummer und Unterkonto durch Leerzeichen getrennt (z.B. '1731 6')",
+          "Wiederholte Blatt-Kopf- und Fusszeilen",
+          "Positionen ohne Kontenebene (nur gedruckte Summe)"
+        ]
+      }
+    },
+    "D_fremdinhalte": {
+      "D1_fremde_klassifizierung": {
+        "test": "Spalten mit vorhandener Zuordnung, Kategorisierung oder Mapping aus fremder Bearbeitung erkennen.",
+        "regel": "Niemals als Eingabe verwenden. In einen Benchmark-Tab separieren und dem eigenen Ergebnis gegenueberstellen. Abweichungen ausweisen. Nicht uebersetzbare Fremdpfade als solche markieren, nicht raten.",
+        "begruendung": "Fremde Zuordnung ist ungeprueft und in fremder Syntax. Als Eingabe zerstoert sie die Nachvollziehbarkeit, als Benchmark ist sie der wertvollste Pruefstein.",
+        "schwere": "FLAG"
+      }
+    },
+    "_abgegrenzt_gegen": {
+      "technische_konten": "Statistik-, Merk- und Gegenkonten regelt skr03_default_bereiche.technische_konten (ab 9000 -> TECH). Keine eigene QA-Regel.",
+      "wertberichtigungen": "Korrekturkonten regelt die Typ-1-Regel hgb-wertberichtigung (Prioritaet 95, Vorzeichen erhalten). Keine eigene QA-Regel.",
+      "kontoverhalten": "Sprunghaftigkeit, Wiederkehr, Einperiodenkonten und Vorzeichenwechsel regelt verhaltenspruefung. Die QA beurteilt die Datei, die Verhaltenspruefung das Konto.",
+      "wesentlichkeit": "Die QA erzeugt keine wesentlichkeitsabhaengigen Fragen. Der Tuersteher gilt unveraendert nur fuer Verhaltenspruefung, KI-Urteilsschicht und Rueckfragen."
+    },
+    "ausgabe_qa_tab": {
+      "abschnitte": [
+        "Eingelesener Bereich und Anzahl Konten je Datei",
+        "Kontrollen mit Ergebnis bestanden oder nicht bestanden",
+        "Getroffene Annahmen mit Begruendung, jeweils bestaetigungspflichtig",
+        "Protokollierte Eingriffe mit Vorher- und Nachherwert",
+        "Abschlusstreue-Status je Periodenspalte",
+        "Offene Befunde als Entwurf fuer die Info Request",
+        "Ergebnis JEDER Einzelpruefung A1 bis A6, B1 bis B5, C1 bis C5, D1 mit bestanden oder nicht bestanden",
+        "Betrag der noch nicht zugeordneten Konten je Periode, absolut und im Verhaeltnis zur Bilanzsumme",
+        "Angewandte Seitenwechsel je Konto und Periode",
+        "Auflaufweg der Saldenvortragskonten"
+      ],
+      "_pflicht": "Eigener Tab mit dem Namen 'QA'. Im Testlauf Kitchenstories fehlte er, die Befunde lagen verstreut in 'Info' und 'Status je Spalte'. Beide Tabs bleiben, ersetzen den QA-Tab aber nicht."
+    }
+  },
   "warum_single_mapping_staerker_ist": [
     "Bei zwei freien Spalten (HGB + Klassifizierung als Eingabe) koennen zwei Konten auf derselben HGB-Position unterschiedliche Klassifizierungen bekommen — das ist eine Inkonsistenz-Quelle (Tippfehler, Uneinheitlichkeit).",
     "Wird die Klassifizierung aus dem Pfad abgeleitet, ist sie eine Eigenschaft der POSITION, nicht des einzelnen Kontos. Zwei Konten auf demselben Pfad koennen nicht auseinanderlaufen.",
@@ -1650,24 +1822,29 @@
         "/GuV/Sonstige betriebliche Aufwendungen"
       ],
       [
-        7000,
-        7099,
-        "/Aktiva/B Umlaufvermoegen/I Vorraete/Unfertige Erzeugnisse und Leistungen"
-      ],
-      [
-        7100,
-        7999,
-        "/Aktiva/B Umlaufvermoegen/I Vorraete/Fertige Erzeugnisse und Waren"
-      ],
-      [
         8000,
         8999,
         "/GuV/Umsatzerloese"
       ]
     ],
     "technische_konten": {
-      "_regel": "Konto >= 9000 (Eroeffnungsbilanzkonto, Saldenvortraege, statistische Konten) -> Klasse TECH, nicht im Databook.",
-      "ab": 9000
+      "_regel_alt": "Konto >= 9000 -> Klasse TECH, nicht im Databook. ZU GROB, ersetzt in v2.8.",
+      "statistikkonten": {
+        "erkennung": "Konten ab 9000, die sich paarweise zu null saldieren (Konto und Gegenkonto), sowie reine Merkkonten ohne Bilanzbezug.",
+        "behandlung": "Klasse TECH, nicht im Databook. Paarbildung ist im QA-Tab auszuweisen.",
+        "beispiel": "9140 Auftragsbestand gegen 9199 Gegenkonto."
+      },
+      "saldenvortragskonten": {
+        "erkennung": "DATEV 9000 bis 9009 (Saldenvortraege Sachkonten, Debitoren, Kreditoren) sowie Eroeffnungsbilanzkonten.",
+        "_wichtig": "Das sind KEINE Statistikkonten. Sie tragen den Eroeffnungsbestand und duerfen nicht stillschweigend aus dem Databook fallen.",
+        "behandlung": [
+          "Saldenvortrag Debitoren und Kreditoren gegen die jeweiligen Sammelkonten derselben Periode abstimmen. Geht die Abstimmung auf, bleiben sie aus der Bilanz und der Weg wird im QA-Tab dokumentiert.",
+          "Der nicht abstimmbare Rest ist regelmaessig der Vortrag des Vorjahresergebnisses und wird dem Eigenkapital als Gewinn- oder Verlustvortrag zugeordnet.",
+          "Bleibt danach ein Rest, geht er als sichtbare Zeile in die Bilanz, nie in TECH."
+        ],
+        "_warum": "Kitchenstories: in YTD Jul25 lagen 2.720.068 auf Saldenvortragskonten und fielen als TECH heraus. Dadurch war das Eigenkapital dieser Spalte identisch zur Vorperiode, also nicht fortgeschrieben."
+      },
+      "vorrang": "Typ-1-Regeln der Hausconvention gehen dieser Bereichsregel vor. Ein Konto ab 9000, das von einer Typ-1-Regel gefangen wird (z.B. hgb-wertberichtigung fuer 9960 Bewertungskorrektur), folgt der Regel und wird NICHT TECH."
     }
   },
   "_aenderungen_v2_3": [
@@ -1690,7 +1867,8 @@
       "wiederkehrend": "Konto in allen (oder nahezu allen) Perioden mit Saldo vorhanden.",
       "stabil": "Schwankung um den Mittelwert innerhalb der konfigurierten Bandbreite.",
       "bandbreite_prozent_default": 50,
-      "auffaellig": "Nur in einzelnen Perioden vorhanden, oder Schwankung ausserhalb der Bandbreite, oder ungewoehnlich hoher Saldo im Verhaeltnis zur Position."
+      "auffaellig": "Nur in einzelnen Perioden vorhanden, oder Schwankung ausserhalb der Bandbreite, oder ungewoehnlich hoher Saldo im Verhaeltnis zur Position. Oder Vorzeichenwechsel ueber die Perioden.",
+      "vorzeichenwechsel": "Bestandskonto wechselt ueber die Perioden das Vorzeichen (aktivisch nach passivisch oder umgekehrt). Gilt als auffaellig UNABHAENGIG von der Bandbreite, weil ein Vorzeichenwechsel regelmaessig einen Sachverhalt dahinter hat (z.B. Cash-Pool-Forderung wird Cash-Pool-Verbindlichkeit). Wesentlichkeits-Tuersteher gilt wie bei den uebrigen Kriterien."
     },
     "ergebnis": {
       "wiederkehrend_und_stabil": "Klasse gilt als bestaetigt, kein Flag.",
@@ -1827,7 +2005,154 @@
     }
   },
   "_aenderungen_v2_6": [
-    "SKR03-Default um die Bestandskonten 7000-7099 (unfertige Erzeugnisse und Leistungen) und 7100-7999 (fertige Erzeugnisse und Waren) ergaenzt. Der Bereich fehlte bisher vollstaendig; Bestandskonten fielen dadurch durch alle Kaskadenstufen in die Review-Queue, obwohl SKR03 sie eindeutig fuehrt.",
-    "Kontotyp 'strittig': meldet ein Reader ein Konto als ungeklaert (zwei Zeilen derselben Kontonummer mit ueberschneidenden Perioden), geht es unmittelbar in die Review-Queue, statt ueber die Kaskade eine Zuordnung zu bekommen, die eine Klaerung vortaeuscht."
+    "Neues Modul qa_eingangsdiagnose: deterministische Pruefung der Rohdaten VOR dem Mapping (Blockgrenze, Bilanzidentitaet, Schluesseleindeutigkeit, Zeitachse kumulativ/periodisch, Strukturquellen-Abdeckung je Periode, Reconciliation auf Kontenebene, fremde Klassifizierungsspalten).",
+    "Trennlinie festgeschrieben: die QA beurteilt die DATEI, die Verhaltenspruefung das KONTO. Alles, was ein Mapping voraussetzt, gehoert nicht in die QA.",
+    "Nur zwei Abbruchgruende (nicht bestimmbare Blockgrenze, uneindeutige Zeitachse) — beides Faelle, in denen die Software nicht weiss, was sie liest. Nicht erfuellte Bilanzidentitaet blockiert NICHT, sondern erzeugt eine Pflichtzeile 'nicht zugeordnete Differenz' im Lead NA.",
+    "verhaltenspruefung.kriterien um 'vorzeichenwechsel' ergaenzt (bisherige Kriterien haetten einen Wechsel innerhalb der 50-Prozent-Bandbreite nicht gefangen).",
+    "Doppelungen vermieden: Statistikkonten, Wertberichtigungen, Sprunghaftigkeit und Einperiodenkonten bleiben in ihren bestehenden Bloecken. Die QA verweist nur darauf (_abgegrenzt_gegen)."
+  ],
+  "_aenderungen_v2_7": [
+    "QA C5 Parser-Selbstkontrolle ergaenzt: aus PDF oder Fremdformat gelesene Strukturquellen muessen sich rechnerisch selbst beweisen (Position gegen Kontensumme, Bilanzsumme, Aktiva gleich Passiva).",
+    "Neuer Schweregrad 'ABBRUCH DER QUELLE': scheitert der Parser, wird die Quelle verworfen und die Periode faellt auf SKR-Default mit Status vorlaeufig zurueck. Der Lauf selbst wird nicht blockiert.",
+    "Grundsatz: eine halb gelesene Strukturquelle ist schlechter als keine, weil sie Abschlusstreue vortaeuscht."
+  ],
+  "seitenwechsel": {
+    "_zweck": "Ausnahme zum Kernprinzip 'ein Mapping pro Konto'. Konten, die ueber die Perioden die Bilanzseite wechseln, brauchen einen periodenabhaengigen HGB-Pfad.",
+    "_warum": "Kitchenstories Konto 701 Cash-Pool: FY2022 passivisch (3.604.535), FY2023 aktivisch 208.710. Ein fester Pfad zwingt einen der beiden Stichtage auf die falsche Bilanzseite und erzeugt eine Differenz in voller Hoehe gegen den Abschluss.",
+    "regel": [
+      "Die KLASSE bleibt periodenfest. Ein Seitenwechsel aendert nie ND/TWC/OWC/FA/EQ/DT.",
+      "Nur die Bilanzseite und damit der HGB-Pfad folgen dem Vorzeichen, und zwar JE PERIODE.",
+      "Gilt ausschliesslich fuer die unten definierten Pfadpaare. Ausserhalb dieser Paare bleibt der Pfad fest und ein Vorzeichenwechsel ist ein Review-Fall.",
+      "Das Mastersheet fuehrt den Basispfad plus eine Spalte 'Pfad abweichend in Periode', damit die Ableitung sichtbar bleibt.",
+      "Jeder angewandte Seitenwechsel erzeugt zusaetzlich eine Pflichtfrage nach dem Hintergrund. Die Umgliederung ist mechanisch korrekt, der Sachverhalt dahinter ist es nicht automatisch."
+    ],
+    "pfadpaare": [
+      {
+        "aktiv": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Forderungen gegen verbundene Unternehmen",
+        "passiv": "/Passiva/C Verbindlichkeiten/Verbindlichkeiten gegenueber verbundenen Unternehmen"
+      },
+      {
+        "aktiv": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Forderungen aus Lieferungen und Leistungen",
+        "passiv": "/Passiva/C Verbindlichkeiten/Verbindlichkeiten aus Lieferungen und Leistungen"
+      },
+      {
+        "aktiv": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Forderungen gegen Gesellschafter",
+        "passiv": "/Passiva/C Verbindlichkeiten/Verbindlichkeiten gegenueber Gesellschaftern"
+      },
+      {
+        "aktiv": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende",
+        "passiv": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten"
+      },
+      {
+        "aktiv": "/Aktiva/B Umlaufvermoegen/IV Kassenbestand und Guthaben bei Kreditinstituten",
+        "passiv": "/Passiva/C Verbindlichkeiten/Verbindlichkeiten gegenueber Kreditinstituten"
+      }
+    ],
+    "implementierungspflicht": "verhaltenspruefung.kriterien.vorzeichenwechsel ist umzusetzen. Im Testlauf Kitchenstories wurde ein Wechsel von 3,8 Mio nicht geflaggt."
+  },
+  "lead_na_eigenkapital": {
+    "_zweck": "Das Periodenergebnis muss im Eigenkapital erscheinen, nicht als nachrichtliche Zeile daneben.",
+    "_warum": "Kitchenstories FY2023: Eigenkapital im Lead NA (3.097.578), im Abschluss 6.079. Erst mit dem Jahresfehlbetrag von 3.091.327 stimmt es. Eine Spalte darf nicht den Status 'abschlusstreu' tragen, wenn das Eigenkapital nicht dem Abschluss entspricht.",
+    "regel": [
+      "Der Eigenkapitalblock des Lead NA fuehrt eine eigene Zeile 'Jahresergebnis der Periode', gespeist aus der Summe aller Konten der Klasse PL.",
+      "Diese Zeile ist Bestandteil des Eigenkapitals, nicht nachrichtlich.",
+      "Die Kontrollzeile lautet danach: Net Assets plus Eigenkapital inklusive Jahresergebnis gleich null. PL darf in der Kontrollzeile nicht mehr als separater Ausgleichsposten erscheinen.",
+      "Bei unterjaehrigen Spalten ist das Ergebnis das Ergebnis der Periode, nicht des Geschaeftsjahres. Die Periodenlaenge ist auszuweisen."
+    ]
+  },
+  "regelgruppe_zahlungsverkehr": {
+    "_zweck": "Typ-2-Inhaltsregeln fuer die gemischten Positionen. Wiederkehrendes Muster in E-Commerce- und Plattformmandaten.",
+    "_warum": "Kitchenstories: acht der zehn Benchmark-Abweichungen waren derselbe Typ. Konten, die der Bearbeiter als cash-like oder debt-like klassifiziert, landeten in der Review-Queue. Das Net Debt blieb dadurch leer.",
+    "regeln": [
+      {
+        "id": "zdl-verrechnungskonto",
+        "wenn_eines": [
+          "paypal",
+          "shopify",
+          "stripe",
+          "klarna",
+          "adyen",
+          "mollie",
+          "sumup",
+          "amazon payment",
+          "spendesk",
+          "pleo",
+          "finway",
+          "payhawk",
+          "moss ",
+          "braintree",
+          "worldline"
+        ],
+        "wenn_keines": [
+          "gebuehr",
+          "fee",
+          "aufwand"
+        ],
+        "klasse": "ND",
+        "prioritaet": 88,
+        "regeltyp": "inhaltsregel",
+        "hinweis": "Guthaben oder Verbindlichkeit gegenueber einem Zahlungsdienstleister hat Zahlungsmittelcharakter -> cash-like bzw. debt-like ND. Aufwandskonten desselben Dienstleisters bleiben PL.",
+        "pflichtfrage": "Verfuegbarkeit und Auszahlungsrhythmus des Guthabens, bestehen Rueckbehalte oder Sicherheitseinbehalte?"
+      },
+      {
+        "id": "zdl-kreditkarte",
+        "wenn_eines": [
+          "kreditkarte",
+          "kreditkartenabrechnung",
+          "kk ",
+          "amex",
+          "american express",
+          "visa",
+          "mastercard"
+        ],
+        "wenn_keines": [
+          "gebuehr",
+          "aufwand"
+        ],
+        "klasse": "ND",
+        "prioritaet": 88,
+        "regeltyp": "inhaltsregel",
+        "hinweis": "Kreditkartenverrechnungskonto ist finanzierungsartig -> ND. Bei aktivischem Saldo greift zusaetzlich die Seitenwechsel-Regel.",
+        "pflichtfrage": "Karteninhaber, Limit und Abrechnungszyklus. Bei Karten auf Privatpersonen zusaetzlich Frage nach der Abgrenzung privat gegen betrieblich."
+      },
+      {
+        "id": "gesellschafter-gf-forderung",
+        "wenn_eines": [
+          "gegen gesellschafter",
+          "ggue. gesellschafter",
+          "gg. gesellschafter",
+          "geschaeftsf",
+          "gegen geschaeftsfuehrer",
+          "ges.er-gf"
+        ],
+        "wenn_keines": [
+          "gehalt",
+          "gehaelter",
+          "altersversorgung",
+          "pauschale steuer",
+          "sachzuwend"
+        ],
+        "klasse": "ND",
+        "prioritaet": 86,
+        "regeltyp": "inhaltsregel",
+        "hinweis": "Forderung oder Verbindlichkeit gegenueber Gesellschafter oder Geschaeftsfuehrer ist gesellschafterbezogen, nicht operativ -> ND. Aufwandskonten des GF bleiben PL.",
+        "pflichtfrage": "Rechtsgrund, Verzinsung, Faelligkeit und ob die Position im Rahmen der Transaktion ausgeglichen wird."
+      }
+    ],
+    "_bewusst_nicht_kodiert": {
+      "_grundsatz": "Diese drei Faelle sind Ermessensfragen und keine Muster. Sie bleiben Review mit Pflichtfrage, statt als Regel eingefroren zu werden.",
+      "forderungen_krankenkasse_aag": "Erstattung nach dem Aufwendungsausgleichsgesetz. Argument fuer OWC: operativ, Gegenstueck zum Personalaufwand. Der Bearbeiter hatte im Testlauf ND gesetzt. Zu entscheiden, nicht zu kodieren.",
+      "erhaltene_anzahlungen": "Ob erhaltene Anzahlungen TWC oder debt-like ND sind, haengt vom Geschaeftsmodell und vom Kaufpreismechanismus ab.",
+      "verrechnungskonto_anzahlungen": "Technisches Verrechnungskonto, Charakter nur aus dem Hauptbuch bestimmbar."
+    }
+  },
+  "_aenderungen_v2_8": [
+    "Neuer Block 'seitenwechsel': Ausnahme zum Kernprinzip. Bei definierten Pfadpaaren folgt die Bilanzseite je Periode dem Vorzeichen, die Klasse bleibt fest. Ausloeser war Konto 701 Cash-Pool mit 3,6 Mio auf der falschen Bilanzseite.",
+    "Neuer Block 'lead_na_eigenkapital': das Periodenergebnis wird als Eigenkapitalzeile gefuehrt, nicht nachrichtlich. Kontrollzeile entsprechend geaendert.",
+    "QA A6 ergaenzt: ungeloeste Konten landen in einer Bilanzposition oder in einer sichtbaren Zeile INNERHALB der Bilanz. Kontrollzeilen duerfen nichts mehr ausgleichen.",
+    "technische_konten aufgeteilt in Statistikkonten (TECH) und Saldenvortragskonten (abstimmen, Rest ins Eigenkapital). Vorrang der Typ-1-Regeln ausdruecklich festgeschrieben.",
+    "Neue Regelgruppe 'regelgruppe_zahlungsverkehr': Zahlungsdienstleister, Kreditkarten, Gesellschafter- und GF-Konten. Drei Ermessensfaelle bewusst NICHT kodiert.",
+    "QA B4 korrigiert (nur mit Eroeffnungsbilanz pruefbar, sonst Ersatzpruefung), B5 Saldenvortragspraesenz ergaenzt.",
+    "QA-Tab als eigener Tab verpflichtend, Rundungsregel fuer Differenzspalten ergaenzt."
   ]
 }

@@ -77,14 +77,22 @@ class Aufriss:
     konten: list[MappedAccount]
     perioden: list[str]
 
+    def _beitrag(self, m, p: str) -> float:
+        """Beitrag eines Kontos zu genau diesem Aufriss in dieser Periode.
+        Bei Seitenwechsel zählt das Konto nur in der Periode, in der es hier
+        steht — sonst stünde sein Saldo doppelt."""
+        na, _ = m.na_in(p)
+        return m.saldo(p) if na == self.na_de else 0.0
+
     def operating_summe(self, p: str) -> float:
-        return sum(m.saldo(p) for m in self.konten if m.klasse in (Klasse.TWC, Klasse.OWC))
+        return sum(self._beitrag(m, p) for m in self.konten
+                   if m.klasse in (Klasse.TWC, Klasse.OWC))
 
     def thereof_nd_summe(self, p: str) -> float:
-        return sum(m.saldo(p) for m in self.konten if m.klasse == Klasse.ND)
+        return sum(self._beitrag(m, p) for m in self.konten if m.klasse == Klasse.ND)
 
     def summe(self, p: str) -> float:
-        return sum(m.saldo(p) for m in self.konten)
+        return sum(self._beitrag(m, p) for m in self.konten)
 
     @property
     def ist_leer(self) -> bool:
@@ -130,7 +138,10 @@ def baue_schedules(mapped: list[MappedAccount], perioden: list[str]) -> Schedule
         if not m.na_de or m.na_de.startswith("("):
             ohne.append(m)
             continue
-        gruppen.setdefault(m.na_de, []).append(m)
+        # Ein Konto mit Seitenwechsel gehört in beide Aufrisse; welche Periode
+        # dort zählt, entscheidet die Maskierung im Export.
+        for na_de in dict.fromkeys([m.na_de, *(n for n, _ in m.na_je_periode.values())]):
+            gruppen.setdefault(na_de, []).append(m)
 
     aufrisse: list[Aufriss] = []
     for na_de, konten in gruppen.items():

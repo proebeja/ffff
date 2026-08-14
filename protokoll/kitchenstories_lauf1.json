@@ -1,0 +1,2164 @@
+{
+ "dauer_sekunden": 2.96,
+ "fingerprint": "53298b786d795e94+kn:4662677752df24ee",
+ "hausconvention": "2.6",
+ "konten": {
+  "1000 0": {
+   "bezeichnung": "Kasse",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/IV Kassenbestand und Guthaben bei Kreditinstituten",
+   "klasse": "ND",
+   "na_de": "Liquide Mittel",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1200 0": {
+   "bezeichnung": "Deutsche Bank # 039 175 500",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/IV Kassenbestand und Guthaben bei Kreditinstituten",
+   "klasse": "ND",
+   "na_de": "Liquide Mittel",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1202 0": {
+   "bezeichnung": "Deutsche Bank Kontokorrentkonto#39175501",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/IV Kassenbestand und Guthaben bei Kreditinstituten",
+   "klasse": "ND",
+   "na_de": "Liquide Mittel",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1204 0": {
+   "bezeichnung": "Olinda, Berlin #4618298725",
+   "hgb_pfad": "(offen)",
+   "klasse": "REVIEW",
+   "na_de": "(unbestimmt)",
+   "quelle": "Review-Queue"
+  },
+  "1210 0": {
+   "bezeichnung": "Paypal",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/IV Kassenbestand und Guthaben bei Kreditinstituten",
+   "klasse": "ND",
+   "na_de": "Liquide Mittel",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1210 1": {
+   "bezeichnung": "Paypal CHF",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/IV Kassenbestand und Guthaben bei Kreditinstituten",
+   "klasse": "ND",
+   "na_de": "Liquide Mittel",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1360 0": {
+   "bezeichnung": "Geldtransit",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/IV Kassenbestand und Guthaben bei Kreditinstituten",
+   "klasse": "ND",
+   "na_de": "Liquide Mittel",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1360 1": {
+   "bezeichnung": "Transit Zahlungsverkehr",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/IV Kassenbestand und Guthaben bei Kreditinstituten",
+   "klasse": "ND",
+   "na_de": "Liquide Mittel",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1361 6": {
+   "bezeichnung": "Transit Shopify",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende",
+   "klasse": "REVIEW",
+   "na_de": "Sonstige Vermoegensgegenstaende",
+   "quelle": "SKR-Default"
+  },
+  "1363 0": {
+   "bezeichnung": "Transit PayPal",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1400 0": {
+   "bezeichnung": "Forderungen aus L+L",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Forderungen aus Lieferungen und Leistungen",
+   "klasse": "TWC",
+   "na_de": "Forderungen aus L+L",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1500 0": {
+   "bezeichnung": "Sonstige Vermögensgegenstände",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende",
+   "klasse": "OWC",
+   "na_de": "Sonstige Vermoegensgegenstaende",
+   "quelle": "SKR-Default"
+  },
+  "1503 0": {
+   "bezeichnung": "Forderungen gg. Geschäftsf.(b.1J)",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende",
+   "klasse": "OWC",
+   "na_de": "Sonstige Vermoegensgegenstaende",
+   "quelle": "SKR-Default"
+  },
+  "1510 0": {
+   "bezeichnung": "Geleistete Anzahlungen auf Vorräte",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende",
+   "klasse": "REVIEW",
+   "na_de": "Sonstige Vermoegensgegenstaende",
+   "quelle": "SKR-Default"
+  },
+  "1518 0": {
+   "bezeichnung": "Geleistete Anzahlungen 19% Vorsteuer",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/I Vorraete/Geleistete Anzahlungen",
+   "klasse": "TWC",
+   "na_de": "Geleistete Anzahlungen",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1520 0": {
+   "bezeichnung": "Forderungen ggb. Krankenkasse aus AAG",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende",
+   "klasse": "OWC",
+   "na_de": "Sonstige Vermoegensgegenstaende",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1525 0": {
+   "bezeichnung": "Kautionen",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende",
+   "klasse": "OWC",
+   "na_de": "Sonstige Vermoegensgegenstaende",
+   "quelle": "SKR-Default"
+  },
+  "1526 0": {
+   "bezeichnung": "Kautionen (bis 1 J)",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende",
+   "klasse": "OWC",
+   "na_de": "Sonstige Vermoegensgegenstaende",
+   "quelle": "SKR-Default"
+  },
+  "1527 0": {
+   "bezeichnung": "Kautionen (größer 1 J)",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende",
+   "klasse": "OWC",
+   "na_de": "Sonstige Vermoegensgegenstaende",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1530 0": {
+   "bezeichnung": "Forderg. gg. Personal Lohn- und Gehalt",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende",
+   "klasse": "OWC",
+   "na_de": "Sonstige Vermoegensgegenstaende",
+   "quelle": "SKR-Default"
+  },
+  "1548 0": {
+   "bezeichnung": "Vorst. in Folgeperiode /-jahr abziehbar",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende",
+   "klasse": "REVIEW",
+   "na_de": "Sonstige Vermoegensgegenstaende",
+   "quelle": "SKR-Default"
+  },
+  "1570 0": {
+   "bezeichnung": "Abziehbare Vorsteuer",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende/Vorsteuer",
+   "klasse": "OWC",
+   "na_de": "Sonstige Vermoegensgegenstaende",
+   "quelle": "Hausconvention (Typ-1)"
+  },
+  "1571 0": {
+   "bezeichnung": "Abziehbare Vorsteuer 7%",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1572 0": {
+   "bezeichnung": "Abziehbare Vorsteuer aus EU-Erwerb",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1574 0": {
+   "bezeichnung": "Abziehbare Vorsteuer aus EU-Erwerb 19%",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1575 0": {
+   "bezeichnung": "Abziehbare Vorsteuer 16%",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende/Vorsteuer",
+   "klasse": "OWC",
+   "na_de": "Sonstige Vermoegensgegenstaende",
+   "quelle": "Hausconvention (Typ-1)"
+  },
+  "1576 0": {
+   "bezeichnung": "Abziehbare Vorsteuer 19%",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1577 0": {
+   "bezeichnung": "Abziehbare Vorsteuer § 13b UStG 19%",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1590 0": {
+   "bezeichnung": "Durchlaufende Posten",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende",
+   "klasse": "REVIEW",
+   "na_de": "Sonstige Vermoegensgegenstaende",
+   "quelle": "SKR-Default"
+  },
+  "1593 0": {
+   "bezeichnung": "Verrechnung erhaltene Anzahlungen",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende",
+   "klasse": "REVIEW",
+   "na_de": "Sonstige Vermoegensgegenstaende",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1600 0": {
+   "bezeichnung": "Verbindlichkeiten aus Lieferungen+Leist.",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Verbindlichkeiten aus Lieferungen und Leistungen",
+   "klasse": "TWC",
+   "na_de": "Verbindlichkeiten aus L+L",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1705 0": {
+   "bezeichnung": "BSH - Wandeldarlehen Cashwirksam",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "ND",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "SKR-Default"
+  },
+  "1705 1": {
+   "bezeichnung": "BDH - Wandeldarlehen- Zinsen",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "ND",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "SKR-Default"
+  },
+  "1710 0": {
+   "bezeichnung": "Erhalt. Anzahlungen auf Bestellungen",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Erhaltene Anzahlungen auf Bestellungen",
+   "klasse": "TWC",
+   "na_de": "Erhaltene Anzahlungen",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1718 0": {
+   "bezeichnung": "Erhaltene Anzahlungen 19% USt",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Erhaltene Anzahlungen auf Bestellungen",
+   "klasse": "TWC",
+   "na_de": "Erhaltene Anzahlungen",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1725 0": {
+   "bezeichnung": "USt fällig Folg.per.§§13(1) u.13b(2)UStG",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "SKR-Default"
+  },
+  "1731 0": {
+   "bezeichnung": "Kreditkartenabrechnung Mengting Gao",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1731 1": {
+   "bezeichnung": "Kreditkartenabrechnung Alexander Bauer",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "SKR-Default"
+  },
+  "1731 2": {
+   "bezeichnung": "KK Alexander Bauer AMEX XXX41002",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "REVIEW",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1731 3": {
+   "bezeichnung": "Kreditkartenabrechnung AJNS New Media Gm",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "SKR-Default"
+  },
+  "1731 4": {
+   "bezeichnung": "KK Alexander Bauer DB XXX0125",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "REVIEW",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "SKR-Default"
+  },
+  "1731 5": {
+   "bezeichnung": "Spendesk",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "REVIEW",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "SKR-Default"
+  },
+  "1731 6": {
+   "bezeichnung": "Shopify Payments",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende",
+   "klasse": "REVIEW",
+   "na_de": "Sonstige Vermoegensgegenstaende",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1731 7": {
+   "bezeichnung": "Finway GmbH",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Sonstige Vermoegensgegenstaende",
+   "klasse": "REVIEW",
+   "na_de": "Sonstige Vermoegensgegenstaende",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1732 0": {
+   "bezeichnung": "Erhaltene Kautionen",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "REVIEW",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "SKR-Default"
+  },
+  "1740 0": {
+   "bezeichnung": "Verbindlichkeiten aus Lohn und Gehalt",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "SKR-Default"
+  },
+  "1741 0": {
+   "bezeichnung": "Verbindlichk. Lohn- und Kirchensteuer",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1742 0": {
+   "bezeichnung": "Verbindlichkeiten soziale Sicherheit",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1746 0": {
+   "bezeichnung": "Verbindlichk. a.Einbehaltung (KapESt)",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "SKR-Default"
+  },
+  "1748 0": {
+   "bezeichnung": "Verbindlichk. Einbehaltung Arbeitnehmer",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1750 0": {
+   "bezeichnung": "Verbindlichkeiten a. Vermögensbildung",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1755 0": {
+   "bezeichnung": "Lohn- und Gehaltsverrechnungen",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "SKR-Default"
+  },
+  "1759 0": {
+   "bezeichnung": "Voraus.Beitrag ggb. Sozialversich.träger",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "SKR-Default"
+  },
+  "1771 0": {
+   "bezeichnung": "Umsatzsteuer 7%",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1772 0": {
+   "bezeichnung": "Umsatzsteuer aus EU-Erwerb",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1774 0": {
+   "bezeichnung": "Umsatzsteuer aus EU-Erwerb 19%",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1776 0": {
+   "bezeichnung": "Umsatzsteuer 19%",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1780 0": {
+   "bezeichnung": "Umsatzsteuer-Vorauszahlungen",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1781 0": {
+   "bezeichnung": "Umsatzsteuer-Vorauszahlungen 1/11",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1787 0": {
+   "bezeichnung": "Umsatzsteuer nach § 13b UStG 19%",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1789 0": {
+   "bezeichnung": "Umsatzsteuer laufendes Jahr",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "1790 0": {
+   "bezeichnung": "Umsatzsteuerverbindlichkeiten Vorjahr",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten/Umsatzsteuer",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Hausconvention (Typ-1)"
+  },
+  "1791 0": {
+   "bezeichnung": "Umsatzsteuerverbindlichk. frühere Jahre",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten/Umsatzsteuer",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Hausconvention (Typ-1)"
+  },
+  "1797 0": {
+   "bezeichnung": "Verbindlichkeiten aus Umsatzsteuer-VZ",
+   "hgb_pfad": "/Passiva/C Verbindlichkeiten/Sonstige Verbindlichkeiten/Umsatzsteuer",
+   "klasse": "OWC",
+   "na_de": "Sonstige Verbindlichkeiten",
+   "quelle": "Hausconvention (Typ-1)"
+  },
+  "2020 0": {
+   "bezeichnung": "Periodenfremde Aufwendungen",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "2103 0": {
+   "bezeichnung": "Abzugsfäh. and. Nebenleist. zu Steuern",
+   "hgb_pfad": "/GuV/Zinsen und aehnliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Zinsen und aehnliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "2109 0": {
+   "bezeichnung": "Zinsaufwendungen an verbund. Unternehmen",
+   "hgb_pfad": "/GuV/Zinsen und aehnliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Zinsen und aehnliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "2110 0": {
+   "bezeichnung": "Zinsaufwendungen f.kfr.Verbindlichkeit.",
+   "hgb_pfad": "/GuV/Zinsen und aehnliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Zinsen und aehnliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "2119 0": {
+   "bezeichnung": "Zinsaufwend. f.kfr. Verb.an verbund. UN",
+   "hgb_pfad": "/GuV/Zinsen und aehnliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Zinsen und aehnliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "2140 0": {
+   "bezeichnung": "Zinsähnliche Aufwendungen",
+   "hgb_pfad": "/GuV/Zinsen und aehnliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Zinsen und aehnliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "2144 0": {
+   "bezeichnung": "Zinsaufwand Abzinsung Rückstellungen",
+   "hgb_pfad": "/GuV/Zinsen und aehnliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Zinsen und aehnliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "2150 0": {
+   "bezeichnung": "Aufwendungen aus Währungsumrechnungen",
+   "hgb_pfad": "/GuV/Zinsen und aehnliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Zinsen und aehnliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "2209 0": {
+   "bezeichnung": "Solidaritätszuschlag für Vorjahre",
+   "hgb_pfad": "/GuV/Sonstige Steuern",
+   "klasse": "PL",
+   "na_de": "Sonstige Steuern",
+   "quelle": "SKR-Default"
+  },
+  "230 9": {
+   "bezeichnung": "Unnamed Account",
+   "hgb_pfad": "/Aktiva/A Anlagevermoegen/II Sachanlagen/Technische Anlagen und Maschinen",
+   "klasse": "FA",
+   "na_de": "Sachanlagen",
+   "quelle": "SKR-Default"
+  },
+  "2310 0": {
+   "bezeichnung": "Abgänge Sachanlagen Restbuchwert bei BV",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "2315 0": {
+   "bezeichnung": "Abgänge Sachanlagen Restbuchwert bei BG",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "2383 0": {
+   "bezeichnung": "Zuwendungen,Spenden kirchl./rel./gemein.",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "25 0": {
+   "bezeichnung": "Ähnl. Rechte, Werte, entgeltl. erworben",
+   "hgb_pfad": "/Aktiva/A Anlagevermoegen/I Immaterielle Vermoegensgegenstaende/Entgeltlich erworbene Konzessionen",
+   "klasse": "FA",
+   "na_de": "Immaterielle Vermoegensgegenstaende",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "2520 0": {
+   "bezeichnung": "Periodenfremde Erträge",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "2653 0": {
+   "bezeichnung": "Zinsertr.§ 233a AO, §4 (5b) EStG, stfrei",
+   "hgb_pfad": "/GuV/Sonstige Zinsen und aehnliche Ertraege",
+   "klasse": "PL",
+   "na_de": "Sonstige Zinsen und aehnliche Ertraege",
+   "quelle": "SKR-Default"
+  },
+  "2659 0": {
+   "bezeichnung": "Sonst. Zinsen u.ä. Erträge aus verb.UN",
+   "hgb_pfad": "/GuV/Sonstige Zinsen und aehnliche Ertraege",
+   "klasse": "PL",
+   "na_de": "Sonstige Zinsen und aehnliche Ertraege",
+   "quelle": "SKR-Default"
+  },
+  "2660 0": {
+   "bezeichnung": "Erträge aus der Währungsumrechnung",
+   "hgb_pfad": "/GuV/Sonstige Zinsen und aehnliche Ertraege",
+   "klasse": "PL",
+   "na_de": "Sonstige Zinsen und aehnliche Ertraege",
+   "quelle": "SKR-Default"
+  },
+  "2684 0": {
+   "bezeichnung": "Zinsertrag Abzinsung Rückstellungen",
+   "hgb_pfad": "/GuV/Sonstige Zinsen und aehnliche Ertraege",
+   "klasse": "PL",
+   "na_de": "Sonstige Zinsen und aehnliche Ertraege",
+   "quelle": "SKR-Default"
+  },
+  "2707 0": {
+   "bezeichnung": "Other non-operative revenues",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Ertraege",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Ertraege",
+   "quelle": "SKR-Default"
+  },
+  "2707 1": {
+   "bezeichnung": "Other non-operative revenues- affiliates",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Ertraege",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Ertraege",
+   "quelle": "SKR-Default"
+  },
+  "2735 0": {
+   "bezeichnung": "Erträge Auflösung von Rückstellungen",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Ertraege",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Ertraege",
+   "quelle": "SKR-Default"
+  },
+  "2742 0": {
+   "bezeichnung": "Versich.entschädigung, Schadenersatz",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Ertraege",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Ertraege",
+   "quelle": "SKR-Default"
+  },
+  "2749 0": {
+   "bezeichnung": "Erstattungen AufwendungsausgleichsG",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Ertraege",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Ertraege",
+   "quelle": "SKR-Default"
+  },
+  "2752 0": {
+   "bezeichnung": "Erlöse Vermietung u.Verpachtung 19% USt",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Ertraege",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Ertraege",
+   "quelle": "SKR-Default"
+  },
+  "2868 0": {
+   "bezeichnung": "Verlustvortrag nach Verwendung",
+   "hgb_pfad": "/Passiva/A Eigenkapital/IV Gewinnvortrag Verlustvortrag",
+   "klasse": "EQ",
+   "na_de": "Eigenkapital",
+   "quelle": "SKR-Default"
+  },
+  "300 0": {
+   "bezeichnung": "Betriebs- und Geschäftsausstattung",
+   "hgb_pfad": "/Aktiva/A Anlagevermoegen/II Sachanlagen/Andere Anlagen Betriebs- und Geschaeftsausstattung",
+   "klasse": "FA",
+   "na_de": "Sachanlagen",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "3000 0": {
+   "bezeichnung": "Produktionskosten Lebensmittel",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3000 1": {
+   "bezeichnung": "Aufwendungen RHB Gewürze",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3001 0": {
+   "bezeichnung": "Produktionskosten Utensilien",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3002 0": {
+   "bezeichnung": "Produktionskosten (Lizenz,Musik,Schrift)",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3003 0": {
+   "bezeichnung": "Produktionskosten (Infrastruktur, Tech)",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3004 0": {
+   "bezeichnung": "Produktionskosten (Mieten Kamera & Co.)",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3005 0": {
+   "bezeichnung": "Translation",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3006 0": {
+   "bezeichnung": "Production Props",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3100 0": {
+   "bezeichnung": "Fremdleistungen EDV Service",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3100 1": {
+   "bezeichnung": "Fremdleistungen Reverse Charge",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3106 0": {
+   "bezeichnung": "Fremdleistungen 19% Vorsteuer",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3108 0": {
+   "bezeichnung": "Fremdleistungen 7% Vorsteuer",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3109 0": {
+   "bezeichnung": "Fremdleistungen ohne Vorsteuer",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3151 0": {
+   "bezeichnung": "Erhalt. Skonti § 13b UStG 19% Vorst./USt",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3175 0": {
+   "bezeichnung": "Fremdleistung (Miet- u.Pachtz. unbew.WG)",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3300 0": {
+   "bezeichnung": "Wareneingang 7% Vorsteuer",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3736 0": {
+   "bezeichnung": "Erhaltene Skonti 19% Vorsteuer",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3850 0": {
+   "bezeichnung": "Zölle und Einfuhrabgaben",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3950 1": {
+   "bezeichnung": "BV Kochbücher Online-Shop",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3960 0": {
+   "bezeichnung": "BV RHB Gewürze",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "3970 0": {
+   "bezeichnung": "Bestand RHB Gewürze",
+   "hgb_pfad": "/GuV/Materialaufwand",
+   "klasse": "PL",
+   "na_de": "Materialaufwand",
+   "quelle": "SKR-Default"
+  },
+  "400 0": {
+   "bezeichnung": "Betriebsausstattung",
+   "hgb_pfad": "/Aktiva/A Anlagevermoegen/II Sachanlagen/Andere Anlagen Betriebs- und Geschaeftsausstattung",
+   "klasse": "FA",
+   "na_de": "Sachanlagen",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "410 0": {
+   "bezeichnung": "Geschäftsausstattung (Technik)",
+   "hgb_pfad": "/Aktiva/A Anlagevermoegen/II Sachanlagen/Andere Anlagen Betriebs- und Geschaeftsausstattung",
+   "klasse": "FA",
+   "na_de": "Sachanlagen",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "4100 0": {
+   "bezeichnung": "Löhne und Gehälter",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4110 0": {
+   "bezeichnung": "Löhne",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4120 0": {
+   "bezeichnung": "Gehälter",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4120 2": {
+   "bezeichnung": "Gehälter - Creative",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4120 3": {
+   "bezeichnung": "Gehälter - PTD",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4120 4": {
+   "bezeichnung": "Gehälter - Strategic Partnerships",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4120 5": {
+   "bezeichnung": "Gehälter - Marketing",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4120 6": {
+   "bezeichnung": "Gehälter - Sales",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4120 7": {
+   "bezeichnung": "Gehälter - Tech",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4120 8": {
+   "bezeichnung": "Gehälter - Marketing",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4121 2": {
+   "bezeichnung": "Lohn Creative",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4121 3": {
+   "bezeichnung": "Lohn PTD",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4121 4": {
+   "bezeichnung": "Lohn Strategic Partnerships",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4121 5": {
+   "bezeichnung": "Lohn Marketing",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4121 6": {
+   "bezeichnung": "Gehälter - Sales",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4124 0": {
+   "bezeichnung": "Geschäftsführergehälter GmbH-Gesells.",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4124 1": {
+   "bezeichnung": "Gehälter- Administration",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4127 0": {
+   "bezeichnung": "Geschäftsführergehälter",
+   "hgb_pfad": "/GuV/Personalaufwand/Loehne und Gehaelter",
+   "klasse": "PL",
+   "na_de": "Loehne und Gehaelter",
+   "quelle": "SKR-Default"
+  },
+  "4130 0": {
+   "bezeichnung": "Gesetzliche Sozialaufwendungen",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4130 1": {
+   "bezeichnung": "SV- Administration",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4130 2": {
+   "bezeichnung": "SV- Creative",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4130 3": {
+   "bezeichnung": "SV - PTD",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4130 4": {
+   "bezeichnung": "SV-Strategic Partnerships",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4130 5": {
+   "bezeichnung": "SV- Marketing",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4130 6": {
+   "bezeichnung": "SV - Sales",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4130 7": {
+   "bezeichnung": "SV - Tech",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4130 8": {
+   "bezeichnung": "SV - Marketing",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4138 0": {
+   "bezeichnung": "Beiträge zur Berufsgenossenschaft",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4139 0": {
+   "bezeichnung": "Ausgleichsabgabe n.d.SchwerbehindertenG.",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4140 0": {
+   "bezeichnung": "Freiwillige soziale Aufwendung. LSt-frei",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4141 0": {
+   "bezeichnung": "Betriebsveranstaltungen",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4144 0": {
+   "bezeichnung": "Soziale Abgaben für Minijobber",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4145 0": {
+   "bezeichnung": "Freiwillige soziale Aufwendung. LSt-pfl.",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4145 4": {
+   "bezeichnung": "Freiw. soziale Aufw.lstpfl. Creative",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4147 0": {
+   "bezeichnung": "Freiwillige Zuwendungen an Ges.er-GF",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4149 0": {
+   "bezeichnung": "Pauschale Steuer auf sonstige Bezüge",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4150 1": {
+   "bezeichnung": "Zuschuss zum Mutterschaftsgeld",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4152 0": {
+   "bezeichnung": "Sachzuwendungen und Dienstleistg. an AN",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4153 0": {
+   "bezeichnung": "Sachzuwend., Dienstleistungen Ges.er-GF",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4156 0": {
+   "bezeichnung": "Aufwendung Veränderung Urlaubsrückst.",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4165 0": {
+   "bezeichnung": "Aufwendungen für Altersversorgung",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4166 0": {
+   "bezeichnung": "Aufwendungen Altersversorgung Ges.er-GF",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4175 0": {
+   "bezeichnung": "Fahrtkostenerstatt. Whg./Arbeitsstätte",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4190 0": {
+   "bezeichnung": "Aushilfslöhne",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4194 0": {
+   "bezeichnung": "Pauschale Steuer für Minijobber",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4195 0": {
+   "bezeichnung": "Löhne für Minijobs",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4196 0": {
+   "bezeichnung": "Pauschale Steuer für Gesellschafter-GF",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4198 0": {
+   "bezeichnung": "Pauschale Steuer für Arbeitnehmer",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4198 2": {
+   "bezeichnung": "Pauschale Steuer Creative",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4198 3": {
+   "bezeichnung": "Pauschale Steuer PTB",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "4198 4": {
+   "bezeichnung": "Pauschale Steuer Strategic Patnerships",
+   "hgb_pfad": "/GuV/Personalaufwand/Soziale Abgaben und Altersversorgung",
+   "klasse": "PL",
+   "na_de": "Soziale Abgaben und Altersversorgung",
+   "quelle": "SKR-Default"
+  },
+  "420 0": {
+   "bezeichnung": "Büroeinrichtung",
+   "hgb_pfad": "/Aktiva/A Anlagevermoegen/II Sachanlagen/Andere Anlagen Betriebs- und Geschaeftsausstattung",
+   "klasse": "FA",
+   "na_de": "Sachanlagen",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "4210 0": {
+   "bezeichnung": "Miete, unbewegliche Wirtschaftsgüter",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4228 0": {
+   "bezeichnung": "Miet- und Pachtnebenkosten",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4250 0": {
+   "bezeichnung": "Reinigung",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4260 0": {
+   "bezeichnung": "Instandhaltung betrieblicher Räume",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "43 0": {
+   "bezeichnung": "Selbst geschaffene immaterielle VermG.",
+   "hgb_pfad": "/Aktiva/A Anlagevermoegen/I Immaterielle Vermoegensgegenstaende/Selbst geschaffene Schutzrechte",
+   "klasse": "FA",
+   "na_de": "Immaterielle Vermoegensgegenstaende",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "4360 0": {
+   "bezeichnung": "Versicherungen",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4380 0": {
+   "bezeichnung": "Beiträge",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4380 1": {
+   "bezeichnung": "Beiträge Künstlersozialkasse KSK",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4390 0": {
+   "bezeichnung": "Sonstige Abgaben",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4396 0": {
+   "bezeichnung": "Abzugsf.Verspätungszuschlag/Zwangsgeld",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4397 0": {
+   "bezeichnung": "Nicht abzf.Verspät.zuschlag/Zwangsgeld",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "450 0": {
+   "bezeichnung": "Einbauten in fremde Grundstücke",
+   "hgb_pfad": "/Aktiva/A Anlagevermoegen/II Sachanlagen/Andere Anlagen Betriebs- und Geschaeftsausstattung",
+   "klasse": "FA",
+   "na_de": "Sachanlagen",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "4600 0": {
+   "bezeichnung": "Marketing Partner Campaigns",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4600 1": {
+   "bezeichnung": "Stellenanzeigen",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4601 0": {
+   "bezeichnung": "Marketing User Growth B2C",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4602 0": {
+   "bezeichnung": "Marketing B2B Ads",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4605 0": {
+   "bezeichnung": "Streuartikel",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4610 0": {
+   "bezeichnung": "Werbekosten",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4630 0": {
+   "bezeichnung": "Geschenke abzugsfähig ohne § 37b EStG",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4632 0": {
+   "bezeichnung": "Pausch. Steuer Geschenke/Zuwend. abz.",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4636 0": {
+   "bezeichnung": "Geschenke n. abzugsfähig mit § 37b EStG",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4637 0": {
+   "bezeichnung": "Pausch. Steuer Geschenke/Zuwend. n.abz.",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4640 0": {
+   "bezeichnung": "Repräsentationskosten",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4650 0": {
+   "bezeichnung": "Bewirtungskosten intern",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4653 0": {
+   "bezeichnung": "Aufmerksamkeiten",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4654 0": {
+   "bezeichnung": "Bewirtungskosten extern 70%",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4655 0": {
+   "bezeichnung": "n. abz. Bewirtungskosten extern 30%",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4660 0": {
+   "bezeichnung": "Reisekosten Arbeitnehmer",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4663 0": {
+   "bezeichnung": "Reisekosten Arbeitnehmer, Fahrtkosten",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4663 1": {
+   "bezeichnung": "Reisekosten AN Fahrtkosten Team",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4663 2": {
+   "bezeichnung": "Reisekosten AN Fahrtkosten externe Proje",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4663 9": {
+   "bezeichnung": "Reisekosten Recruiting",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4664 0": {
+   "bezeichnung": "Reisekosten AN Verpfleg.mehraufwand",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4664 1": {
+   "bezeichnung": "Reisekosten AN VMA Team",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4664 2": {
+   "bezeichnung": "Reisekosten AN VMA externe Projekte",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4666 0": {
+   "bezeichnung": "Reisekosten AN Übernachtungsaufwand",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4666 1": {
+   "bezeichnung": "Reisekosten AN Übernachtung Team",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4666 2": {
+   "bezeichnung": "Reisekosten AN Übernachtung externe Proj",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4668 0": {
+   "bezeichnung": "Kilometergelderstattung Arbeitnehmer",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "48 0": {
+   "bezeichnung": "Immat. Vermögensgegenst. in Entwicklung",
+   "hgb_pfad": "/Aktiva/A Anlagevermoegen/I Immaterielle Vermoegensgegenstaende/Entgeltlich erworbene Konzessionen",
+   "klasse": "FA",
+   "na_de": "Immaterielle Vermoegensgegenstaende",
+   "quelle": "SKR-Default"
+  },
+  "480 0": {
+   "bezeichnung": "Geringwertige Wirtschaftsgüter",
+   "hgb_pfad": "/Aktiva/A Anlagevermoegen/II Sachanlagen/Andere Anlagen Betriebs- und Geschaeftsausstattung",
+   "klasse": "FA",
+   "na_de": "Sachanlagen",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "480 1": {
+   "bezeichnung": "GWG - Technik",
+   "hgb_pfad": "/Aktiva/A Anlagevermoegen/II Sachanlagen/Andere Anlagen Betriebs- und Geschaeftsausstattung",
+   "klasse": "FA",
+   "na_de": "Sachanlagen",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "4801 0": {
+   "bezeichnung": "Reparatur u.Instandhaltung von Bauten",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4805 0": {
+   "bezeichnung": "Reparatur/Instandh.v.and.Anlagen u. BGA",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4806 0": {
+   "bezeichnung": "Wartungskosten für Hard- und Software",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4809 0": {
+   "bezeichnung": "Sonstige Reparaturen u.Instandhaltungen",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4810 0": {
+   "bezeichnung": "Mietleasing bewegl. WG techn. Anlagen",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4822 0": {
+   "bezeichnung": "Abschreibung immaterielle VermG",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4823 0": {
+   "bezeichnung": "Abschreibung selbst geschaffene imm. VG",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4830 0": {
+   "bezeichnung": "Abschreibungen auf Sachanlagen",
+   "hgb_pfad": "/GuV/Abschreibungen",
+   "klasse": "PL",
+   "na_de": "Abschreibungen",
+   "quelle": "SKR-Default"
+  },
+  "4855 0": {
+   "bezeichnung": "Sofortabschreibung GWG",
+   "hgb_pfad": "/GuV/Abschreibungen",
+   "klasse": "PL",
+   "na_de": "Abschreibungen",
+   "quelle": "SKR-Default"
+  },
+  "4860 0": {
+   "bezeichnung": "Abschreibungen auf aktivierte GWG",
+   "hgb_pfad": "/GuV/Abschreibungen",
+   "klasse": "PL",
+   "na_de": "Abschreibungen",
+   "quelle": "SKR-Default"
+  },
+  "490 0": {
+   "bezeichnung": "Sonstige Betriebs-u.Gesch.ausstattung",
+   "hgb_pfad": "/Aktiva/A Anlagevermoegen/II Sachanlagen/Andere Anlagen Betriebs- und Geschaeftsausstattung",
+   "klasse": "FA",
+   "na_de": "Sachanlagen",
+   "quelle": "SKR-Default"
+  },
+  "4900 0": {
+   "bezeichnung": "Sonstige betriebliche Aufwendungen",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4909 1": {
+   "bezeichnung": "Headhunter",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4910 0": {
+   "bezeichnung": "Porto",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4920 0": {
+   "bezeichnung": "Telefon",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4925 0": {
+   "bezeichnung": "Internetkosten",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4930 0": {
+   "bezeichnung": "Bürobedarf",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4940 0": {
+   "bezeichnung": "Zeitschrift./Bücher/dig.Medien(Fachlit.)",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4945 0": {
+   "bezeichnung": "Fortbildungskosten",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4946 0": {
+   "bezeichnung": "Freiwillige Sozialleistungen",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4950 0": {
+   "bezeichnung": "Rechts- und Beratungskosten",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4955 0": {
+   "bezeichnung": "Buchführungskosten",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4956 0": {
+   "bezeichnung": "Lohnführungskosten",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4957 0": {
+   "bezeichnung": "Abschluss- und Prüfungskosten",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4960 0": {
+   "bezeichnung": "Mieten für Einrichtungen bewegliche WG",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4969 0": {
+   "bezeichnung": "Aufwand Abraum-/Abfallbeseitigung",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4970 0": {
+   "bezeichnung": "Nebenkosten des Geldverkehrs",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4970 1": {
+   "bezeichnung": "Gebühren PayPal",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4970 6": {
+   "bezeichnung": "Gebühren Shopify",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4980 0": {
+   "bezeichnung": "EDV Hardware",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "4981 0": {
+   "bezeichnung": "sonst. Betriebsbedarf - Kleinmöbel",
+   "hgb_pfad": "/GuV/Sonstige betriebliche Aufwendungen",
+   "klasse": "PL",
+   "na_de": "Sonstige betriebliche Aufwendungen",
+   "quelle": "SKR-Default"
+  },
+  "540 0": {
+   "bezeichnung": "Übrige sonstige Ausleihungen",
+   "hgb_pfad": "/Aktiva/A Anlagevermoegen/III Finanzanlagen/Sonstige Ausleihungen",
+   "klasse": "ND",
+   "na_de": "Ausleihungen",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "631 0": {
+   "bezeichnung": "Verbindlichkeiten Kreditinstitut(b.1J)",
+   "hgb_pfad": "/Aktiva/A Anlagevermoegen/III Finanzanlagen/Sonstige Ausleihungen",
+   "klasse": "ND",
+   "na_de": "Ausleihungen",
+   "quelle": "SKR-Default"
+  },
+  "7000 0": {
+   "bezeichnung": "Unfertige Erzeugnisse und Leistungen",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/I Vorraete/Unfertige Erzeugnisse und Leistungen",
+   "klasse": "TWC",
+   "na_de": "Vorraete",
+   "quelle": "SKR-Default"
+  },
+  "701 0": {
+   "bezeichnung": "Cash-Pool",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Forderungen gegen verbundene Unternehmen",
+   "klasse": "ND",
+   "na_de": "Forderungen ggue. verbundenen Unternehmen",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "7080 0": {
+   "bezeichnung": "Unfertige Leistungen",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/I Vorraete/Unfertige Erzeugnisse und Leistungen",
+   "klasse": "TWC",
+   "na_de": "Vorraete",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "7080 1": {
+   "bezeichnung": "Unfertige Leistungen - Foodfittery",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/I Vorraete/Unfertige Erzeugnisse und Leistungen",
+   "klasse": "TWC",
+   "na_de": "Vorraete",
+   "quelle": "SKR-Default"
+  },
+  "7100 1": {
+   "bezeichnung": "Bestand Sets Online-Shop",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/I Vorraete/Fertige Erzeugnisse und Waren",
+   "klasse": "TWC",
+   "na_de": "Vorraete",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "7110 1": {
+   "bezeichnung": "Bestand Gewürzmischungen Online-Shop",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/I Vorraete/Fertige Erzeugnisse und Waren",
+   "klasse": "TWC",
+   "na_de": "Vorraete",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "7140 1": {
+   "bezeichnung": "Bestand Kochbücher Online-Shop",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/I Vorraete/Fertige Erzeugnisse und Waren",
+   "klasse": "TWC",
+   "na_de": "Vorraete",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "800 0": {
+   "bezeichnung": "Gezeichnetes Kapital",
+   "hgb_pfad": "/Passiva/A Eigenkapital/I Gezeichnetes Kapital",
+   "klasse": "EQ",
+   "na_de": "Eigenkapital",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "8300 0": {
+   "bezeichnung": "Other Operative Revenues 7%",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8301 0": {
+   "bezeichnung": "Erlöse 7% USt - Verkauf Bücher",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8302 0": {
+   "bezeichnung": "Erlöse Online-Shop 7%",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8305 0": {
+   "bezeichnung": "Other B2B Revenues 7%",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8336 0": {
+   "bezeichnung": "Other operative revenues EU",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8336 1": {
+   "bezeichnung": "Native Advertising EU",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8336 7": {
+   "bezeichnung": "Display Adverstising EU",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8336 9": {
+   "bezeichnung": "Native Production EU",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8337 1": {
+   "bezeichnung": "B2C Revenues §13b UStG",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8337 3": {
+   "bezeichnung": "B2C Revenues App Stores §13b UStG",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8338 0": {
+   "bezeichnung": "Other Revenue Drittland",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8338 1": {
+   "bezeichnung": "Erlöse Online-Shop Drittland",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8338 5": {
+   "bezeichnung": "Other B2B  Revenue Drittland",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8338 7": {
+   "bezeichnung": "Display Advertising Drittland",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8338 9": {
+   "bezeichnung": "Native Production Drittland",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "840 0": {
+   "bezeichnung": "Kapitalrücklage",
+   "hgb_pfad": "/Passiva/A Eigenkapital/II Kapitalruecklage",
+   "klasse": "EQ",
+   "na_de": "Eigenkapital",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "8400 0": {
+   "bezeichnung": "Other Operative Revenues 19% USt",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8400 1": {
+   "bezeichnung": "Other Operative Revenues 19% -Affiliates",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8400 2": {
+   "bezeichnung": "Erlöse Online-Shop 19%",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8402 0": {
+   "bezeichnung": "Native Adverstising19% USt",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8402 1": {
+   "bezeichnung": "Native Adverstising 19% USt",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8404 0": {
+   "bezeichnung": "Market research 19% USt",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8405 0": {
+   "bezeichnung": "Other B2B Revenues19% USt",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8406 0": {
+   "bezeichnung": "Service Production19% USt",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8406 1": {
+   "bezeichnung": "Service Production19% USt - Affiliates",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8406 2": {
+   "bezeichnung": "Native Advertising 19% USt - Affiliates",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8407 0": {
+   "bezeichnung": "Display Adverstising19% USt",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8409 0": {
+   "bezeichnung": "Native Production 19% USt",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8409 1": {
+   "bezeichnung": "Native Production 19% USt - Affiliates",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8603 0": {
+   "bezeichnung": "Sonstige betriebliche Erträge",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "861 0": {
+   "bezeichnung": "Unnamed Account",
+   "hgb_pfad": "/Passiva/A Eigenkapital/I Gezeichnetes Kapital",
+   "klasse": "EQ",
+   "na_de": "Eigenkapital",
+   "quelle": "SKR-Default"
+  },
+  "8610 0": {
+   "bezeichnung": "Verrechnete sonstige Sachbezüge",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8611 0": {
+   "bezeichnung": "Verrech. sonstige Sachbezüge Fzg 19% USt",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8613 0": {
+   "bezeichnung": "Verrechn. sonstige Sachbezüge 19% USt",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "868 0": {
+   "bezeichnung": "Verlustvortrag vor Verwendung",
+   "hgb_pfad": "/Passiva/A Eigenkapital/IV Gewinnvortrag Verlustvortrag",
+   "klasse": "EQ",
+   "na_de": "Eigenkapital",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "8736 0": {
+   "bezeichnung": "Gewährte Skonti 19 % USt",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8790 0": {
+   "bezeichnung": "Gewährte Rabatte 19 % USt",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8820 0": {
+   "bezeichnung": "Erlöse Sachanlageverkäufe 19% USt, BG",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8970 0": {
+   "bezeichnung": "BV UFL - Other Operative Revenues",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8970 2": {
+   "bezeichnung": "BV UFL - Native Advertising",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8970 5": {
+   "bezeichnung": "BV UFL - Other B2B Revenues",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8970 6": {
+   "bezeichnung": "BV UFL - Service Production",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8970 7": {
+   "bezeichnung": "BV UFL - Display Advertising",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8970 9": {
+   "bezeichnung": "BV UFL - Native Production",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8971 0": {
+   "bezeichnung": "BV UFL - Foodfittery",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8980 1": {
+   "bezeichnung": "BV Gewürzmischungen Online-Shop",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "8980 2": {
+   "bezeichnung": "BV Sets Online-Shop",
+   "hgb_pfad": "/GuV/Umsatzerloese",
+   "klasse": "PL",
+   "na_de": "Umsatzerloese",
+   "quelle": "SKR-Default"
+  },
+  "9000 0": {
+   "bezeichnung": "Saldenvorträge Sachkonten",
+   "hgb_pfad": "(technisch)",
+   "klasse": "TECH",
+   "na_de": "(technisch)",
+   "quelle": "SKR-Default"
+  },
+  "9008 0": {
+   "bezeichnung": "Saldenvorträge Debitoren",
+   "hgb_pfad": "(technisch)",
+   "klasse": "TECH",
+   "na_de": "(technisch)",
+   "quelle": "SKR-Default"
+  },
+  "9009 0": {
+   "bezeichnung": "Saldenvorträge Kreditoren",
+   "hgb_pfad": "(technisch)",
+   "klasse": "TECH",
+   "na_de": "(technisch)",
+   "quelle": "SKR-Default"
+  },
+  "9140 0": {
+   "bezeichnung": "Auftragsbestand",
+   "hgb_pfad": "(technisch)",
+   "klasse": "TECH",
+   "na_de": "(technisch)",
+   "quelle": "SKR-Default"
+  },
+  "9199 0": {
+   "bezeichnung": "Gegenkonto zu Konten 9120, 9135-9140",
+   "hgb_pfad": "(technisch)",
+   "klasse": "TECH",
+   "na_de": "(technisch)",
+   "quelle": "SKR-Default"
+  },
+  "965 0": {
+   "bezeichnung": "Rückstellungen für Personalkosten",
+   "hgb_pfad": "/Passiva/B Rueckstellungen/Sonstige Rueckstellungen",
+   "klasse": "OWC",
+   "na_de": "Sonstige Rueckstellungen",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "966 0": {
+   "bezeichnung": "Rückstellungen für Aufbewahrungspflicht",
+   "hgb_pfad": "/Passiva/B Rueckstellungen/Sonstige Rueckstellungen",
+   "klasse": "OWC",
+   "na_de": "Sonstige Rueckstellungen",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "970 0": {
+   "bezeichnung": "Sonstige Rückstellungen",
+   "hgb_pfad": "/Passiva/B Rueckstellungen/Sonstige Rueckstellungen",
+   "klasse": "OWC",
+   "na_de": "Sonstige Rueckstellungen",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "977 0": {
+   "bezeichnung": "Rückstellungen für Abschluss u. Prüfung",
+   "hgb_pfad": "/Passiva/B Rueckstellungen/Sonstige Rueckstellungen",
+   "klasse": "OWC",
+   "na_de": "Sonstige Rueckstellungen",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "980 0": {
+   "bezeichnung": "Aktive Rechnungsabgrenzung",
+   "hgb_pfad": "/Aktiva/C Rechnungsabgrenzungsposten",
+   "klasse": "OWC",
+   "na_de": "Aktive Rechnungsabgrenzung",
+   "quelle": "Kontennachweis/FS-Struktur"
+  },
+  "990 0": {
+   "bezeichnung": "Passive Rechnungsabgrenzung",
+   "hgb_pfad": "/Passiva/D Rechnungsabgrenzungsposten",
+   "klasse": "OWC",
+   "na_de": "Passive Rechnungsabgrenzung",
+   "quelle": "SKR-Default"
+  },
+  "9960 0": {
+   "bezeichnung": "Bewertungskorrektur zu Forderungen L+L",
+   "hgb_pfad": "/Aktiva/B Umlaufvermoegen/II Forderungen und sonstige Vermoegensgegenstaende/Forderungen aus Lieferungen und Leistungen",
+   "klasse": "TWC",
+   "na_de": "Forderungen aus L+L",
+   "quelle": "Kontennachweis/FS-Struktur"
+  }
+ },
+ "lauf": 1
+}

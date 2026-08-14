@@ -92,11 +92,25 @@ class Hausconvention:
             for regelset, regeln in data.get("klassifizierungs_regeln_mixed", {}).items()
             if not regelset.startswith("_")
         }
+        # v2.8: die Regelgruppe Zahlungsverkehr ist positionsübergreifend
+        # formuliert (Zahlungsdienstleister, Kreditkarten, Gesellschafter-/
+        # GF-Konten treten in allen drei gemischten Positionen auf) und wird
+        # deshalb jedem Regelset zugespielt, statt sie dreimal zu pflegen.
+        querschnitt = [self._parse_typ2(r) for r in
+                       data.get("regelgruppe_zahlungsverkehr", {}).get("regeln", [])]
+        self._querschnitt_typ2 = querschnitt
+        for regeln in self._typ2.values():
+            regeln.extend(querschnitt)
         skr = data.get("skr03_default_bereiche", {})
         self._skr_bereiche: list[tuple[int, int, str]] = [
             (int(a), int(b), pfad) for a, b, pfad in skr.get("bereiche", [])
         ]
-        self._tech_ab: int = skr.get("technische_konten", {}).get("ab", 9000)
+        tech = skr.get("technische_konten", {})
+        self._tech_ab: int = tech.get("ab", 9000)
+        # v2.8: Saldenvortragskonten sind KEINE Statistikkonten. Sie tragen den
+        # Eröffnungsbestand und dürfen nicht als TECH aus dem Databook fallen.
+        self._saldenvortrag_bereich: tuple[int, int] = (9000, 9009)
+        self._hat_saldenvortrag_regel = "saldenvortragskonten" in tech
         self.wesentlichkeit: dict[str, Any] = data.get("wesentlichkeit", {})
 
     # ---- Fabrik -----------------------------------------------------------
@@ -179,6 +193,14 @@ class Hausconvention:
             if a <= nummer <= b:
                 return pfad
         return None
+
+    def ist_saldenvortrag(self, konto: str) -> bool:
+        """Saldenvortrags-/Eröffnungsbilanzkonto (DATEV 9000–9009)."""
+        if not self._hat_saldenvortrag_regel:
+            return False
+        n = self._konto_nummer(konto)
+        von, bis = self._saldenvortrag_bereich
+        return n is not None and von <= n <= bis
 
     def ist_technisch(self, konto: str) -> bool:
         nummer = self._konto_nummer(konto)

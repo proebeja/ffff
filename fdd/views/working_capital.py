@@ -97,16 +97,24 @@ def baue_working_capital(mapped: list[MappedAccount], perioden: list[str],
             # WC-Klasse, aber keine echte NA-Zeile -> fällt durchs Raster
             ohne.append(m)
             continue
-        seite = _seite(m)
-        key = (seite, m.klasse.value, m.na_de)
-        z = zeilen.get(key)
-        if z is None:
-            z = WCZeile(na_de=m.na_de, na_en=m.na_en, klasse=m.klasse.value,
-                        seite=seite, betraege={p: 0.0 for p in perioden})
-            zeilen[key] = z
-        for p in perioden:
-            z.betraege[p] += m.saldo(p)
-        z.konten.append(m)
+        for periode in perioden:
+            na_de, na_en = m.na_in(periode)
+            # Geschlüsselt wird nach Klasse und NA-Zeile, NICHT nach Seite:
+            # ein und dieselbe Position darf nur einmal im Lead stehen. Die
+            # Seite ist ein Attribut der Position (sie folgt ihrem HGB-Pfad),
+            # keine zweite Gliederungsebene — sonst zöge dieselbe Position
+            # zweimal aus demselben Aufriss und stünde doppelt im Saldo.
+            key = (m.klasse.value, na_de)
+            z = zeilen.get(key)
+            if z is None:
+                pfad = m.pfad_in(periode)
+                z = WCZeile(na_de=na_de, na_en=na_en, klasse=m.klasse.value,
+                            seite="OA" if pfad.startswith("/Aktiva") else "OL",
+                            betraege={q: 0.0 for q in perioden})
+                zeilen[key] = z
+            z.betraege[periode] += m.saldo(periode)
+            if m not in z.konten:
+                z.konten.append(m)
 
     ordnung = _na_reihenfolge()
     geordnet = sorted(

@@ -52,6 +52,12 @@ class Engine:
             self.protokoll.protokolliere_map(m)
         return ergebnis
 
+    @property
+    def ki_aufrufe(self) -> list[str]:
+        """Wofür die KI-Schicht gerufen wurde. Ohne registrierten Provider
+        bleibt die Liste leer — die Schicht ist eine Schnittstelle."""
+        return getattr(self, "_ki_aufrufe", [])
+
     def map_account(self, account: Account, hat_kontennachweis: bool) -> MappedAccount:
         # Technische DATEV-Konten (>=9000, EBK) fliegen früh raus — aber nur bei
         # SKR-nummerierten Konten OHNE gelieferte FS-Struktur. Liefert der
@@ -72,7 +78,11 @@ class Engine:
             return replace(m, begruendung=(
                 "Kontonummer kommt mehrfach vor und die Werte überschneiden "
                 "sich; welche Zeile gilt, ist ungeklärt."))
-        if account.fs_pfad is None and self.hc.ist_technisch(account.konto):
+        # v2.8: Saldenvortragskonten fallen nicht mehr pauschal in TECH. Sie
+        # werden nachgelagert abgestimmt (siehe engine/saldenvortrag.py); der
+        # nicht abstimmbare Rest gehört ins Eigenkapital.
+        if (account.fs_pfad is None and self.hc.ist_technisch(account.konto)
+                and not self.hc.ist_saldenvortrag(account.konto)):
             return self._tech(account)
 
         hgb_pfad, quelle, regel_id, begruendung = self._finde_pfad(
