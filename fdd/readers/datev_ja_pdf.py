@@ -68,9 +68,24 @@ class KNEintrag:
     vj: float
 
     def vorzeichenrichtig(self, vorjahr: bool = False) -> float:
-        """Databook-Konvention: Aktiva positiv, Passiva negativ."""
+        """Databook-Konvention: Aktiva positiv (Soll), Passiva negativ (Haben).
+
+        Ausnahme sind die **Abzugsposten des Eigenkapitals**. Verlustvortrag,
+        Jahresfehlbetrag und Bilanzverlust stehen zwar auf der Passivseite,
+        sind aber Sollsalden: der Abschluss druckt sie ohne Vorzeichen, weil
+        schon die Bezeichnung den Abzug ausdrückt (90.355,00 + 20.872.625,34
+        - 17.865.402,25 - 3.091.498,86 = 6.079,23 Eigenkapital). Sie dürfen
+        deshalb nicht mitgedreht werden."""
         wert = self.vj if vorjahr else self.gj
-        return -wert if self.sektion == "PASSIVA" else wert
+        if self.sektion == "PASSIVA" and not self.ist_abzugsposten:
+            return -wert
+        return wert
+
+    @property
+    def ist_abzugsposten(self) -> bool:
+        low = normalisiere(self.ueberschrift)
+        return any(w in low for w in ("verlustvortrag", "jahresfehlbetrag",
+                                      "bilanzverlust", "nicht gedeckter fehlbetrag"))
 
 
 @dataclass

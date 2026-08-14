@@ -15,6 +15,8 @@ bestimmen ND/OWC inhaltsabhängig über Typ-2-Regeln.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 from typing import Optional
 
 from ..core.hausconvention import Hausconvention
@@ -61,6 +63,15 @@ class Engine:
         # sie mangels HGB-Pfad in der Review-Queue und blähten sie auf.
         if account.kontotyp == "technisch":
             return self._tech(account)
+        # Meldet der Reader ein Konto als ungeklärt (zwei Zeilen derselben
+        # Kontonummer mit überschneidenden Perioden), darf die Kaskade keine
+        # Zuordnung darüberlegen — das täuschte eine Klärung vor, die es nicht
+        # gibt. Solche Konten gehen unmittelbar in die Review-Queue.
+        if account.kontotyp == "strittig":
+            m = self._review_ohne_pfad(account)
+            return replace(m, begruendung=(
+                "Kontonummer kommt mehrfach vor und die Werte überschneiden "
+                "sich; welche Zeile gilt, ist ungeklärt."))
         if account.fs_pfad is None and self.hc.ist_technisch(account.konto):
             return self._tech(account)
 

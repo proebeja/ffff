@@ -1,5 +1,5 @@
 {
-  "version": "2.5",
+  "version": "2.6",
   "stand": "2026-07-28",
   "name": "Hausconvention FDD-Mapping",
   "geltungsbereich": "SKR03 und SKR04 (DATEV). Fuer non-DATEV-ERP sinngemaess uebertragbar.",
@@ -1650,6 +1650,16 @@
         "/GuV/Sonstige betriebliche Aufwendungen"
       ],
       [
+        7000,
+        7099,
+        "/Aktiva/B Umlaufvermoegen/I Vorraete/Unfertige Erzeugnisse und Leistungen"
+      ],
+      [
+        7100,
+        7999,
+        "/Aktiva/B Umlaufvermoegen/I Vorraete/Fertige Erzeugnisse und Waren"
+      ],
+      [
         8000,
         8999,
         "/GuV/Umsatzerloese"
@@ -1815,5 +1825,9 @@
       "1400 Forderungen aL": "TWC -> OA",
       "1600 Verbindlichkeiten aL": "TWC -> OL"
     }
-  }
+  },
+  "_aenderungen_v2_6": [
+    "SKR03-Default um die Bestandskonten 7000-7099 (unfertige Erzeugnisse und Leistungen) und 7100-7999 (fertige Erzeugnisse und Waren) ergaenzt. Der Bereich fehlte bisher vollstaendig; Bestandskonten fielen dadurch durch alle Kaskadenstufen in die Review-Queue, obwohl SKR03 sie eindeutig fuehrt.",
+    "Kontotyp 'strittig': meldet ein Reader ein Konto als ungeklaert (zwei Zeilen derselben Kontonummer mit ueberschneidenden Perioden), geht es unmittelbar in die Review-Queue, statt ueber die Kaskade eine Zuordnung zu bekommen, die eine Klaerung vortaeuscht."
+  ]
 }

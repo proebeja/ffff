@@ -141,7 +141,8 @@ def schreibe_databook(pfad: str, mapped: list[MappedAccount], nd: NetDebtView,
                       wc: "Optional[WCView]" = None,
                       schedules: "Optional[Schedules]" = None,
                       recon=None, setup=None, lead_na=None, lead_pl=None,
-                      ja_recon=None) -> None:
+                      ja_recon=None, status=None, benchmark=None,
+                      recon_abschluss=None, recon_aggregiert=None) -> None:
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
     layout = _schreibe_mastersheet(wb, mapped, perioden, entity)
@@ -157,6 +158,18 @@ def schreibe_databook(pfad: str, mapped: list[MappedAccount], nd: NetDebtView,
         _schreibe_reconciliation(wb, recon, perioden, entity)
     if ja_recon is not None:
         _schreibe_ja_reconciliation(wb, ja_recon, entity)
+    if recon_abschluss is not None:
+        _schreibe_recon_abschluss(wb, recon_abschluss, entity)
+    if recon_aggregiert is not None:
+        _schreibe_recon_aggregiert(wb, recon_aggregiert, entity)
+    if benchmark is not None:
+        _schreibe_benchmark(wb, benchmark, entity)
+    if status is not None:
+        _schreibe_status(wb, status, entity)
+    if status is not None:
+        for tab in ("Lead NA", "Net Debt", "Working Capital", "Lead PL", "Mastersheet"):
+            if tab in wb.sheetnames:
+                _status_zeile(wb[tab], status, perioden, tab)
     _schreibe_review(wb, review, perioden)
     if meta:
         _schreibe_info(wb, meta)
@@ -831,14 +844,43 @@ def _schreibe_uebersichts_lead(wb, view, layout, perioden, refs, setup,
             cell.number_format = ZAHLENFORMAT
             cell.font = Font(name=FONT_NAME, italic=True, size=9, color=FARBE_LINK)
 
-        k2 = rq + 1
-        ws.cell(k2, 3, f"Kontrollzeile ({gesamt_label} + Eigenkapital + Review, "
-                       "muss 0 sein — die Bilanz schließt)").font = Font(
+        # Das Periodenergebnis steht in der Saldenliste noch auf den GuV-Konten
+        # und ist erst nach Ergebnisverwendung im Eigenkapital. Ohne diese
+        # Zeile schlösse die Probe genau um das Ergebnis daneben.
+        pl = rq + 1
+        ws.cell(pl, 3, "nachrichtlich: Periodenergebnis (noch auf den GuV-Konten, "
+                       "nicht im Eigenkapital)").font = Font(
+            name=FONT_NAME, italic=True, size=9)
+        for i, p in enumerate(perioden):
+            rng = layout.bereich(layout.perioden_spalten[p])
+            kl = layout.bereich(layout.spalte_klasse)
+            cell = ws.cell(pl, p0 + i, f'=SUMIFS({rng},{kl},"PL")')
+            cell.number_format = ZAHLENFORMAT
+            cell.font = Font(name=FONT_NAME, italic=True, size=9, color=FARBE_LINK)
+
+        # Technische Konten (DATEV-Saldenvorträge, Statistikkonten) tragen im
+        # unterjährigen Stand das noch nicht auf die Eigenkapitalkonten
+        # gebuchte Vorjahresergebnis. Sie bilden keine Bilanzposition, gehören
+        # aber zur Schlussprobe — sonst ginge sie genau um diesen Betrag daneben.
+        te = pl + 1
+        ws.cell(te, 3, "nachrichtlich: technische Konten (DATEV-Saldenvorträge, "
+                       "Statistik)").font = Font(name=FONT_NAME, italic=True, size=9)
+        for i, p in enumerate(perioden):
+            rng = layout.bereich(layout.perioden_spalten[p])
+            kl = layout.bereich(layout.spalte_klasse)
+            cell = ws.cell(te, p0 + i, f'=SUMIFS({rng},{kl},"TECH")')
+            cell.number_format = ZAHLENFORMAT
+            cell.font = Font(name=FONT_NAME, italic=True, size=9, color=FARBE_LINK)
+
+        k2 = te + 1
+        ws.cell(k2, 3, f"Kontrollzeile ({gesamt_label} + Eigenkapital + Review "
+                       "+ Periodenergebnis + technische Konten, muss 0 sein — "
+                       "die Bilanz schließt)").font = Font(
             name=FONT_NAME, italic=True, size=9)
         for i, p in enumerate(perioden):
             sp = get_column_letter(p0 + i)
             ek = "+".join(f"{sp}{z}" for z in ek_rows)
-            cell = ws.cell(k2, p0 + i, f"={sp}{gesamt}+{ek}+{sp}{rq}")
+            cell = ws.cell(k2, p0 + i, f"={sp}{gesamt}+{ek}+{sp}{rq}+{sp}{pl}+{sp}{te}")
             cell.number_format = ZAHLENFORMAT_CHECK
             cell.font = Font(name=FONT_NAME, italic=True, size=9, color=FARBE_LINK)
             cell.fill = _gelb_fill
@@ -952,6 +994,194 @@ def _schreibe_ja_reconciliation(wb, rec, entity) -> None:
     for i in range(len(perioden) * 3):
         ws.column_dimensions[get_column_letter(4 + i)].width = 16
     ws.freeze_panes = ws.cell(kopf + 1, 4)
+
+
+
+# ---- Spaltenweiser Abschlusstreue-Status ---------------------------------
+def _status_zeile(ws, status, perioden, tab: str) -> None:
+    """Schreibt den Status je Periodenspalte **in die Kopfzelle** der Spalte.
+
+    Bewusst keine zusätzliche Zeile: openpyxl zieht beim Einfügen von Zeilen
+    die Formelbezüge nicht nach, eine eingeschobene Statuszeile würde also
+    sämtliche Summenformeln der Leads stillschweigend verbiegen. Der Status
+    gehört ohnehin an die Spalte — er gilt spaltenweise, nicht fürs Blatt."""
+    kopf = 1 if tab == "Mastersheet" else 4
+    if tab == "Mastersheet":
+        spalten = {str(ws.cell(kopf, c).value): c
+                   for c in range(1, ws.max_column + 1) if ws.cell(kopf, c).value}
+        ziel = {p: spalten[p] for p in perioden if p in spalten}
+    else:
+        ziel = {p: 6 + i for i, p in enumerate(perioden)}
+    if not ziel:
+        return
+    for p, col in ziel.items():
+        s = status.fuer(p)
+        if s is None:
+            continue
+        zelle = ws.cell(kopf, col)
+        zelle.value = f"{p}\n{s.kurz}"
+        zelle.alignment = Alignment(wrap_text=True, vertical="top")
+        if not s.ist_abschlusstreu:
+            zelle.fill = _gelb_fill
+    ws.row_dimensions[kopf].height = 46
+
+
+def _schreibe_status(wb, status, entity) -> None:
+    ws = wb.create_sheet("Status je Spalte")
+    ws.sheet_view.showGridLines = False
+    _titel(ws, 1, 2, f"Abschlusstreue je Periodenspalte — {entity}")
+    ws.cell(2, 2, "Der Status gilt spaltenweise. Eine Periode ohne Abschluss "
+                  "kann nicht abschlusstreu sein, auch wenn es die Nachbarspalte "
+                  "ist.").font = _hinweis
+    kopf = 4
+    for c, t in enumerate(("Periode", "Bilanz", "GuV", "Quelle", "Hinweis"), start=2):
+        ws.cell(kopf, c, t)
+    _style_kopf_row(ws, kopf, 2, 6)
+    r = kopf + 1
+    for s in status.spalten:
+        ws.cell(r, 2, s.periode).font = _bold
+        for c, wert in ((3, s.bilanz), (4, s.guv)):
+            zelle = ws.cell(r, c, wert)
+            zelle.font = _normal
+            if not str(wert).startswith("abschlusstreu"):
+                zelle.fill = _gelb_fill
+        ws.cell(r, 5, s.quelle).font = _hinweis
+        ws.cell(r, 6, s.hinweis).font = _hinweis
+        r += 1
+    _breiten(ws, {2: 14, 3: 30, 4: 30, 5: 52, 6: 62})
+
+
+# ---- Benchmark gegen die manuelle Klassifizierung ------------------------
+def _schreibe_benchmark(wb, bm, entity) -> None:
+    ws = wb.create_sheet("Benchmark")
+    ws.sheet_view.showGridLines = False
+    _titel(ws, 1, 2, f"Benchmark: eigene gegen manuelle Klassifizierung — {entity}")
+    ws.cell(2, 2, "Die manuelle Spalte stammt aus einer früheren Bearbeitung in "
+                  "fremder Syntax und ist NICHT ins Mapping eingeflossen. "
+                  "Übersetzt wird nur, was die Syntax eindeutig hergibt.").font = _hinweis
+    ws.cell(3, 2, f"{len(bm.zeilen)} Konten · {len(bm.uebereinstimmungen)} gleich · "
+                  f"{len(bm.abweichungen)} abweichend · {len(bm.unuebersetzbar)} nicht "
+                  f"übersetzbar · Übereinstimmung {bm.quote():.0%} der vergleichbaren"
+                  ).font = _bold
+    kopf = 5
+    for c, t in enumerate(("Konto", "Bezeichnung", "manuell (roh)", "-> Klasse",
+                           "Güte", "eigene Klasse", "eigene NA-Zeile", "Befund",
+                           "Hinweis"), start=2):
+        ws.cell(kopf, c, t)
+    _style_kopf_row(ws, kopf, 2, 10)
+    r = kopf + 1
+    for z in sorted(bm.zeilen, key=lambda z: (not z.abweichung, z.vergleichbar, z.konto)):
+        ws.cell(r, 2, z.konto).font = _normal
+        ws.cell(r, 3, z.bezeichnung[:44]).font = _normal
+        ws.cell(r, 4, z.mensch_roh).font = _hinweis
+        ws.cell(r, 5, z.mensch_klasse or "—").font = _normal
+        ws.cell(r, 6, z.guete).font = _hinweis
+        kc = ws.cell(r, 7, z.eigene_klasse); kc.font = _bold
+        kc.fill = _klasse_fill(Klasse(z.eigene_klasse))
+        ws.cell(r, 8, z.eigene_na).font = _normal
+        befund = ("ABWEICHUNG" if z.abweichung else
+                  "nicht vergleichbar" if not z.vergleichbar else "gleich")
+        bc = ws.cell(r, 9, befund)
+        bc.font = _bold if z.abweichung else _hinweis
+        if z.abweichung:
+            bc.fill = _gelb_fill
+        ws.cell(r, 10, z.hinweis).font = _hinweis
+        r += 1
+    _breiten(ws, {2: 10, 3: 46, 4: 36, 5: 10, 6: 18, 7: 8, 8: 30, 9: 18, 10: 60})
+    ws.freeze_panes = ws.cell(kopf + 1, 2)
+
+
+# ---- Abstimmung gegen Kontennachweis (zwei Ebenen) -----------------------
+def _schreibe_recon_abschluss(wb, rec, entity) -> None:
+    ws = wb.create_sheet(f"Recon {rec.periode}")
+    ws.sheet_view.showGridLines = False
+    _titel(ws, 1, 2, f"Abstimmung {rec.periode} gegen den Jahresabschluss zum "
+                     f"{rec.stichtag} — {entity}")
+    ws.cell(2, 2, "Zwei Ebenen: die Positionssummen gegen die ausgewiesene Bilanz "
+                  "(dort zeigt sich die Saldenspaltung) und die Einzelkonten gegen "
+                  "den Kontennachweis (dort zeigen sich Verrechnungen).").font = _hinweis
+
+    r = 4
+    c = ws.cell(r, 2, "A · Positionsebene gegen die ausgewiesene Bilanz")
+    c.font = Font(name=FONT_NAME, bold=True, color=TEAL); c.fill = _grau_fill
+    r += 1
+    for i, t in enumerate(("HGB-Position", "Databook (netto)", "Abschluss (ausgewiesen)",
+                           "Differenz", "davon erklärt", "Rest", "Erklärung"), start=2):
+        ws.cell(r, i, t)
+    _style_kopf_row(ws, r, 2, 8)
+    r += 1
+    for z in rec.positionen:
+        ws.cell(r, 2, z.hgb_pfad[-58:]).font = _normal
+        for i, w in enumerate((z.susa, z.abschluss, z.differenz, z.erklaert, z.rest), start=3):
+            cell = ws.cell(r, i, w); cell.number_format = ZAHLENFORMAT
+            cell.font = _bold if i in (5, 7) else _normal
+        if abs(z.rest) > 0.005:
+            ws.cell(r, 7).fill = _gelb_fill
+        ws.cell(r, 8, z.erklaerung).font = _hinweis
+        r += 1
+    ws.cell(r, 2, "Summe Rest (nach erklärten Abstimmposten)").font = _bold
+    cell = ws.cell(r, 7, rec.rest_gesamt())
+    cell.number_format = ZAHLENFORMAT_CHECK; cell.font = _bold
+    cell.fill = _sub_fill; cell.border = _top_double
+    r += 3
+
+    for titel, zeilen in (("B · Erklärte Abstimmposten (Kontenebene)", rec.erklaerte_posten),
+                          ("C · Echte Differenzen (Kontenebene)", rec.echte_differenzen)):
+        c = ws.cell(r, 2, titel)
+        c.font = Font(name=FONT_NAME, bold=True, color=TEAL); c.fill = _grau_fill
+        r += 1
+        for i, t in enumerate(("Konto", "Bezeichnung", "Databook", "Kontennachweis",
+                               "Differenz", "Art", "Erklärung"), start=2):
+            ws.cell(r, i, t)
+        _style_kopf_row(ws, r, 2, 8)
+        r += 1
+        if not zeilen:
+            ws.cell(r, 2, "keine").font = _hinweis
+            r += 2
+            continue
+        for k in zeilen:
+            ws.cell(r, 2, k.konto).font = _normal
+            ws.cell(r, 3, k.bezeichnung[:42]).font = _normal
+            for i, w in enumerate((k.susa, k.kontennachweis, k.differenz), start=4):
+                cell = ws.cell(r, i, w); cell.number_format = ZAHLENFORMAT
+                cell.font = _bold if i == 6 else _normal
+            if k.art == "offen":
+                ws.cell(r, 6).fill = _gelb_fill
+            ws.cell(r, 7, k.art).font = _hinweis
+            ws.cell(r, 8, k.erklaerung).font = _hinweis
+            r += 1
+        r += 2
+
+    _breiten(ws, {2: 60, 3: 44, 4: 18, 5: 20, 6: 16, 7: 34, 8: 60})
+
+
+def _schreibe_recon_aggregiert(wb, rec, entity) -> None:
+    ws = wb.create_sheet(f"Recon {rec.periode} aggregiert")
+    ws.sheet_view.showGridLines = False
+    _titel(ws, 1, 2, f"Abstimmung {rec.periode} gegen den Prüfbericht — {entity}")
+    ws.cell(2, 2, f"Quelle: {rec.quelle}").font = _hinweis
+    r = 3
+    for h in rec.hinweise:
+        ws.cell(r, 2, h).font = _hinweis
+        r += 1
+    r += 1
+    for i, t in enumerate(("Gliederungsebene", "Databook", "Prüfbericht", "Differenz"), start=2):
+        ws.cell(r, i, t)
+    _style_kopf_row(ws, r, 2, 5)
+    r += 1
+    for z in rec.zeilen:
+        ws.cell(r, 2, z.label).font = _normal
+        for i, w in enumerate((z.databook, z.bericht, z.differenz), start=3):
+            cell = ws.cell(r, i, w); cell.number_format = ZAHLENFORMAT
+            cell.font = _bold if i == 5 else _normal
+        if abs(z.differenz) > 0.005:
+            ws.cell(r, 5).fill = _gelb_fill
+        r += 1
+    ws.cell(r, 2, "Gesamtdifferenz").font = _bold
+    cell = ws.cell(r, 5, rec.gesamt())
+    cell.number_format = ZAHLENFORMAT_CHECK; cell.font = _bold
+    cell.fill = _sub_fill; cell.border = _top_double
+    _breiten(ws, {2: 56, 3: 18, 4: 18, 5: 18})
 
 
 # ---- Review-Queue ---------------------------------------------------------

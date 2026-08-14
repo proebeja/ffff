@@ -147,7 +147,9 @@ def test_neue_leads_ziehen_nicht_aus_dem_mastersheet(wb, tab):
     ws = wb[tab]
     for r in range(5, ws.max_row + 1):
         lab = str(ws.cell(r, 3).value)
-        if "ontrollzeile" in lab or "Review-Queue" in lab:
+        # Kontroll- und nachrichtliche Zeilen dürfen gegen das Mastersheet
+        # prüfen — nur die Positionszeilen selbst nicht.
+        if "ontrollzeile" in lab or lab.startswith("nachrichtlich"):
             continue
         for c in range(2, ws.max_column + 1):
             f = ws.cell(r, c).value
