@@ -20,6 +20,7 @@ from typing import Optional
 
 import openpyxl
 
+
 def _farbe(c) -> str:
     if c is None:
         return "-"
@@ -75,7 +76,10 @@ class Formatbericht:
 #: Vom Formatgrundsatz ausgenommen (``excel_format.geltung``): Mastersheet und
 #: Review-Queue sind Arbeitsblätter, keine Ausgabeblätter.
 ARBEITSBLAETTER = ("Mastersheet", "Review-Queue", "Zuordnung", "QA",
-                   "Status je Spalte", "Verhaltensprüfung")
+                   "Status je Spalte", "Verhaltensprüfung",
+                   # dieselben Blätter in englischer Berichtssprache
+                   "Review queue", "Mapping", "Status by column",
+                   "Behaviour check", "Assumptions", "Open items")
 
 
 def vergleiche_format(vorlage_pfad: str, ausgabe_pfad: str,

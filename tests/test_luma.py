@@ -114,6 +114,20 @@ def test_cockpit_traegt_das_maerz_geschaeftsjahr(wb):
     assert c["C5"].value == "AUD"
 
 
+def test_berichtssprache_englisch(wb):
+    """Sprachwahl durch Ein- und Ausblenden, nicht durch Übersetzen: der
+    deutsche Kopfblock und die deutsche Bezeichnungsspalte verschwinden,
+    beide Fassungen bleiben in der Datei."""
+    ws = wb["Lead NA"]
+    assert ws.row_dimensions[4].hidden and ws.row_dimensions[5].hidden
+    assert not ws.row_dimensions[6].hidden and not ws.row_dimensions[7].hidden
+    assert ws.column_dimensions["C"].hidden
+    assert not ws.column_dimensions["D"].hidden
+    # Die Arbeitsblätter dieses Laufs folgen derselben Sprache.
+    for blatt in ("Mapping", "Review queue", "Status by column"):
+        assert blatt in wb.sheetnames
+
+
 def test_cyt_felder_erzeugen_keine_fehlermeldung(wb):
     """Das Cockpit prüft die CYT-Felder selbst. Ohne Zwischenperiode müssen
     sie hinter dem letzten historischen Jahr liegen, sonst meldet die Mappe
@@ -193,11 +207,14 @@ def test_keine_position_geht_im_lead_verloren(res):
 
 
 def test_kontrollen_bis_auf_die_benannten_befunde(res):
+    # Die Kontrollnamen stehen in der Berichtssprache des Mandats.
+    benannt = ("residual", "account slot")
     offen = [k.name for k in res["kontrollen"]
-             if not k.ok and "Rest" not in k.name and "Kontoslot" not in k.name]
+             if not k.ok and not any(b in k.name for b in benannt)]
     assert offen == []
     # Die Rundungsdifferenz von bis zu 4 Cent stammt aus dem Export selbst.
-    bilanz = next(k for k in res["kontrollen"] if k.name.startswith("Bilanz"))
+    bilanz = next(k for k in res["kontrollen"]
+                  if k.name.startswith("Balance sheet identity"))
     assert all(abs(v) <= 0.05 for v in bilanz.je_periode.values())
 
 

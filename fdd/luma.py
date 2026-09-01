@@ -34,7 +34,7 @@ from .core.model import Klasse
 from .engine.cascade import Engine
 from .engine.laufprotokoll import Laufprotokoll
 from .engine.qa import FLAG, ABBRUCH, QAReport, _r2
-from .engine.spalten_status import ABGELEITET, SpaltenStatus, StatusMatrix
+from .engine.spalten_status import SpaltenStatus, StatusMatrix
 from .engine.v28 import (loese_saldenvortraege, pruefe_verhalten,
                          setze_vorlaeufige_pfade, wende_seitenwechsel_an)
 from .export import vorlage
@@ -46,6 +46,19 @@ from .views.working_capital import baue_working_capital
 
 #: Das Konto, das in dieser Quelle das Periodenergebnis trägt.
 ERGEBNISKONTO = "3-90000"
+
+#: Berichtssprache dieses Mandats. Sie steuert zweierlei: die Vorlage blendet
+#: den englischen Kopfblock und die englische Bezeichnungsspalte ein, und die
+#: Arbeitsblätter dieses Laufs werden englisch beschriftet. Der Code selbst
+#: bleibt deutsch kommentiert — das ist die Hausregel und keine Frage der
+#: Berichtssprache.
+SPRACHE = "en"
+
+#: Statuszeile je Spalte, in der Berichtssprache. ``ABGELEITET`` der
+#: Hausconvention lautet "abgeleitet — nicht abschlusstreu".
+_STATUS_ABGELEITET = ("derived from the system hierarchy — not tied to "
+                      "audited financial statements")
+_STATUS_KEINE_GUV = "no P&L in the source — classes 10 to 50 are balance sheet only"
 
 
 @dataclass
@@ -86,7 +99,7 @@ def run(quellen: Quellen, ausgabe: str, verbose: bool = True) -> dict:
         wc = baue_working_capital(mapped, ledger.perioden, ledger.entity)
         lead_na = baue_lead_na(mapped, ledger.perioden, ledger.entity)
         lead_pl = baue_lead_pl(mapped, ledger.perioden, ledger.entity)
-        review = baue_review_queue(mapped, ledger.perioden)
+        review = baue_review_queue(mapped, ledger.perioden, SPRACHE)
         d["detail"] = f"{len(lead_na.bloecke)} NA-Blöcke, {len(review)} Review"
 
     with lp.phase("QA-Diagnose") as d:
@@ -103,10 +116,11 @@ def run(quellen: Quellen, ausgabe: str, verbose: bool = True) -> dict:
         befuellt = vorlage.schreibe_dealtool(
             ausgabe, mapped=mapped, perioden=ledger.perioden,
             mandat=vorlage.Mandat(
-                projekt="Projekt Luma", waehrung="AUD",
-                architektur="option_a",
+                projekt="Project Luma", waehrung="AUD",
+                architektur="option_a", sprache=SPRACHE,
                 quelle_de="Saldenliste je Geschäftsjahr (MYOB-Export)",
-                quelle_en="Annual trial balance (MYOB export)"),
+                quelle_en="Annual trial balance per financial year "
+                          "(MYOB export)"),
             achse=achse, periodenergebnis=ergebnis,
             ergebnis_lt_quelle=ergebnis, review=review,
             zusatzblaetter=_zusatzblaetter(qa, status, verhalten, diag))
@@ -173,145 +187,155 @@ def _status(diag) -> StatusMatrix:
     for p in diag.perioden:
         monate = diag.monate.get(p)
         spalten.append(SpaltenStatus(
-            periode=p, bilanz=ABGELEITET,
-            guv="keine GuV in der Quelle — Klassen 10 bis 50 nur Bilanz",
-            quelle=f"MYOB-Saldenliste, Schlussbestände zum "
-                   f"{diag.stichtage[p].strftime('%d.%m.%Y')}",
-            hinweis=(f"Rumpfjahr über {monate} Monate."
+            periode=p, bilanz=_STATUS_ABGELEITET, guv=_STATUS_KEINE_GUV,
+            quelle=f"MYOB trial balance, closing balances as at "
+                   f"{diag.stichtage[p].strftime('%d %b %Y')}",
+            hinweis=(f"Short year of {monate} months."
                      if monate and monate != 12 else "")))
     return StatusMatrix(spalten=spalten)
 
 
 def _qa(mapped, ledger, diag, status, ungeloest) -> QAReport:
     """QA für eine Quelle ohne Abschluss. Was gegenstandslos ist, wird als
-    gegenstandslos ausgewiesen und nicht stillschweigend weggelassen."""
+    gegenstandslos ausgewiesen und nicht stillschweigend weggelassen.
+
+    Die Befundtexte stehen in der Berichtssprache des Mandats, weil sie im
+    Databook landen. Die Kommentare bleiben deutsch."""
     r = QAReport()
     perioden = ledger.perioden
 
-    r.add("A1", "Blockgrenze des Datenblocks eindeutig", True, ABBRUCH,
-          "Der Export ist eine reine Kontenliste je Blatt, ohne Zwischen- "
-          "oder Summenzeilen.",
-          [f"{p}: {n} Zeilen" for p, n in diag.kontozeilen.items()])
+    r.add("A1", "Data block boundary unambiguous", True, ABBRUCH,
+          "The export is a plain list of accounts per sheet, with no subtotal "
+          "or summary rows.",
+          [f"{p}: {n} rows" for p, n in diag.kontozeilen.items()])
 
     summen = {p: _r2(sum(m.saldo(p) for m in mapped)) for p in perioden}
-    r.add("A2", "Bilanzidentität je Periodenspalte (Toleranz 1 EUR)",
+    r.add("A2", "Balance sheet identity per period column (tolerance 1.00)",
           all(abs(v) <= 1.0 for v in summen.values()), FLAG,
-          "Summe aller Konten je Spalte: "
+          "Sum of all accounts per column: "
           + ", ".join(f"{p} = {v:,.2f}" for p, v in summen.items()))
 
-    r.add("A3", "Kontoschlüssel eindeutig", True, FLAG,
-          f"{len(mapped)} Konten. {len(diag.mehrfach)} davon führt der Export "
-          "je Kostenstelle mehrfach; sie werden je Konto summiert.",
-          [f"{k}: {n} Kostenstellen" for k, n in sorted(diag.mehrfach.items())])
+    r.add("A3", "Account keys unique", True, FLAG,
+          f"{len(mapped)} accounts. The export carries {len(diag.mehrfach)} of "
+          "them once per cost centre; they are summed per account.",
+          [f"{k}: {n} cost centres" for k, n in sorted(diag.mehrfach.items())])
 
-    r.add("A4", "Kontoschlüssel im Rahmen des Kontenrahmens", True, FLAG,
-          "MYOB-Kontenplan der Form '1-12300'. Kein SKR — die "
-          "SKR-Default-Stufe der Kaskade greift bewusst nicht, die Struktur "
-          "kommt aus der Systemgliederung des Exports.")
+    r.add("A4", "Account keys consistent with the chart of accounts", True, FLAG,
+          "MYOB chart of accounts of the form '1-12300'. Not an SKR chart — "
+          "the SKR default stage of the cascade deliberately does not apply; "
+          "the structure comes from the system hierarchy of the export.")
 
     null = [m.konto for m in mapped
             if all(abs(m.saldo(p)) < 0.005 for p in perioden)]
-    r.add("A5", "Nullkonten mitgeführt und markiert", True, FLAG,
-          f"{len(null)} von {len(mapped)} Konten ohne Saldo in allen Perioden.")
+    r.add("A5", "Nil accounts carried and flagged", True, FLAG,
+          f"{len(null)} of {len(mapped)} accounts carry no balance in any period.")
 
     for p in perioden:
         r.nicht_zugeordnet[p] = _r2(sum(u.salden.get(p, 0.0) for u in ungeloest))
         r.bilanzsumme[p] = _r2(sum(m.saldo(p) for m in mapped
                                    if m.hgb_pfad.startswith("/Aktiva")))
-    r.add("A6", "Ungelöste Konten liegen INNERHALB der Bilanz",
+    r.add("A6", "Unresolved accounts sit INSIDE the balance sheet",
           all(abs(v) < 1.0 for v in r.nicht_zugeordnet.values()), FLAG,
-          f"{len(ungeloest)} Konten ohne bestimmbaren Pfad.",
-          [f"{p}: {r.nicht_zugeordnet[p]:,.2f} von {r.bilanzsumme[p]:,.2f}"
+          f"{len(ungeloest)} accounts without a determinable path.",
+          [f"{p}: {r.nicht_zugeordnet[p]:,.2f} of {r.bilanzsumme[p]:,.2f}"
            for p in perioden])
 
-    r.add("B1", "Monatsspalten kumuliert oder periodisch", True, ABBRUCH,
-          "Gegenstandslos: der Export liefert Jahresstichtage, keine "
-          "Monatsmatrix.")
+    r.add("B1", "Monthly columns cumulative or periodic", True, ABBRUCH,
+          "Not applicable: the export delivers annual reporting dates, not a "
+          "monthly matrix.")
 
-    r.add("B2", "Jahresanker", True, FLAG,
-          "Jede Spalte ist ein Stichtag laut PeriodFrom/PeriodTo: "
-          + ", ".join(f"{p} = {diag.stichtage[p].strftime('%d.%m.%Y')}"
+    r.add("B2", "Year anchor", True, FLAG,
+          "Every column is one reporting date per PeriodFrom/PeriodTo: "
+          + ", ".join(f"{p} = {diag.stichtage[p].strftime('%d %b %Y')}"
                       for p in perioden))
 
     proben = diag.spaltenprobe()
-    r.add("B3", "Richtige Wertespalte übernommen", all(ok for _, ok, _ in proben),
+    r.add("B3", "Correct value column taken", all(ok for _, ok, _ in proben),
           ABBRUCH,
-          "Der Export führt Bewegung (Spalte L) UND Schlussbestand (Spalte O). "
-          "Gelesen wird der Schlussbestand; die Kopfzeile nennt ihn "
-          "irreführend 'Year'. Beide Spalten summieren je Periode auf null, "
-          "die Bewegungsspalte ergäbe aber ein Databook aus Veränderungen.",
+          "The export carries BOTH the period movement (column L) and the "
+          "closing balance (column O). The closing balance is what is read; "
+          "the header calls it 'Year', which is misleading. Both columns sum "
+          "to zero per period, but the movement column would produce a "
+          "databook built from changes rather than balances.",
           [f"{name}: {text}" for name, _, text in proben])
 
     laengen = {p: diag.monate.get(p) for p in perioden}
     ungleich = len(set(laengen.values())) > 1
-    r.add("B4", "Vergleichbarkeit der Perioden", not ungleich, FLAG,
-          "Die Perioden sind unterschiedlich lang." if ungleich
-          else "gleich lang.",
-          [f"{p}: {m} Monate" for p, m in laengen.items()])
+    r.add("B4", "Comparability of the periods", not ungleich, FLAG,
+          "The periods are of unequal length." if ungleich
+          else "Equal length.",
+          [f"{p}: {m} months" for p, m in laengen.items()])
 
-    r.add("B5", "Saldenvortragspräsenz", True, FLAG,
-          "Kein DATEV-Kontenrahmen, also keine Saldenvortragskonten. Das "
-          "MYOB-Pendant ist '3-90500 Historical Balancing Account' und wird "
-          "als Eigenkapital geführt.")
+    r.add("B5", "Opening balance accounts present", True, FLAG,
+          "Not a DATEV chart, so there are no DATEV opening balance accounts. "
+          "The MYOB counterpart is '3-90500 Historical Balancing Account', "
+          "carried as equity.")
 
-    r.add("C1", "Strukturquellen-Abdeckung je Periode und Rechenwerk", False, FLAG,
-          "Die Bilanz ist aus der Systemgliederung ABGELEITET, nicht "
-          "abschlusstreu. Für die GuV gibt es keine Daten.",
-          [f"{s.periode}: Bilanz {s.bilanz} · GuV {s.guv}" for s in status.spalten])
+    r.add("C1", "Structure source coverage per period and statement", False, FLAG,
+          "The balance sheet is DERIVED from the system hierarchy, not tied "
+          "to audited financial statements. There is no data for the P&L.",
+          [f"{s.periode}: balance sheet {s.bilanz} · P&L {s.guv}"
+           for s in status.spalten])
 
-    r.add("C2", "Reconciliation auf Kontenebene", True, FLAG,
-          "Gegenstandslos: es gibt keine zweite Wertequelle. Ohne "
-          "Jahresabschluss ist nichts abzustimmen.")
+    r.add("C2", "Reconciliation at account level", True, FLAG,
+          "Not applicable: there is no second source of values. Without "
+          "financial statements there is nothing to reconcile against.")
 
-    r.add("C3", "Bekannte Abstimmmuster", True, FLAG,
-          "Keine Saldenspaltung feststellbar. Mehrfachzeilen entstehen durch "
-          "Kostenstellen, nicht durch geteilte Salden.")
+    r.add("C3", "Known reconciliation patterns", True, FLAG,
+          "No split balances identified. Multiple rows arise from cost "
+          "centres, not from split account balances.")
 
-    r.add("C4", "Kontenstamm-Abdeckung", True, FLAG,
-          "Bezeichnung und Kontogruppe stammen aus dem Export selbst; ein "
-          "separater Kontenplan liegt nicht vor.")
+    r.add("C4", "Chart of accounts coverage", True, FLAG,
+          "Description and account group come from the export itself; no "
+          "separate chart of accounts was provided.")
 
-    r.add("C5", "Parser-Selbstkontrolle der Strukturquelle",
+    r.add("C5", "Parser self-check of the structure source",
           not diag.gruppen_ohne_zuordnung, FLAG,
-          f"{len(diag.gruppen_ohne_zuordnung)} Kontogruppen ohne Zuordnung."
+          f"{len(diag.gruppen_ohne_zuordnung)} account groups without a mapping."
           if diag.gruppen_ohne_zuordnung else
-          "Jede Kontogruppe des Exports ist einem HGB-Pfad zugeordnet.",
+          "Every account group in the export is mapped to an HGB path.",
           sorted(diag.gruppen_ohne_zuordnung))
 
-    r.add("D1", "Fremde Klassifizierung", True, FLAG,
-          "Keine vorhanden — der Export trägt nur seine eigene "
-          "Systemgliederung. Deshalb kein Benchmark-Tab.")
+    r.add("D1", "Third-party classification", True, FLAG,
+          "None present — the export carries only its own system hierarchy. "
+          "Hence no benchmark tab.")
 
     r.annahmen.append(
-        "Vorzeichen: der Export führt bereits Aktiva positiv und Passiva "
-        "negativ. Es wird nichts gedreht.")
+        "Signs: the export already carries assets positive and liabilities "
+        "and equity negative. Nothing is reversed.")
     r.annahmen.append(
-        "Kostenstellen werden je Konto summiert. Das Mastersheet führt ein "
-        "Konto genau einmal; die Kostenstelle wäre ein zweiter Schlüssel.")
+        "Cost centres are summed per account. The mastersheet carries an "
+        "account exactly once; the cost centre would be a second key.")
     r.annahmen.append(
-        f"Das Periodenergebnis stammt aus Konto {ERGEBNISKONTO} "
-        "'Current Earnings'. Eine GuV liegt nicht vor.")
+        f"The result for the period comes from account {ERGEBNISKONTO} "
+        "'Current Earnings'. No P&L is available.")
     for k, b, grund in diag.ohne_pfad:
-        r.offene_befunde.append(f"Konto {k} ({b}): {grund}")
+        r.offene_befunde.append(f"Account {k} ({b}): {grund}")
     return r
 
 
 def _zusatzblaetter(qa, status, verhalten, diag) -> dict:
+    """Arbeitsblätter des Laufs, beschriftet in der Berichtssprache."""
     blaetter = {
-        "QA": (["Prüfung", "Titel", "Bestanden", "Schwere", "Befund", "Details"],
-               [[p.id, p.titel, "ja" if p.bestanden else "NEIN", p.schwere,
+        "QA": (["Check", "Title", "Passed", "Severity", "Finding", "Details"],
+               [[p.id, p.titel, "yes" if p.bestanden else "NO", p.schwere,
                  p.befund, " | ".join(p.details)] for p in qa.pruefungen]),
-        "Status je Spalte": (
-            ["Periode", "Stichtag", "Monate", "Bilanz", "GuV", "Quelle", "Hinweis"],
-            [[s.periode, diag.stichtage[s.periode].strftime("%d.%m.%Y"),
+        "Status by column": (
+            ["Period", "Reporting date", "Months", "Balance sheet", "P&L",
+             "Source", "Note"],
+            [[s.periode, diag.stichtage[s.periode].strftime("%d %b %Y"),
               diag.monate.get(s.periode), s.bilanz, s.guv, s.quelle, s.hinweis]
              for s in status.spalten]),
+        "Assumptions": (["Assumption"], [[a] for a in qa.annahmen]),
     }
+    if qa.offene_befunde:
+        blaetter["Open items"] = (["Open item"],
+                                  [[b] for b in qa.offene_befunde])
     if verhalten:
-        blaetter["Verhaltensprüfung"] = (
-            ["Konto", "Bezeichnung", "Klasse", "Kriterium", "wesentlich", "Hinweis"],
+        blaetter["Behaviour check"] = (
+            ["Account", "Description", "Class", "Criterion", "material", "Note"],
             [[v.konto, v.bezeichnung, v.klasse, v.kriterium,
-              "ja" if v.wesentlich else "nein", v.hinweis] for v in verhalten])
+              "yes" if v.wesentlich else "no", v.hinweis] for v in verhalten])
     return blaetter
 
 
@@ -352,13 +376,13 @@ def _kontrollen(mapped, perioden, befuellt, ergebnis) -> list[Kontrolle]:
                   for p in perioden}
 
     kontrollen = [
-        Kontrolle("Bilanzidentität (Summe aller Konten = 0)",
+        Kontrolle("Balance sheet identity (sum of all accounts = 0)",
                   {p: round(sum(m.saldo(p) for m in mapped), 2) for p in perioden}),
-        Kontrolle("Lead NA: Nettovermögen + Eigenkapital = 0",
+        Kontrolle("Lead NA: net assets + equity = 0",
                   {p: round(netto[p] + eigen[p], 2) for p in perioden}),
-        Kontrolle("Konten ohne Position im Lead", fehlbetrag),
-        Kontrolle("Equity Roll Forward inkl. Rest = Nettovermögen", rf),
-        Kontrolle("Nicht erklärte Eigenkapitalbewegung (Rest)",
+        Kontrolle("Accounts with no line item in the lead", fehlbetrag),
+        Kontrolle("Equity roll forward incl. residual = net assets", rf),
+        Kontrolle("Unexplained movement in equity (residual)",
                   dict(rw.rest)),
     ]
 
@@ -370,56 +394,61 @@ def _kontrollen(mapped, perioden, befuellt, ergebnis) -> list[Kontrolle]:
     ohne = {p: round(sum(z.werte.get(p, 0.0) for z in befuellt.zeilen
                          if z.schluessel in ohne_slot), 2) for p in perioden}
     kontrollen.append(Kontrolle(
-        "Konten ohne Kontoslot (Wert ohne sichtbares Detail)", ohne,
-        toleranz=0.0))
+        "Accounts without an account slot (value with no visible detail)",
+        ohne, toleranz=0.0))
     return kontrollen
 
 
 def _meta(quellen, ledger, mapped, diag, status, review, hc) -> dict:
     return {
-        "Eingabedatei": os.path.basename(quellen.saldenliste),
-        "Reader": "myob_susa (vier Jahrestabs)",
-        "Entity": ledger.entity,
-        "Währung": "AUD",
-        "Perioden": ", ".join(
-            f"{p} zum {diag.stichtage[p].strftime('%d.%m.%Y')} "
-            f"({diag.monate.get(p)} Mon.)" for p in ledger.perioden),
-        "Architektur": "Option A — zwei Schichten, Lead-Tabs aus dem Mastersheet",
-        "Status je Spalte": status.zusammenfassung(),
-        "Strukturquelle": "Systemgliederung des Exports (ClassDescription / "
-                          "AccountGroupDesc), übersetzt im Reader",
-        "Hausconvention-Version": hc.version,
+        "Source file": os.path.basename(quellen.saldenliste),
+        "Reader": "myob_susa (four annual tabs)",
+        "Entity": "Project Luma",
+        "Currency": "AUD",
+        "Periods": ", ".join(
+            f"{p} as at {diag.stichtage[p].strftime('%d %b %Y')} "
+            f"({diag.monate.get(p)} m)" for p in ledger.perioden),
+        "Architecture": "Option A — two layers, leads pull from the mastersheet",
+        "Reporting language": SPRACHE,
+        "Status by column": " | ".join(
+            f"{s.periode}: balance sheet {s.bilanz} · P&L {s.guv}"
+            for s in status.spalten),
+        "Structure source": "system hierarchy of the export (ClassDescription / "
+                            "AccountGroupDesc), translated in the reader",
+        "Hausconvention version": hc.version,
         "Fingerprint (SHA-256/16)": ledger.fingerprint,
-        "Konten gesamt": len(mapped),
-        "davon Review": len(review),
-        "Konten ohne Pfad": len(diag.ohne_pfad),
-        "Warnungen Reader": len(ledger.warnungen),
+        "Accounts total": len(mapped),
+        "of which review": len(review),
+        "Accounts without a path": len(diag.ohne_pfad),
+        "Reader warnings": len(ledger.warnungen),
     }
 
 
 def _zusammenfassung(meta, ledger, diag, status, ausgabe, lp, befuellt,
                      kontrollen, review) -> None:
+    """Laufbericht auf der Konsole, in der Berichtssprache des Mandats."""
     print("=" * 78)
     for k, v in meta.items():
-        print(f"  {k:32} {v}")
+        print(f"  {k:26} {v}")
     print("-" * 78)
     for s in status.spalten:
-        print(f"  {s.periode:10} {s.bilanz}   |   GuV: {s.guv}")
+        print(f"  {s.periode:8} balance sheet: {s.bilanz}")
+        print(f"           P&L: {s.guv}")
         if s.hinweis:
-            print(f"             {s.hinweis}")
+            print(f"           {s.hinweis}")
     print("-" * 78)
     for k in kontrollen:
         print(f"  {'ok ' if k.ok else '!! '}{k.name}")
         print("      " + "  ".join(f"{p}: {v:,.2f}"
                                    for p, v in k.je_periode.items()))
     for z in befuellt.ohne_zeile:
-        print(f"  [Befund] Keine Position im Lead: {z.ziel_na} ({z.klasse}), "
-              f"{z.konten} Konten — {z.grund}")
+        print(f"  [finding] No line item in the lead: {z.ziel_na} "
+              f"({z.klasse}), {z.konten} accounts — {z.grund}")
     rw = befuellt.roll_forward
     if rw.hat_rest:
         print("-" * 78)
-        print("  Woraus der Rest im Eigenkapital besteht (Bewegung Richtung "
-              "Nettovermögen):")
+        print("  What the residual in equity consists of (movement towards "
+              "net assets):")
         for konto, werte in rw.ergebniskonten.items():
             print(f"    {konto[:46]:46s} "
                   + "  ".join(f"{v:>14,.2f}" for v in werte.values()))
@@ -429,16 +458,18 @@ def _zusammenfassung(meta, ledger, diag, status, ausgabe, lp, befuellt,
         for b in befuellt.slotbefunde:
             wert = sum(z.werte.get(letzte, 0.0) for z in befuellt.zeilen
                        if z.schluessel in b.ohne_slot)
-            print(f"  [Befund] {b.art}: {b.position} ({b.klasse}), Zeile "
-                  f"{b.zeile} — {b.konten} Konten, {b.slots} Slots, "
-                  f"{len(b.ohne_slot)} ohne Detail ({wert:,.2f} in {letzte})")
+            art = ("Line item created from a dummy row, no account slots"
+                   if b.aus_dummy else "Account slots insufficient")
+            print(f"  [finding] {art}: {b.position} ({b.klasse}), row "
+                  f"{b.zeile} — {b.konten} accounts, {b.slots} slots, "
+                  f"{len(b.ohne_slot)} without detail ({wert:,.2f} in {letzte})")
     if review:
         print("-" * 78)
-        print(f"  Review-Queue: {len(review)} Konten")
+        print(f"  Review queue: {len(review)} accounts")
         for e in review[:12]:
             print(f"    {e.konto:9s} {e.bezeichnung[:38]:38s} {e.status}")
     print("-" * 78)
     print("\n".join("  " + z for z in lp.als_text()))
     print("-" * 78)
-    print(f"  Dealtool geschrieben: {ausgabe}")
+    print(f"  Dealtool written: {ausgabe}")
     print("=" * 78)

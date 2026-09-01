@@ -456,7 +456,18 @@ def _aktiviere_dummy(ws, layout: LeadLayout, block: Block, dummy: int,
     return pos
 
 
-def _fuelle_lead(ws, zeilen: list[MSZeile], guv: bool
+#: Meldung, wenn eine Position weder eine Zeile der Vorlage noch eine freie
+#: Dummy-Zeile findet. Sie landet in der Zuordnungstabelle und in einer
+#: Kontrollzeile, deshalb steht sie in der Berichtssprache.
+_OHNE_ZEILE = {
+    "de": ("Kein Block bzw. keine freie Dummy-Zeile — Befund für die "
+           "Review-Queue, kein Zeileneinschub."),
+    "en": ("No block or no free dummy row — a finding for the review queue, "
+           "not a row insert."),
+}
+
+
+def _fuelle_lead(ws, zeilen: list[MSZeile], guv: bool, sprache: str = "de"
                  ) -> tuple[LeadLayout, list[Zuordnungszeile], list[Slotbefund], int]:
     """Trägt Positionen und Kontoslots in einen Lead-Tab ein."""
     ticker = _TICKER_PL if guv else _TICKER_NA
@@ -495,8 +506,8 @@ def _fuelle_lead(ws, zeilen: list[MSZeile], guv: bool
                 protokoll.append(Zuordnungszeile(
                     konten[0].na_de, klasse, ziel_na, None, "ohne Zeile",
                     len(konten),
-                    "Kein Block bzw. keine freie Dummy-Zeile — Befund für die "
-                    "Review-Queue, kein Zeileneinschub."))
+                    _OHNE_ZEILE["de" if sprache.lower().startswith("d")
+                                else "en"]))
                 continue
             label_de, label_en = _beschriftung(ws, layout, ziel_na, klasse,
                                                konten[0])
@@ -855,6 +866,11 @@ def _arbeitsblatt(wb, titel: str, kopf: list[str], zeilen: list[list]) -> int:
     return (len(zeilen) + 1) * len(kopf)
 
 
+#: ``art`` ist intern ein Schlüssel und wird erst beim Schreiben übersetzt.
+_ART_EN = {"Vorlage": "template", "Dummy": "dummy row",
+           "ohne Zeile": "no row"}
+
+
 # --------------------------------------------------------------------------
 # Orchestrierung
 # --------------------------------------------------------------------------
@@ -919,9 +935,9 @@ def schreibe_dealtool(ziel: str, *, mapped: list[MappedAccount],
     na = wb["Lead NA"]
     pl = wb["Lead PL"]
     layout_na, zuo_na, slots_na, n1 = _fuelle_lead(
-        na, [z for z in zeilen if not z.guv], guv=False)
+        na, [z for z in zeilen if not z.guv], guv=False, sprache=mandat.sprache)
     layout_pl, zuo_pl, slots_pl, n2 = _fuelle_lead(
-        pl, [z for z in zeilen if z.guv], guv=True)
+        pl, [z for z in zeilen if z.guv], guv=True, sprache=mandat.sprache)
     zellen += n1 + n2
 
     rf = _roll_forward(mapped, perioden, periodenergebnis)
@@ -943,19 +959,27 @@ def schreibe_dealtool(ziel: str, *, mapped: list[MappedAccount],
 
     zellen += _sprache(wb, mandat.sprache)
 
+    # Auch die Arbeitsblätter folgen der Berichtssprache. Sie sind zwar
+    # Arbeitspapiere, gehen aber mit derselben Datei an denselben Leser.
+    deutsch = mandat.sprache.lower().startswith("d")
     zuordnung = zuo_na + zuo_pl
     zellen += _arbeitsblatt(
-        wb, "Zuordnung",
-        ["Position (unser Vokabular)", "Klasse", "Position (Vorlage)",
-         "Zeile", "Art", "Konten", "Kontoschlüssel",
-         "Begründung der Abweichung"],
-        [[z.na_de, z.klasse, z.ziel_na, z.zeile, z.art, z.konten,
+        wb, "Zuordnung" if deutsch else "Mapping",
+        (["Position (unser Vokabular)", "Klasse", "Position (Vorlage)",
+          "Zeile", "Art", "Konten", "Kontoschlüssel",
+          "Begründung der Abweichung"] if deutsch else
+         ["Line item (our vocabulary)", "Class", "Line item (template)",
+          "Row", "Type", "Accounts", "Account keys",
+          "Reason for the deviation"]),
+        [[z.na_de, z.klasse, z.ziel_na, z.zeile,
+          z.art if deutsch else _ART_EN.get(z.art, z.art), z.konten,
           z.schluessel, z.grund] for z in zuordnung])
 
     if review:
         zellen += _arbeitsblatt(
-            wb, "Review-Queue",
-            ["Konto", "Bezeichnung", "Klasse", "Status", "Grund"],
+            wb, "Review-Queue" if deutsch else "Review queue",
+            (["Konto", "Bezeichnung", "Klasse", "Status", "Grund"] if deutsch
+             else ["Account", "Description", "Class", "Status", "Reason"]),
             [[r.konto, r.bezeichnung, getattr(r, "klasse", ""),
               getattr(r, "status", ""), getattr(r, "grund", "")]
              for r in review])

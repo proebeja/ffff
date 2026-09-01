@@ -198,7 +198,7 @@ GRUPPEN: dict[str, str] = {
 #: laufen. Ein Sammel-/Verrechnungskonto ohne erkennbaren Inhalt gehört dorthin
 #: und nicht in eine Bilanzposition, die jemand später für belegt hält.
 OHNE_PFAD = {
-    "9-99999": "Suspense Account — Verrechnungskonto ohne erkennbaren Inhalt.",
+    "9-99999": "Suspense account — clearing account with no identifiable content.",
 }
 
 #: Einzelne Konten, deren Gruppe zu grob ist.
@@ -382,7 +382,7 @@ def lies_myob(pfad: str, entity: str = "Projekt Luma"
         fs_pfad = finde_pfad(gruppe, konto)
         if fs_pfad is None:
             diag.ohne_pfad.append((konto, bez, OHNE_PFAD.get(
-                konto, f"Kontogruppe '{gruppe}' ohne Zuordnung.")))
+                konto, f"Account group '{gruppe}' has no mapping.")))
             if konto not in OHNE_PFAD:
                 diag.gruppen_ohne_zuordnung.add(gruppe)
         kontotyp = ("bilanz_aktiv" if klasse.lower().endswith("assets")
