@@ -1,4 +1,4 @@
-"""Projekt Luma: Databook aus einer jährlichen MYOB-Saldenliste, Option A.
+"""Projekt Luma: Databook aus einer jährlichen MYOB-Saldenliste, Option B.
 
 Die Quelle ist ein System-Export ohne Abschluss, ohne Kontennachweis und ohne
 GuV. Die Prüfungen hier richten sich deshalb auf genau die Stellen, an denen
@@ -277,11 +277,83 @@ def test_grosse_konten_bekommen_die_slots(wb):
     assert "1-90200" in slots        # Right of Use Assets
 
 
-def test_option_b_wird_abgelehnt():
-    """Vorgabe der Hausconvention ist Option B. Verdrahtet ist A — und ein
-    Databook, das so tut als ob, wäre schlimmer als eine Fehlermeldung."""
+# ---- Option B: drei Schichten ---------------------------------------------
+def test_option_b_ohne_aufriss_wird_abgelehnt():
+    """Option B ohne Aufrissplan ergäbe Positionen von null.
+
+    Die Lead-Zeile zieht dann aus einem leeren Aufriss, und das Databook zeigt
+    stumm eine runde, falsche Zahl. Eine Fehlermeldung ist besser."""
     from fdd.export import vorlage
-    with pytest.raises(ValueError, match="Option A"):
+    with pytest.raises(ValueError, match="Aufriss"):
         vorlage.schreibe_dealtool(
             "/tmp/unbenutzt.xlsx", mapped=[], perioden=["FY2024"],
             mandat=vorlage.Mandat(projekt="x", architektur="option_b"))
+
+
+def test_unbekannte_architektur_wird_abgelehnt():
+    from fdd.export import vorlage
+    with pytest.raises(ValueError, match="option_a"):
+        vorlage.schreibe_dealtool(
+            "/tmp/unbenutzt.xlsx", mapped=[], perioden=["FY2024"],
+            mandat=vorlage.Mandat(projekt="x", architektur="option_c"))
+
+
+def test_lead_zieht_die_position_aus_dem_aufriss(wb):
+    """Der Kern der Option B: die Positionszeile verweist auf den Aufriss.
+
+    Unter Option A stünde hier ein SUMIFS aufs Mastersheet. Die erste
+    Periode liegt im Lead in Spalte F (E ist die Eröffnungsspalte), in den
+    Sachanlagen in E und in den Vorräten in F. Genau deshalb wird die
+    Kopfzeile jedes Aufrisses gelesen und nicht abgezählt.
+    """
+    ws = wb["Lead NA"]
+    assert ws["F18"].value == "='NA_Sachanlagen'!E20"
+    assert ws["I18"].value == "='NA_Sachanlagen'!H20"
+    assert ws["F40"].value == "='NA_Vorräte'!F22"
+    assert ws["I40"].value == "='NA_Vorräte'!I22"
+
+
+def test_eroeffnungsspalte_bleibt_am_mastersheet(wb):
+    """Die Aufrisse der Vorlage führen keine Eröffnungsspalte.
+
+    Spalte E des Leads hat im Aufriss also kein Gegenstück. Sie behält die
+    Formel der Vorlage — dieselbe Quelle, nur ohne Zwischenschicht."""
+    ws = wb["Lead NA"]
+    assert "Mastersheet" in ws["E18"].value
+    assert "Mastersheet" in ws["E40"].value
+
+
+def test_kontoslots_haengen_weiter_am_mastersheet(wb):
+    """Die zweite Schicht des Wegs darf nicht mitwandern.
+
+    Zöge auch der Kontoslot aus dem Aufriss, gäbe es nur noch einen Weg auf
+    die Zahl und die Kontrolle wäre eine Tautologie."""
+    ws = wb["Lead NA"]
+    assert "Mastersheet" in ws["F19"].value
+    assert "Mastersheet" in ws["F41"].value
+
+
+def test_aufriss_summiert_die_konten_der_position(res):
+    """Pflichtkontrolle: Aufriss gegen Kontozeilen, je Position und Periode."""
+    befunde = res["befuellt"].aufrissbefunde
+    assert {b.blatt for b in befunde} == {"NA_Vorräte", "NA_Sachanlagen"}
+    for b in befunde:
+        assert b.konten_ohne_zeile == [], b.konten_ohne_zeile
+        assert all(b.differenz(p) == 0.0 for p in PERIODEN), b.aufriss
+
+
+def test_aufriss_kontrolle_steht_in_der_mappe(wb):
+    """Die Kontrolle gehört ins Databook, nicht nur ins Protokoll."""
+    assert "Schedule control" in wb.sheetnames
+    ws = wb["Schedule control"]
+    assert ws.max_row == 3           # Kopfzeile plus zwei Aufrisse
+    assert "FY2026 difference" in [c.value for c in ws[1]]
+
+
+def test_aufriss_traegt_die_beschriftung_der_quelle(wb):
+    """Die Vorlage gliedert Vorräte nach Produkten, die Quelle nach
+    Bestandteilen. Beschriftet wird, was tatsächlich in der Zeile steht."""
+    ws = wb["NA_Vorräte"]
+    assert ws["D13"].value == "Work in progress – materials and parts"
+    assert ws["D21"].value == "Valuation allowance for inventories"
+    assert "1-51000" in ws["F13"].value

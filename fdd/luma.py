@@ -26,8 +26,16 @@ folgt:
   Zeitachse der Vorlage wird aus den Stichtagen des Exports gesetzt, nicht
   aus den Tabellennamen.
 
-Gebaut wird nach **Option A**: die Lead-Tabs ziehen ihre Positionssummen per
-``SUMIFS`` direkt aus dem Mastersheet, die Kontoslots ebenso.
+Gebaut wird nach **Option B**: drei Schichten. Das Mastersheet trägt jede
+Kontozahl, die Aufriss-Tabs gliedern die Position, und die Lead-Zeile zieht
+ihre Summe aus dem Aufriss. Die eingeklappten Kontoslots hängen weiterhin per
+``SUMIFS`` am Mastersheet — zwei unabhängige Wege auf dieselbe Zahl, und die
+Differenz steht auf dem Blatt ``Schedule control``.
+
+Zwei Aufrisse lassen sich aus einer Saldenliste tatsächlich füllen: Vorräte
+und Sachanlagen. Forderungen und Verbindlichkeiten gliedert die Vorlage nach
+Fälligkeit; dafür braucht es eine offene-Posten-Liste, die hier nicht
+vorliegt. Diese Positionen bleiben deshalb auf dem Weg aus dem Mastersheet.
 """
 
 from __future__ import annotations
@@ -45,6 +53,7 @@ from .engine.spalten_status import SpaltenStatus, StatusMatrix
 from .engine.v28 import (loese_saldenvortraege, pruefe_verhalten,
                          setze_vorlaeufige_pfade, wende_seitenwechsel_an)
 from .export import vorlage
+from .export.aufrisse import Aufrissplan, Aufrisszeile
 from .readers.bt_abschluss_pdf import Abschlusszahlen, lies_abschluesse
 from .readers.myob_susa import lies_myob
 from .views.leads import baue_lead_na, baue_lead_pl
@@ -71,6 +80,116 @@ _STATUS_GUV = ("derived from the system hierarchy — reconciled against the "
                "consolidated financial statements, see Reconciliation")
 
 
+def _aufrisse() -> list[Aufrissplan]:
+    """Welcher Aufriss welche Lead-Position trägt — und mit welchen Konten.
+
+    Das ist die fachliche Entscheidung dieses Mandats. Die Mechanik steht in
+    :mod:`fdd.export.aufrisse`; hier steht nur, welches Konto in welche Zeile
+    gehört. Zwei Aufrisse lassen sich aus einer Saldenliste füllen:
+
+    * **Vorräte.** Die Vorlage gliedert nach Produkten, die Quelle kennt
+      Bestandteile — Produktion, unfertige Erzeugnisse (Material, Lohn,
+      Gemeinkosten), Fertigerzeugnisse, Kommissionsware. Die zehn Slots
+      werden deshalb als Bestandteile beschriftet, und die beiden
+      Wertberichtigungskonten stehen in der dafür vorgesehenen Zeile 21.
+
+    * **Sachanlagen.** Die Vorlage hält drei Anlageklassen mit je einer Zeile
+      für Anschaffungskosten und einer für die kumulierte Abschreibung. Der
+      Kontenplan trägt jede Klasse doppelt („- At Cost" / „- Acc Dep"), und
+      genau das ist die Gliederung, die die Vorlage erwartet. Aus 51 Konten
+      werden drei Klassen: Prototypen und F&E-Werkzeuge, Betriebs- und
+      Geschäftsausstattung, Mietereinbauten und Nutzungsrechte.
+
+    Nicht befüllt werden ``NA_Ford LuL`` und ``NA_Verb LuL``: sie gliedern
+    nach Fälligkeit, und eine Saldenliste kennt keine offenen Posten. Diese
+    Positionen bleiben auf dem Weg aus dem Mastersheet — das ist eine
+    Datenanforderung, kein Mangel des Laufs.
+    """
+    return [
+        Aufrissplan(
+            blatt="NA_Vorräte", lead_zeile=40, summenzeile=22,
+            hinweis="Gegliedert nach Bestandteilen statt nach Produkten — "
+                    "die Saldenliste kennt keine Produktdimension.",
+            zeilen=[
+                Aufrisszeile(9, "Vorräte Produktion",
+                             "Inventory – production", ["1-40100"]),
+                Aufrisszeile(10, "Vorräte Ersatzteile",
+                             "Inventory – spare parts", ["1-40105"]),
+                Aufrisszeile(11, "Vorräte C3", "Inventory – C3", ["1-40300"]),
+                Aufrisszeile(12, "Rohstoffe Gegenkonto",
+                             "Raw materials contra account", ["1-40400"]),
+                Aufrisszeile(13, "Unfertige Erzeugnisse – Material",
+                             "Work in progress – materials and parts",
+                             ["1-51000"]),
+                Aufrisszeile(14, "Unfertige Erzeugnisse – Lohn",
+                             "Work in progress – labour", ["1-52000"]),
+                Aufrisszeile(15, "Unfertige Erzeugnisse – Gemeinkosten",
+                             "Work in progress – overhead", ["1-53000"]),
+                Aufrisszeile(16, "Fertige Erzeugnisse", "Finished goods",
+                             ["1-60000"]),
+                Aufrisszeile(17, "Fertige Erzeugnisse – Lohn",
+                             "Finished goods – labour", ["1-61000"]),
+                Aufrisszeile(18, "Kommissionsware", "Consignment goods",
+                             ["1-65000"]),
+                # Zeile 19 summiert die zehn Slots; die Vorlage nennt sie
+                # "Top 10 Produkte". Unter dieser Gliederung heißt sie anders.
+                Aufrisszeile(19, "Vorratsbestandteile",
+                             "Inventory components"),
+                Aufrisszeile(20, "Andere Bestandteile", "Other components",
+                             ["1-40000", "1-50000"]),
+                Aufrisszeile(21, "Wertberichtigung auf Vorräte",
+                             "Valuation allowance for inventories",
+                             ["1-40500", "1-51500"]),
+            ]),
+        Aufrissplan(
+            blatt="NA_Sachanlagen", lead_zeile=18, summenzeile=20,
+            hinweis="Drei Anlageklassen, je Anschaffungskosten und kumulierte "
+                    "Abschreibung — so, wie der Kontenplan sie führt.",
+            zeilen=[
+                Aufrisszeile(
+                    9, "Prototypen, Werkzeuge und F&E-Geräte – AHK",
+                    "Prototypes, tools and R&D equipment (historical costs)",
+                    ["1-70500", "1-70510", "1-70560", "1-70570", "1-70600",
+                     "1-70601", "1-70602", "1-70603", "1-70604", "1-70606",
+                     "1-70610", "1-70800", "1-70810", "1-70815", "1-70820",
+                     "1-70825", "1-70830", "1-70832", "1-70834", "1-70836",
+                     "1-70838"]),
+                Aufrisszeile(
+                    10, "Kumulierte Abschreibung", "Accumulated depreciation",
+                    ["1-70550", "1-70580", "1-70641", "1-70650", "1-70816",
+                     "1-70821", "1-70831", "1-70835", "1-70837", "1-70839"]),
+                Aufrisszeile(
+                    11, "Prototypen, Werkzeuge und F&E-Geräte",
+                    "Prototypes, tools and R&D equipment (book value)"),
+                Aufrisszeile(
+                    12, "Betriebs- und Geschäftsausstattung – AHK",
+                    "Office equipment, furniture and fittings "
+                    "(historical costs)",
+                    ["1-70000", "1-70100", "1-70110", "1-70120", "1-70200",
+                     "1-70210", "1-70220", "1-70300", "1-70310", "1-70400",
+                     "1-70410"]),
+                Aufrisszeile(
+                    13, "Kumulierte Abschreibung", "Accumulated depreciation",
+                    ["1-70150", "1-70250", "1-70350", "1-70450"]),
+                Aufrisszeile(
+                    14, "Betriebs- und Geschäftsausstattung",
+                    "Office equipment, furniture and fittings (book value)"),
+                Aufrisszeile(
+                    15, "Mietereinbauten und Nutzungsrechte – AHK",
+                    "Leasehold improvements and right-of-use assets "
+                    "(historical costs)",
+                    ["1-70700", "1-70710", "1-90200"]),
+                Aufrisszeile(
+                    16, "Kumulierte Abschreibung", "Accumulated depreciation",
+                    ["1-70750", "1-90250"]),
+                Aufrisszeile(
+                    17, "Mietereinbauten und Nutzungsrechte",
+                    "Leasehold improvements and right-of-use assets "
+                    "(book value)"),
+            ]),
+    ]
+
+
 @dataclass
 class Quellen:
     saldenliste: str
@@ -83,7 +202,7 @@ def run(quellen: Quellen, ausgabe: str, verbose: bool = True) -> dict:
     lp = Laufprotokoll()
     with lp.phase("Setup") as d:
         hc = Hausconvention.laden()
-        d["detail"] = f"Hausconvention v{hc.version}, Architektur Option A"
+        d["detail"] = f"Hausconvention v{hc.version}, Architektur Option B"
 
     with lp.phase("Einlesen Saldenliste und GuV (MYOB)") as d:
         ledger, diag = lies_myob(quellen.saldenliste, quellen.guv,
@@ -135,12 +254,12 @@ def run(quellen: Quellen, ausgabe: str, verbose: bool = True) -> dict:
         vorlage.Periode(p, diag.stichtage[p], "jahr") for p in ledger.perioden])
 
     meta = _meta(quellen, ledger, mapped, diag, status, review, hc)
-    with lp.phase("Vorlage befüllen (Dealtool, Option A)") as d:
+    with lp.phase("Vorlage befüllen (Dealtool, Option B)") as d:
         befuellt = vorlage.schreibe_dealtool(
             ausgabe, mapped=mapped, perioden=ledger.perioden,
             mandat=vorlage.Mandat(
                 projekt="Project Luma", waehrung="AUD",
-                architektur="option_a", sprache=SPRACHE,
+                architektur="option_b", sprache=SPRACHE,
                 quelle_de="Saldenliste je Geschäftsjahr (MYOB-Export)",
                 quelle_en="Annual trial balance per financial year "
                           "(MYOB export)"),
@@ -150,7 +269,7 @@ def run(quellen: Quellen, ausgabe: str, verbose: bool = True) -> dict:
             # Check-Zeile darunter wird damit zur Überleitung.
             ergebnis_lt_quelle=_ergebnis_lt_abschluss(diag, abschluss,
                                                       ledger.perioden),
-            review=review,
+            review=review, aufrisse=_aufrisse(),
             zusatzblaetter=_zusatzblaetter(qa, status, verhalten, diag,
                                            ueberleitung, ledger.perioden))
         d["detail"] = (f"{os.path.basename(ausgabe)}, {befuellt.zellen} Zellen, "
@@ -536,6 +655,15 @@ def _kontrollen(mapped, perioden, befuellt, ergebnis) -> list[Kontrolle]:
     kontrollen.append(Kontrolle(
         "Accounts without an account slot (value with no visible detail)",
         ohne, toleranz=0.0))
+
+    # Option B: die Pflichtkontrolle je Aufriss. Die Lead-Zeile zeigt jetzt
+    # die Summe des Aufrisses; ob die auch alle Konten der Position enthält,
+    # sagt allein dieser Vergleich.
+    for b in befuellt.aufrissbefunde:
+        kontrollen.append(Kontrolle(
+            f"Schedule {b.blatt}: total equals the accounts of "
+            f"'{b.position}'",
+            {p: b.differenz(p) for p in perioden}, toleranz=0.0))
     return kontrollen
 
 
@@ -548,7 +676,10 @@ def _meta(quellen, ledger, mapped, diag, status, review, hc) -> dict:
         "Periods": ", ".join(
             f"{p} as at {diag.stichtage[p].strftime('%d %b %Y')} "
             f"({diag.monate.get(p)} m)" for p in ledger.perioden),
-        "Architecture": "Option A — two layers, leads pull from the mastersheet",
+        "Architecture": "Option B — three layers: mastersheet, schedules, "
+                        "leads. Inventories and tangible assets pull their "
+                        "total from their schedule; the remaining line items "
+                        "pull from the mastersheet.",
         "Reporting language": SPRACHE,
         "Status by column": " | ".join(
             f"{s.periode}: balance sheet {s.bilanz} · P&L {s.guv}"
@@ -590,6 +721,10 @@ def _zusammenfassung(meta, ledger, diag, status, ausgabe, lp, befuellt,
                 print(f"      {p:8s} databook {u.databook.get(p, 0.0):>14,.0f}"
                       f"   accounts {u.abschluss.get(p, 0.0):>14,.0f}"
                       f"   difference {u.differenz(p):>13,.0f}")
+    for b in befuellt.aufrissbefunde:
+        if b.konten_ohne_zeile:
+            print(f"  [finding] {b.blatt}: no schedule row for "
+                  + ", ".join(b.konten_ohne_zeile))
     for z in befuellt.ohne_zeile:
         print(f"  [finding] No line item in the lead: {z.ziel_na} "
               f"({z.klasse}), {z.konten} accounts — {z.grund}")

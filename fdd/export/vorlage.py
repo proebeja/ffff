@@ -36,6 +36,7 @@ from openpyxl.utils import get_column_letter
 from ..core.hausconvention import normalisiere
 from ..core.model import Klasse, MappedAccount
 from . import vorlage_zuordnung as zu
+from .aufrisse import schreibe_aufrisse
 from .vorlage_layout import Block, LeadLayout, Position, lies_layout
 
 VORLAGE = os.path.join(os.path.dirname(__file__), "..", "vorlagen",
@@ -797,10 +798,13 @@ class Mandat:
     quelle_de: str = "Datenraum/ eigene Analysen"
     quelle_en: str = "Virtual Data Room/ Company Information"
     sprache: str = "de"                 # "de" | "en"
-    #: ``databook_architektur`` der Hausconvention gibt Option B vor (drei
-    #: Schichten mit Aufriss-Tabs). Verdrahtet ist bislang nur Option A, und
-    #: ein Vorgabewert, der jeden Lauf abbricht, hilft niemandem. Wer B will,
-    #: bekommt eine Fehlermeldung statt eines Databooks, das so tut als ob.
+    #: ``databook_architektur`` der Hausconvention kennt zwei Formen: Option A
+    #: (zwei Schichten, die Lead-Zeile zieht per ``SUMIFS`` aus dem
+    #: Mastersheet) und Option B (drei Schichten, die Lead-Zeile zieht aus
+    #: einem Aufriss-Tab). Beide sind verdrahtet. Vorgabewert bleibt A, weil B
+    #: einen Aufrissplan je Mandat braucht — welches Konto in welche
+    #: Aufrisszeile gehört, ist eine fachliche Entscheidung und kann nicht
+    #: aus dem Kontenplan geraten werden.
     architektur: str = "option_a"
 
 
@@ -905,6 +909,8 @@ class Befuellergebnis:
     #: Konten ohne Saldo in irgendeiner Periode. Sie stehen nicht im
     #: Mastersheet, aber auf einem eigenen Blatt.
     nullzeilen: list[MSZeile] = field(default_factory=list)
+    #: Option B: je Position der Vergleich Aufriss gegen Kontozeilen.
+    aufrissbefunde: list = field(default_factory=list)
 
     @property
     def ohne_zeile(self) -> list[Zuordnungszeile]:
@@ -924,7 +930,8 @@ def schreibe_dealtool(ziel: str, *, mapped: list[MappedAccount],
                       review: Optional[list] = None,
                       zusatzblaetter: Optional[dict] = None,
                       achse: Optional[Zeitachse] = None,
-                      periodenergebnis: Optional[dict[str, float]] = None
+                      periodenergebnis: Optional[dict[str, float]] = None,
+                      aufrisse: Optional[list] = None
                       ) -> Befuellergebnis:
     """Kopiert die Vorlage und befüllt sie.
 
@@ -936,12 +943,16 @@ def schreibe_dealtool(ziel: str, *, mapped: list[MappedAccount],
     ``periodenergebnis`` ist für Quellen ohne GuV gedacht — siehe
     :func:`_roll_forward`.
     """
-    if mandat.architektur != "option_a":
+    if mandat.architektur not in ("option_a", "option_b"):
         raise ValueError(
-            f"Architektur {mandat.architektur!r} ist nicht verdrahtet. Umgesetzt "
-            "ist Option A (Lead-Tabs ziehen per SUMIFS direkt aus dem "
-            "Mastersheet). Für Option B fehlen die befüllten Aufriss-Tabs und "
-            "die Kontrollzeile Aufriss gegen Konten.")
+            f"Architektur {mandat.architektur!r} kennt die Hausconvention "
+            "nicht. Vorgesehen sind option_a (zwei Schichten) und option_b "
+            "(drei Schichten mit Aufriss-Tabs).")
+    if mandat.architektur == "option_b" and not aufrisse:
+        raise ValueError(
+            "Option B ohne Aufrissplan: die Lead-Positionen sollen ihre Summe "
+            "aus einem Aufriss ziehen, aber es ist keiner übergeben. Ein "
+            "leerer Aufriss ergäbe eine Position von null.")
 
     os.makedirs(os.path.dirname(os.path.abspath(ziel)), exist_ok=True)
     shutil.copy(VORLAGE, ziel)
@@ -965,6 +976,21 @@ def schreibe_dealtool(ziel: str, *, mapped: list[MappedAccount],
     # Verweis aufs Lead PL — so ist es in der Vorlage gedacht. Ohne GuV bleibt
     # nur der Wert vom Eigenkapitalkonto.
     hat_guv = any(z.guv for z in zeilen)
+    # Option B: die Positionssumme kommt aus dem Aufriss. Das muss VOR dem
+    # Roll Forward geschehen, damit die Fortschreibung auf den fertigen
+    # Lead-Zeilen aufsetzt.
+    aufrissbefunde: list = []
+    if aufrisse:
+        je_position = {}
+        for z in zeilen:
+            pos = layout_na.finde(z.na_zeile, z.klasse)
+            if pos is not None:
+                je_position.setdefault(pos.zeile, []).append(z)
+        n3, aufrissbefunde = schreibe_aufrisse(
+            wb, aufrisse, ach, lambda p: ach.ms_spalte(p, guv=False),
+            layout_na.erste_spalte, je_position, perioden)
+        zellen += n3
+
     rf = _roll_forward(mapped, perioden, periodenergebnis)
     zellen += _schreibe_roll_forward(na, layout_na, rf, ach,
                                      layout_pl.erste_spalte, periodenergebnis,
@@ -1015,6 +1041,33 @@ def schreibe_dealtool(ziel: str, *, mapped: list[MappedAccount],
     for titel, (kopf, inhalt) in (zusatzblaetter or {}).items():
         zellen += _arbeitsblatt(wb, titel, kopf, inhalt)
 
+    # Pflichtkontrolle der Option B. Sie steht hier und nicht im Runner, weil
+    # sie zur Architektur gehört: wer die Positionssumme aus dem Aufriss
+    # zieht, muss zeigen, dass der Aufriss die Konten der Position vollständig
+    # und ohne Doppelung trägt. Sonst zeigt der Lead eine runde Zahl, der ein
+    # Konto fehlt, und die Bilanz geht trotzdem auf.
+    if aufrissbefunde:
+        kopf = (["Position", "Aufriss", "Zeile im Lead NA",
+                 "Konten ohne Aufrisszeile"] if deutsch else
+                ["Line item", "Schedule", "Row in Lead NA",
+                 "Accounts with no schedule row"])
+        for p in perioden:
+            kopf += ([f"{p} lt. Aufriss", f"{p} lt. Kontozeilen",
+                      f"{p} Differenz"] if deutsch else
+                     [f"{p} per schedule", f"{p} per account rows",
+                      f"{p} difference"])
+        inhalt = []
+        for b in aufrissbefunde:
+            z = [b.position, b.blatt, b.lead_zeile,
+                 ", ".join(b.konten_ohne_zeile)]
+            for p in perioden:
+                z += [b.aufriss.get(p, 0.0), b.konten.get(p, 0.0),
+                      b.differenz(p)]
+            inhalt.append(z)
+        zellen += _arbeitsblatt(
+            wb, "Aufriss-Kontrolle" if deutsch else "Schedule control",
+            kopf, inhalt)
+
     if nullzeilen:
         zellen += _arbeitsblatt(
             wb, "Nullkonten" if deutsch else "Nil accounts",
@@ -1025,4 +1078,4 @@ def schreibe_dealtool(ziel: str, *, mapped: list[MappedAccount],
 
     wb.save(ziel)
     return Befuellergebnis(ziel, zeilen, zuordnung, slots_na + slots_pl, rf,
-                           zellen, ach, nullzeilen)
+                           zellen, ach, nullzeilen, aufrissbefunde)

@@ -45,6 +45,8 @@ fdd/
               working_capital.py Working-Capital-View (OA/OL × TWC/OWC, Ist je Periode)
               review_queue.py    ungelöste/geflaggte Konten (mit v2.3-Marker-Status)
   export/     vorlage.py         befüllt die Dealtool-Vorlage (v3.0, siehe unten)
+              aufrisse.py        Option B: die Lead-Position zieht aus einem
+                                 Aufriss-Tab statt aus dem Mastersheet
               vorlage_layout.py  liest den Aufbau eines Lead-Tabs aus der Vorlage
               vorlage_zuordnung.py  unser Positionsvokabular -> das der Vorlage
               pruefung.py        Formatvergleich gegen die Vorlage + Recalc
@@ -74,6 +76,31 @@ festgenagelt:
   liefert stumm null, während die Kontozeile darunter einen Wert zeigt.
 - **Summen immer als `SUMIF(<Zeilentyp>;"<>KTO";…)`.** Die Kontoslots liegen
   innerhalb der Summenbereiche; ein blankes `SUM` zählt sie doppelt.
+
+### Zwei oder drei Schichten (Option A / Option B)
+
+`Mandat.architektur` wählt zwischen beiden Formen der Hausconvention:
+
+- **Option A** (Vorgabewert): zwei Schichten. Jede Lead-Position zieht per
+  `SUMIFS` aus dem Mastersheet, die eingeklappten Kontoslots ebenso.
+- **Option B**: drei Schichten. Die Lead-Position zeigt auf die Summenzeile
+  eines Aufriss-Tabs, der Aufriss gliedert die Position und holt jede Zeile
+  per sichtbarer `SUMIFS` aus dem Mastersheet. Die Kontoslots bleiben am
+  Mastersheet — zwei unabhängige Wege auf dieselbe Zahl.
+
+Option B verlangt einen **Aufrissplan je Mandat** (`aufrisse=`): welches Konto
+in welche Aufrisszeile gehört, ist eine fachliche Entscheidung und steht
+deshalb im Runner. Ohne Plan bricht der Lauf ab, statt Positionen von null zu
+schreiben. Die Pflichtkontrolle — Aufriss gegen die Kontozeilen, je Position
+und Periode, plus die Konten, die keine Aufrisszeile gefunden haben — schreibt
+`vorlage.py` selbst auf das Blatt `Aufriss-Kontrolle` / `Schedule control`.
+
+Nicht jeder Aufriss der Vorlage kann eine Position tragen: `NA_TWC` und
+`NA_Net Debt` lesen die Leads und wären zirkulär, `NA_Ford LuL` und
+`NA_Verb LuL` gliedern nach Fälligkeit und brauchen eine offene-Posten-Liste.
+`NA_Vorräte` und `NA_Sachanlagen` gliedern nach Bestandteilen und lassen sich
+aus dem Kontenplan füllen — siehe `fdd/luma.py` und
+`protokoll/luma_run4_option_b.md`.
 
 Perioden und Beschriftungen stehen ausschließlich im Cockpit. Bilanz und GuV
 haben unterschiedlich viele Periodenspalten: in der Bilanz folgt auf die
