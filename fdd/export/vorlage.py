@@ -114,12 +114,33 @@ class Zeitachse:
         return self.jahre[0].stichtag
 
     @property
-    def cyt_beginn(self) -> Optional[date]:
-        return date(self.zwischen[0].stichtag.year, 1, 1) if self.zwischen else None
+    def cyt_beginn(self) -> date:
+        if self.zwischen:
+            return date(self.zwischen[0].stichtag.year, 1, 1)
+        return self._platzhalter()[0]
 
     @property
-    def cyt_ende(self) -> Optional[date]:
-        return self.zwischen[0].stichtag if self.zwischen else None
+    def cyt_ende(self) -> date:
+        if self.zwischen:
+            return self.zwischen[0].stichtag
+        return self._platzhalter()[1]
+
+    def _platzhalter(self) -> tuple[date, date]:
+        """CYT-Daten, wenn das Mandat keine Zwischenperiode liefert.
+
+        Das Cockpit prüft die beiden Felder selbst: der CYT-Beginn darf nicht
+        vor dem historischen Zeitraum liegen und der CYT-Stichtag nicht der
+        31.12. sein. Bleiben die Werte der Vorlage stehen, meldet die Mappe
+        zwei Fehler, obwohl nichts fehlt — sie gehören deshalb hinter das
+        letzte historische Jahr gelegt. Befüllt wird die Spalte nicht.
+        """
+        letztes = self.jahre[-1].stichtag
+        beginn = date.fromordinal(letztes.toordinal() + 1)
+        monat = beginn.month % 12 + 1
+        jahr = beginn.year + (beginn.month == 12)
+        ende = date.fromordinal(date(jahr + (monat == 12),
+                                     monat % 12 + 1, 1).toordinal() - 1)
+        return beginn, ende
 
     def _index(self, label: str, guv: bool) -> Optional[int]:
         """Zähler der Vorlage (0 = Eröffnungsspalte) für diese Periode."""
@@ -302,6 +323,10 @@ class Slotbefund:
     konten: int
     slots: int
     aus_dummy: bool = False
+    #: Die Kontoschlüssel, für die kein Slot mehr da war. Ohne sie ließe sich
+    #: nicht beziffern, wie viel Detail tatsächlich fehlt — die Position selbst
+    #: zeigt ja weiterhin den vollen Betrag.
+    ohne_slot: list[str] = field(default_factory=list)
 
     @property
     def fehlend(self) -> int:
@@ -480,6 +505,12 @@ def _fuelle_lead(ws, zeilen: list[MSZeile], guv: bool
             art = "Dummy"
             geschrieben += 3 + (letzte - erste + 1)
 
+        # Reichen die Slots nicht, entscheidet die Größe, welche Konten
+        # sichtbar bleiben. Die Reihenfolge des Mastersheets wäre die
+        # Kontonummer, und dann verschwände womöglich das größte Konto der
+        # Position hinter acht kleinen.
+        konten.sort(key=lambda z: max((abs(v) for v in z.werte.values()),
+                                      default=0.0), reverse=True)
         for i, z in enumerate(konten[:len(pos.slots)]):
             slot = pos.slots[i]
             ws[f"{t1}{slot}"] = z.schluessel
@@ -492,8 +523,10 @@ def _fuelle_lead(ws, zeilen: list[MSZeile], guv: bool
             ws.cell(slot, 4).value = None
 
         if len(konten) > len(pos.slots):
-            befunde.append(Slotbefund(ziel_na, klasse, pos.zeile, len(konten),
-                                      len(pos.slots), pos.aus_dummy))
+            befunde.append(Slotbefund(
+                ziel_na, klasse, pos.zeile, len(konten), len(pos.slots),
+                pos.aus_dummy,
+                [z.schluessel for z in konten[len(pos.slots):]]))
         protokoll.append(Zuordnungszeile(
             konten[0].na_de, klasse, ziel_na, pos.zeile, art, len(konten),
             grund, ", ".join(z.schluessel for z in konten)))
@@ -505,11 +538,20 @@ def _fuelle_lead(ws, zeilen: list[MSZeile], guv: bool
 # --------------------------------------------------------------------------
 
 #: Zuordnung der Eigenkapitalkonten auf die Bewegungszeilen des Roll Forward.
+#:
+#: Die englischen Stichworte stehen gleichberechtigt daneben: ein
+#: MYOB- oder NetSuite-Kontenplan trägt ``Ordinary Shares`` und ``Retained
+#: Earnings``, und eine Zuordnung, die nur deutsche Bezeichnungen kennt,
+#: liefert für ein solches Mandat eine leere Fortschreibung.
 _EK_ZEILEN = (
     ("∆ Gezeichnetes Kapital", ("gezeichnetes kapital", "stammkapital",
-                                "kapitalkonto", "festkapital")),
-    ("∆ Kapitalrücklage", ("kapitalruecklage", "ruecklage")),
-    ("Gewinnausschüttung", ("ausschuettung", "entnahme", "dividende")),
+                                "kapitalkonto", "festkapital",
+                                "share capital", "shares", "warrant",
+                                "equity interest")),
+    ("∆ Kapitalrücklage", ("kapitalruecklage", "ruecklage",
+                           "equity costs", "share premium")),
+    ("Gewinnausschüttung", ("ausschuettung", "entnahme", "dividende",
+                            "distribution", "dividend")),
 )
 
 #: Konten, deren Bewegung das Periodenergebnis ist. Sie bleiben hier außen
@@ -524,7 +566,9 @@ _EK_ZEILEN = (
 #: Check-Zeile sie als Rest an; sie gehört dann in die manuelle Zeile.
 _EK_ERGEBNIS = ("jahresueberschuss", "jahresfehlbetrag", "periodenergebnis",
                 "jahresergebnis", "gewinnvortrag", "verlustvortrag",
-                "bilanzgewinn", "bilanzverlust")
+                "bilanzgewinn", "bilanzverlust",
+                "retained earnings", "current earnings", "accumulated losses",
+                "historical balancing")
 
 
 @dataclass
@@ -534,14 +578,37 @@ class RollForward:
     bewegungen: dict[str, dict[str, float]] = field(default_factory=dict)
     nicht_zugeordnet: list[str] = field(default_factory=list)
     hinweise: list[str] = field(default_factory=list)
+    #: Was die benannten Bewegungen und das Periodenergebnis nicht erklären.
+    #: Nur belegt, wenn ein Periodenergebnis mitgegeben wurde.
+    rest: dict[str, float] = field(default_factory=dict)
+    #: Nettovermögen zu Beginn der ersten Periode, sofern das Mandat eine
+    #: Vorgeschichte hat. ``None``, wenn die erste Periode zugleich die erste
+    #: des Unternehmens ist.
+    anfangsbestand: Optional[float] = None
+    #: Bewegung je ergebnisbezogenem Eigenkapitalkonto (Vortrag, laufendes
+    #: Ergebnis). Aus ihnen setzt sich der ``rest`` zusammen — ohne diese
+    #: Aufstellung bliebe er eine Zahl ohne Adresse.
+    ergebniskonten: dict[str, dict[str, float]] = field(default_factory=dict)
+
+    @property
+    def hat_rest(self) -> bool:
+        return any(abs(v) > 1.0 for v in self.rest.values())
 
 
-def _roll_forward(mapped: list[MappedAccount], perioden: list[str]) -> RollForward:
+def _roll_forward(mapped: list[MappedAccount], perioden: list[str],
+                  periodenergebnis: Optional[dict[str, float]] = None
+                  ) -> RollForward:
     """Eigenkapitalbewegungen je Periode.
 
     Nettovermögen ist das Eigenkapital mit umgekehrtem Vorzeichen, deshalb
     wird die Bewegung negiert. Für die erste Periode gibt es keine Vorperiode;
     die Bewegung wird dann gegen null gerechnet und das ausdrücklich vermerkt.
+
+    ``periodenergebnis`` ist für Quellen gedacht, die **keine GuV** liefern
+    und das Ergebnis auf einem Eigenkapitalkonto führen. Dann kann die
+    Fortschreibung nicht aus dem Lead PL kommen, und was Kapitalbewegungen und
+    Ergebnis zusammen nicht erklären, wird als ``rest`` ausgewiesen, statt die
+    Check-Zeile ohne Erklärung auseinanderlaufen zu lassen.
     """
     rf = RollForward()
     ek = [m for m in mapped if m.klasse is Klasse.EQ]
@@ -551,7 +618,16 @@ def _roll_forward(mapped: list[MappedAccount], perioden: list[str]) -> RollForwa
     for m in ek:
         text = normalisiere(f"{m.bezeichnung} {m.hgb_pfad}")
         if any(s in text for s in _EK_ERGEBNIS):
-            continue                     # kommt über das Lead PL
+            # Kommt über das Lead PL. Die Bewegung wird trotzdem festgehalten,
+            # damit ein Rest später eine Adresse hat.
+            bewegung, vorher = {}, 0.0
+            for p in perioden:
+                jetzt = m.saldo(p)
+                bewegung[p] = round(-(jetzt - vorher), 2)
+                vorher = jetzt
+            if any(abs(v) > 0.005 for v in bewegung.values()):
+                rf.ergebniskonten[f"{m.konto} {m.bezeichnung}"] = bewegung
+            continue
         ziel = next((titel for titel, stichworte in _EK_ZEILEN
                      if any(s in text for s in stichworte)), None)
         if ziel is None:
@@ -563,7 +639,42 @@ def _roll_forward(mapped: list[MappedAccount], perioden: list[str]) -> RollForwa
             rf.bewegungen[ziel][p] += -(jetzt - vorher)
             vorher = jetzt
 
-    if perioden:
+    if periodenergebnis is not None:
+        # Der Rest ist die Veränderung des Eigenkapitals, die weder eine
+        # benannte Kapitalbewegung noch das Periodenergebnis erklärt: in aller
+        # Regel Umbuchungen auf den Gewinnvortrag und Vorjahresberichtigungen.
+        # Er wird ausgewiesen, nicht verteilt.
+        vorher_ek = 0.0
+        for p in perioden:
+            jetzt_ek = sum(m.saldo(p) for m in ek)
+            veraenderung = -(jetzt_ek - vorher_ek)
+            erklaert = (sum(w[p] for w in rf.bewegungen.values())
+                        + periodenergebnis.get(p, 0.0))
+            rf.rest[p] = round(veraenderung - erklaert, 2)
+            vorher_ek = jetzt_ek
+
+        # Bleibt in der ERSTEN Periode ein Rest, dann ist das kein
+        # unerklärter Vorgang, sondern schlicht die Vorgeschichte: Kapital und
+        # aufgelaufene Ergebnisse, die vor dem ersten Stichtag entstanden
+        # sind. Sie als Bewegung der ersten Periode auszuweisen, hieße zu
+        # behaupten, das Kapital sei in diesem Jahr eingezahlt worden. Die
+        # erste Spalte wird deshalb zum Anfangsbestand zusammengezogen.
+        erste = perioden[0]
+        if abs(rf.rest.get(erste, 0.0)) > 1.0:
+            rf.anfangsbestand = round(
+                -sum(m.saldo(erste) for m in ek)
+                - periodenergebnis.get(erste, 0.0), 2)
+            for werte in rf.bewegungen.values():
+                werte[erste] = 0.0
+            rf.rest[erste] = 0.0
+            rf.hinweise.append(
+                f"Erste Spalte ({erste}): das Mandat hat eine Vorgeschichte. "
+                f"Der Anfangsbestand von {rf.anfangsbestand:,.2f} steht als "
+                "Nettovermögen zu Periodenbeginn; Bewegungen weist die erste "
+                "Spalte keine aus, weil die Quelle die Vorperiode nicht "
+                "enthält.")
+
+    if perioden and rf.anfangsbestand is None:
         rf.hinweise.append(
             f"Erste Spalte ({perioden[0]}): es liegt keine Vorperiode vor, "
             "die Eigenkapitalbewegung wird gegen null gerechnet.")
@@ -571,7 +682,9 @@ def _roll_forward(mapped: list[MappedAccount], perioden: list[str]) -> RollForwa
 
 
 def _schreibe_roll_forward(ws, layout: LeadLayout, rf: RollForward,
-                           ach: Zeitachse, pl_erste: int) -> int:
+                           ach: Zeitachse, pl_erste: int,
+                           periodenergebnis: Optional[dict[str, float]] = None
+                           ) -> int:
     """Bewegungszeilen füllen und den Verweis aufs Jahresergebnis geraderücken.
 
     Der Verweis in der Zeile ``Jahresergebnis`` zeigt in der Vorlage Spalte
@@ -583,6 +696,16 @@ def _schreibe_roll_forward(ws, layout: LeadLayout, rf: RollForward,
     zeilen = {str(ws.cell(r, 3).value or "").strip(): r
               for r in range(1, ws.max_row + 1)}
     geschrieben = 0
+
+    # Anfangsbestand der ersten Spalte. Die Vorlage kettet ihn aus der
+    # Eröffnungsspalte heran; die ist hier leer, weil die Quelle die
+    # Vorperiode nicht enthält.
+    r_bop = zeilen.get("Nettovermögen (Periodenbeginn)")
+    if rf.anfangsbestand is not None and r_bop is not None and ach.perioden:
+        c = ach.lead_spalte(ach.jahre[0].label, layout.erste_spalte, guv=False)
+        if c is not None:
+            ws.cell(r_bop, c, round(rf.anfangsbestand / 1000.0, 6))
+            geschrieben += 1
 
     for titel, werte in rf.bewegungen.items():
         r = zeilen.get(titel)
@@ -599,7 +722,16 @@ def _schreibe_roll_forward(ws, layout: LeadLayout, rf: RollForward,
         for periode in [p.label for p in ach.perioden]:
             c = ach.lead_spalte(periode, layout.erste_spalte, guv=False)
             c_pl = ach.lead_spalte(periode, pl_erste, guv=True)
-            if c is not None and c_pl is not None:
+            if c is None:
+                continue
+            if periodenergebnis is not None:
+                # Quelle ohne GuV: das Ergebnis steht auf einem
+                # Eigenkapitalkonto. Der Verweis aufs Lead PL zeigte auf eine
+                # leere Zeile und die Fortschreibung liefe um das ganze
+                # Ergebnis daneben.
+                ws.cell(r, c, round(periodenergebnis.get(periode, 0.0) / 1000.0, 6))
+                geschrieben += 1
+            elif c_pl is not None:
                 ws.cell(r, c, f"='Lead PL'!{get_column_letter(c_pl)}210")
                 geschrieben += 1
 
@@ -636,7 +768,11 @@ class Mandat:
     quelle_de: str = "Datenraum/ eigene Analysen"
     quelle_en: str = "Virtual Data Room/ Company Information"
     sprache: str = "de"                 # "de" | "en"
-    architektur: str = "option_b"
+    #: ``databook_architektur`` der Hausconvention gibt Option B vor (drei
+    #: Schichten mit Aufriss-Tabs). Verdrahtet ist bislang nur Option A, und
+    #: ein Vorgabewert, der jeden Lauf abbricht, hilft niemandem. Wer B will,
+    #: bekommt eine Fehlermeldung statt eines Databooks, das so tut als ob.
+    architektur: str = "option_a"
 
 
 def _schreibe_cockpit(ws, mandat: Mandat, ach: Zeitachse) -> int:
@@ -648,10 +784,9 @@ def _schreibe_cockpit(ws, mandat: Mandat, ach: Zeitachse) -> int:
         "C8": mandat.quelle_en,
         "C17": ach.ende_erste_periode,
         "C18": ach.anzahl_historisch,
+        "C21": ach.cyt_beginn,
+        "C22": ach.cyt_ende,
     }
-    if ach.zwischen:
-        werte["C21"] = ach.cyt_beginn
-        werte["C22"] = ach.cyt_ende
     for koordinate, wert in werte.items():
         ws[koordinate] = wert
     return len(werte)
@@ -734,19 +869,48 @@ class Befuellergebnis:
     zellen: int
     zeitachse: Zeitachse
 
+    @property
+    def ohne_zeile(self) -> list[Zuordnungszeile]:
+        """Positionen, die in keinem Lead-Tab gelandet sind.
+
+        Der gefährlichste Zustand der ganzen Befüllung: die Konten stehen im
+        Mastersheet, die Bilanz geht im Datenmodell auf, und im Lead fehlt der
+        Betrag trotzdem. Er gehört deshalb in eine Kontrollzeile und nicht nur
+        in eine Zeile des Zuordnungsblatts.
+        """
+        return [z for z in self.zuordnung if z.art == "ohne Zeile"]
+
 
 def schreibe_dealtool(ziel: str, *, mapped: list[MappedAccount],
                       perioden: list[str], mandat: Mandat,
                       ergebnis_lt_quelle: Optional[dict[str, float]] = None,
                       review: Optional[list] = None,
-                      zusatzblaetter: Optional[dict] = None
+                      zusatzblaetter: Optional[dict] = None,
+                      achse: Optional[Zeitachse] = None,
+                      periodenergebnis: Optional[dict[str, float]] = None
                       ) -> Befuellergebnis:
-    """Kopiert die Vorlage und befüllt sie."""
+    """Kopiert die Vorlage und befüllt sie.
+
+    ``achse`` übergibt die Zeitachse ausdrücklich. Ohne sie werden die
+    Stichtage aus den Periodenlabels gelesen, und das geht nur gut, solange
+    das Geschäftsjahr am 31.12. endet. ``FY2023`` heißt in einem australischen
+    Kontenplan den 31.03.2023.
+
+    ``periodenergebnis`` ist für Quellen ohne GuV gedacht — siehe
+    :func:`_roll_forward`.
+    """
+    if mandat.architektur != "option_a":
+        raise ValueError(
+            f"Architektur {mandat.architektur!r} ist nicht verdrahtet. Umgesetzt "
+            "ist Option A (Lead-Tabs ziehen per SUMIFS direkt aus dem "
+            "Mastersheet). Für Option B fehlen die befüllten Aufriss-Tabs und "
+            "die Kontrollzeile Aufriss gegen Konten.")
+
     os.makedirs(os.path.dirname(os.path.abspath(ziel)), exist_ok=True)
     shutil.copy(VORLAGE, ziel)
     wb = openpyxl.load_workbook(ziel)
 
-    ach = zeitachse(perioden)
+    ach = achse or zeitachse(perioden)
     zellen = _schreibe_cockpit(wb["Cockpit"], mandat, ach)
 
     zeilen = baue_mastersheet_zeilen(mapped, perioden)
@@ -760,9 +924,9 @@ def schreibe_dealtool(ziel: str, *, mapped: list[MappedAccount],
         pl, [z for z in zeilen if z.guv], guv=True)
     zellen += n1 + n2
 
-    rf = _roll_forward(mapped, perioden)
+    rf = _roll_forward(mapped, perioden, periodenergebnis)
     zellen += _schreibe_roll_forward(na, layout_na, rf, ach,
-                                     layout_pl.erste_spalte)
+                                     layout_pl.erste_spalte, periodenergebnis)
 
     # Gegenprobe der GuV gegen die Quelldatei (Zeile "Jahresergebnis lt.
     # Quelldatei"). Ohne sie ist die Check-Zeile darunter sinnlos.

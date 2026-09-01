@@ -99,7 +99,7 @@ def run(quellen: Quellen, ausgabe: str, verbose: bool = True) -> dict:
         befuellt = vorlage.schreibe_dealtool(
             ausgabe, mapped=mapped, perioden=ledger.perioden,
             mandat=vorlage.Mandat(
-                projekt=ledger.entity,
+                projekt=ledger.entity, architektur="option_a",
                 quelle_de="Jahresabschlüsse 2023–2026 inkl. Kontennachweis",
                 quelle_en="Annual accounts 2023–2026 incl. account schedules"),
             ergebnis_lt_quelle=_ergebnis_lt_quelle(abschluesse),
