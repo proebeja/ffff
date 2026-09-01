@@ -230,7 +230,7 @@ class MSZeile:
 
 
 def baue_mastersheet_zeilen(mapped: list[MappedAccount], perioden: list[str]
-                            ) -> list[MSZeile]:
+                            ) -> tuple[list[MSZeile], list[MSZeile]]:
     """Übersetzt das Datenmodell in Mastersheet-Zeilen.
 
     Zwei Dinge passieren hier, und nur hier:
@@ -245,6 +245,12 @@ def baue_mastersheet_zeilen(mapped: list[MappedAccount], perioden: list[str]
       Bilanzseite steht, bekommt je Position eine eigene Zeile. Die zweite
       Zeile trägt einen ergänzten Schlüssel, damit der Kontoslot der einen
       Position nicht die Werte der anderen mitzählt.
+
+    Zurück kommen zwei Listen: die Zeilen fürs Mastersheet und die Konten
+    **ohne Saldo in irgendeiner Periode**. Letztere tragen zu keiner Position
+    bei und belegen nur Zeilen — bei Luma sind es 192 von 434, und die
+    SUMIFS der Vorlage reichen bis Zeile 400. Sie verschwinden nicht, sondern
+    werden ausgewiesen; die Vorlage wird deswegen nicht angefasst.
     """
     zeilen: list[MSZeile] = []
     for m in mapped:
@@ -268,7 +274,11 @@ def baue_mastersheet_zeilen(mapped: list[MappedAccount], perioden: list[str]
                 hinweis=("Seitenwechsel: eigene Zeile je Bilanzseite"
                          if len(je_gruppe) > 1 else ""),
                 na_de=na_de, na_en=namen.get(na_de, "")))
-    return zeilen
+
+    belegt = [z for z in zeilen
+              if any(abs(v) > 0.005 for v in z.werte.values())]
+    leer = [z for z in zeilen if z not in belegt]
+    return belegt, leer
 
 
 def _schreibe_mastersheet(ws, zeilen: list[MSZeile], ach: Zeitachse) -> int:
@@ -565,6 +575,9 @@ _EK_ZEILEN = (
                             "distribution", "dividend")),
 )
 
+#: Die Klassen, aus denen sich das Nettovermögen zusammensetzt.
+_NETTO = (Klasse.FA, Klasse.TWC, Klasse.OWC, Klasse.ND, Klasse.DT)
+
 #: Konten, deren Bewegung das Periodenergebnis ist. Sie bleiben hier außen
 #: vor, weil das Ergebnis über das Lead PL in den Roll Forward kommt.
 #:
@@ -651,18 +664,23 @@ def _roll_forward(mapped: list[MappedAccount], perioden: list[str],
             vorher = jetzt
 
     if periodenergebnis is not None:
-        # Der Rest ist die Veränderung des Eigenkapitals, die weder eine
+        # Der Rest ist die Veränderung des NETTOVERMÖGENS, die weder eine
         # benannte Kapitalbewegung noch das Periodenergebnis erklärt: in aller
         # Regel Umbuchungen auf den Gewinnvortrag und Vorjahresberichtigungen.
         # Er wird ausgewiesen, nicht verteilt.
-        vorher_ek = 0.0
+        #
+        # Angesetzt wird am Nettovermögen und nicht am Eigenkapital, weil
+        # beides nur ohne GuV dasselbe ist. Liegt eine GuV vor, steht das
+        # Ergebnis auf den GuV-Konten und nicht mehr im Eigenkapital — der
+        # Anker am Eigenkapital ginge dann Jahr für Jahr um das Ergebnis
+        # daneben.
+        vorher_na = 0.0
         for p in perioden:
-            jetzt_ek = sum(m.saldo(p) for m in ek)
-            veraenderung = -(jetzt_ek - vorher_ek)
+            jetzt_na = sum(m.saldo(p) for m in mapped if m.klasse in _NETTO)
             erklaert = (sum(w[p] for w in rf.bewegungen.values())
                         + periodenergebnis.get(p, 0.0))
-            rf.rest[p] = round(veraenderung - erklaert, 2)
-            vorher_ek = jetzt_ek
+            rf.rest[p] = round((jetzt_na - vorher_na) - erklaert, 2)
+            vorher_na = jetzt_na
 
         # Bleibt in der ERSTEN Periode ein Rest, dann ist das kein
         # unerklärter Vorgang, sondern schlicht die Vorgeschichte: Kapital und
@@ -673,7 +691,7 @@ def _roll_forward(mapped: list[MappedAccount], perioden: list[str],
         erste = perioden[0]
         if abs(rf.rest.get(erste, 0.0)) > 1.0:
             rf.anfangsbestand = round(
-                -sum(m.saldo(erste) for m in ek)
+                sum(m.saldo(erste) for m in mapped if m.klasse in _NETTO)
                 - periodenergebnis.get(erste, 0.0), 2)
             for werte in rf.bewegungen.values():
                 werte[erste] = 0.0
@@ -694,8 +712,8 @@ def _roll_forward(mapped: list[MappedAccount], perioden: list[str],
 
 def _schreibe_roll_forward(ws, layout: LeadLayout, rf: RollForward,
                            ach: Zeitachse, pl_erste: int,
-                           periodenergebnis: Optional[dict[str, float]] = None
-                           ) -> int:
+                           periodenergebnis: Optional[dict[str, float]] = None,
+                           aus_lead_pl: bool = True) -> int:
     """Bewegungszeilen füllen und den Verweis aufs Jahresergebnis geraderücken.
 
     Der Verweis in der Zeile ``Jahresergebnis`` zeigt in der Vorlage Spalte
@@ -735,15 +753,15 @@ def _schreibe_roll_forward(ws, layout: LeadLayout, rf: RollForward,
             c_pl = ach.lead_spalte(periode, pl_erste, guv=True)
             if c is None:
                 continue
-            if periodenergebnis is not None:
+            if aus_lead_pl and c_pl is not None:
+                ws.cell(r, c, f"='Lead PL'!{get_column_letter(c_pl)}210")
+                geschrieben += 1
+            elif periodenergebnis is not None:
                 # Quelle ohne GuV: das Ergebnis steht auf einem
                 # Eigenkapitalkonto. Der Verweis aufs Lead PL zeigte auf eine
                 # leere Zeile und die Fortschreibung liefe um das ganze
                 # Ergebnis daneben.
                 ws.cell(r, c, round(periodenergebnis.get(periode, 0.0) / 1000.0, 6))
-                geschrieben += 1
-            elif c_pl is not None:
-                ws.cell(r, c, f"='Lead PL'!{get_column_letter(c_pl)}210")
                 geschrieben += 1
 
     # Der Roll Forward endet mit der letzten belegten Periode. Die Vorlage
@@ -884,6 +902,9 @@ class Befuellergebnis:
     roll_forward: RollForward
     zellen: int
     zeitachse: Zeitachse
+    #: Konten ohne Saldo in irgendeiner Periode. Sie stehen nicht im
+    #: Mastersheet, aber auf einem eigenen Blatt.
+    nullzeilen: list[MSZeile] = field(default_factory=list)
 
     @property
     def ohne_zeile(self) -> list[Zuordnungszeile]:
@@ -929,7 +950,7 @@ def schreibe_dealtool(ziel: str, *, mapped: list[MappedAccount],
     ach = achse or zeitachse(perioden)
     zellen = _schreibe_cockpit(wb["Cockpit"], mandat, ach)
 
-    zeilen = baue_mastersheet_zeilen(mapped, perioden)
+    zeilen, nullzeilen = baue_mastersheet_zeilen(mapped, perioden)
     zellen += _schreibe_mastersheet(wb["Mastersheet"], zeilen, ach)
 
     na = wb["Lead NA"]
@@ -940,9 +961,14 @@ def schreibe_dealtool(ziel: str, *, mapped: list[MappedAccount],
         pl, [z for z in zeilen if z.guv], guv=True, sprache=mandat.sprache)
     zellen += n1 + n2
 
+    # Liegt eine GuV vor, holt sich die Fortschreibung das Ergebnis über den
+    # Verweis aufs Lead PL — so ist es in der Vorlage gedacht. Ohne GuV bleibt
+    # nur der Wert vom Eigenkapitalkonto.
+    hat_guv = any(z.guv for z in zeilen)
     rf = _roll_forward(mapped, perioden, periodenergebnis)
     zellen += _schreibe_roll_forward(na, layout_na, rf, ach,
-                                     layout_pl.erste_spalte, periodenergebnis)
+                                     layout_pl.erste_spalte, periodenergebnis,
+                                     aus_lead_pl=hat_guv)
 
     # Gegenprobe der GuV gegen die Quelldatei (Zeile "Jahresergebnis lt.
     # Quelldatei"). Ohne sie ist die Check-Zeile darunter sinnlos.
@@ -989,6 +1015,14 @@ def schreibe_dealtool(ziel: str, *, mapped: list[MappedAccount],
     for titel, (kopf, inhalt) in (zusatzblaetter or {}).items():
         zellen += _arbeitsblatt(wb, titel, kopf, inhalt)
 
+    if nullzeilen:
+        zellen += _arbeitsblatt(
+            wb, "Nullkonten" if deutsch else "Nil accounts",
+            (["Konto", "Bezeichnung", "Klasse", "Position"] if deutsch else
+             ["Account", "Description", "Class", "Line item"]),
+            [[z.konto, z.bezeichnung, z.klasse, z.na_zeile]
+             for z in nullzeilen])
+
     wb.save(ziel)
     return Befuellergebnis(ziel, zeilen, zuordnung, slots_na + slots_pl, rf,
-                           zellen, ach)
+                           zellen, ach, nullzeilen)

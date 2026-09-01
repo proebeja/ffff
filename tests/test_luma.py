@@ -13,22 +13,32 @@ import pytest
 from conftest import datei
 from fdd.core.model import Klasse
 from fdd.luma import ERGEBNISKONTO, Quellen, run
+from fdd.export.vorlage_layout import lies_layout
 from fdd.readers.myob_susa import finde_pfad, lies_myob
 
 DATEI = "Testdaten_Luma_SuSa_jaehrlich.xlsx"
+GUV = "Testdaten_Luma_PL_jaehrlich.xlsx"
+GEPRUEFT = "Testdaten_Luma_Abschluss_3Jahre.pdf"
+ENTWURF = "Testdaten_Luma_Abschluss_EntwurfFY26.pdf"
 PERIODEN = ["FY2023", "FY2024", "FY2025", "FY2026"]
+
+
+def _quellen():
+    return Quellen(saldenliste=datei(DATEI), guv=datei(GUV),
+                   abschluss_geprueft=datei(GEPRUEFT),
+                   abschluss_entwurf=datei(ENTWURF))
 
 
 @pytest.fixture(scope="module")
 def res(tmp_path_factory):
     out = str(tmp_path_factory.mktemp("luma") / "luma.xlsx")
-    return run(Quellen(saldenliste=datei(DATEI)), out, verbose=False)
+    return run(_quellen(), out, verbose=False)
 
 
 @pytest.fixture(scope="module")
 def wb(tmp_path_factory):
     out = str(tmp_path_factory.mktemp("luma2") / "luma.xlsx")
-    run(Quellen(saldenliste=datei(DATEI)), out, verbose=False)
+    run(_quellen(), out, verbose=False)
     return openpyxl.load_workbook(out)
 
 
@@ -137,23 +147,63 @@ def test_cyt_felder_erzeugen_keine_fehlermeldung(wb):
     assert c["C22"].value.month != 12
 
 
-def test_lead_pl_bleibt_leer_und_sagt_es(res, wb):
-    """Es gibt keine GuV-Konten. Die Check-Zeile des Lead PL weist das
-    Ergebnis laut Quelle gegen eine leere GuV aus — das ist die Aussage."""
-    assert [m for m in res["mapped"] if m.klasse is Klasse.PL] == []
-    pl = wb["Lead PL"]
-    zeile = next(r for r in range(1, pl.max_row + 1)
-                 if str(pl.cell(r, 3).value or "").startswith("Jahresergebnis lt."))
-    assert pl.cell(zeile, 6).value is not None
+def test_guv_wird_geladen_und_trifft_jede_position(res, wb):
+    """Jede GuV-Position muss eine Zeile im Lead PL finden. Eine, die keine
+    findet, verschwände lautlos aus der Ergebnisrechnung."""
+    guv = [m for m in res["mapped"] if m.klasse is Klasse.PL]
+    assert len(guv) > 200
+    ms = wb["Mastersheet"]
+    paare = {(ms.cell(r, 4).value, ms.cell(r, 3).value)
+             for r in range(2, ms.max_row + 1)
+             if ms.cell(r, 1).value and ms.cell(r, 3).value == "PL"}
+    layout = lies_layout(wb["Lead PL"], ("T", "U", "V"), 5, 14)
+    ticker = {(p.ticker1, p.ticker2) for p in layout.positionen}
+    assert paare - ticker == set()
 
 
-def test_ergebnis_kommt_vom_eigenkapitalkonto(res):
-    """Ohne GuV trägt ``Current Earnings`` das Periodenergebnis. Ein Gewinn
-    steht dort im Haben und erhöht das Nettovermögen."""
-    konto = next(m for m in res["mapped"] if m.konto == ERGEBNISKONTO)
-    assert konto.klasse is Klasse.EQ
+def test_ergebniskonto_faellt_bei_geladener_guv_heraus(res):
+    """``3-90000 Current Earnings`` ist die GuV in einer Zahl. Bleibt es
+    stehen, steht das Ergebnis zweimal in der Mappe und die Summe aller
+    Konten geht nicht mehr auf null."""
+    assert ERGEBNISKONTO not in {m.konto for m in res["mapped"]}
+    assert ERGEBNISKONTO in res["diagnose"].eliminiert
+
+
+def test_ergebnis_kommt_aus_der_guv(res):
+    """Vorzeichen: Erträge stehen im Haben, ein Gewinn ist eine negative
+    Summe und erhöht das Nettovermögen."""
     assert res["ergebnis"]["FY2024"] == pytest.approx(589_770.55, abs=0.01)
     assert res["ergebnis"]["FY2023"] == pytest.approx(-287_823.17, abs=0.01)
+
+
+def test_perioden_nach_stichtag_nicht_nach_blattreihenfolge():
+    """Die Tabs des GuV-Exports stehen als FY2023, FY2026, FY2024, FY2025."""
+    import openpyxl as _o
+    blaetter = _o.load_workbook(datei(GUV), read_only=True).sheetnames
+    assert blaetter != sorted(blaetter), "Testdatei sollte unsortiert sein"
+    led, _ = lies_myob(datei(DATEI), datei(GUV))
+    assert led.perioden == PERIODEN
+
+
+def test_abschluss_wird_gelesen_und_nicht_getippt(res):
+    """Die Abstimmzahlen stammen aus den PDF, nicht aus einer Konstante."""
+    a = res["abschluss"]
+    from datetime import date
+    assert a.wert("bilanz", date(2025, 3, 31), "NET ASSETS") == 5_466_698
+    assert a.wert("guv", date(2024, 3, 31),
+                  "Profit (Loss) for the year") == 619_069
+    assert a.wert("guv", date(2026, 3, 31),
+                  "Profit (Loss) for the year") == -3_024_663
+
+
+def test_ueberleitung_weist_die_differenz_aus(res):
+    """Die Abschlüsse sind konsolidiert, die Saldenliste ist eine Division.
+    Die Differenz gehört ausgewiesen, nicht wegdefiniert."""
+    zeilen = {u.position: u for u in res["ueberleitung"]}
+    assert set(zeilen) == {"Net assets", "Revenue", "Result for the period"}
+    ergebnis = zeilen["Result for the period"]
+    assert ergebnis.differenz("FY2024") == pytest.approx(-29_298, abs=1)
+    assert ergebnis.differenz("FY2025") == pytest.approx(22_985, abs=1)
 
 
 def test_erste_periode_ist_anfangsbestand_keine_bewegung(res):

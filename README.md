@@ -27,8 +27,9 @@ fdd/
               hausconvention.py  Loader + Normalisierung + Pfad-Wörterbuch
   readers/    base.py            Reader-Interface + dt. Zahl-Parser + Fingerprint
               datev_susa.py      rohe DATEV-SuSa (Eckart) — Spaltenversatz-robust
-              myob_susa.py       MYOB-Saldenliste (Luma) — Kontogruppen-Crosswalk,
-                                 Schlussbestand statt Bewegung, GJ zum 31.03.
+              myob_susa.py       MYOB-Saldenliste und -GuV (Luma) — Kontogruppen-
+                                 Crosswalk, Schlussbestand statt Bewegung, GJ 31.03.
+              bt_abschluss_pdf.py  Abschlusszahlen als Abstimmziel (Luma)
               sap_bw.py          SAP-BW HGB-Export (BK4756) — FS-Hierarchie-Crosswalk
               pdf_kontennachweis.py  PDF-Kontennachweis (Huchtemeier) — best-effort
               namur_databook.py  Namur-Databook (Regressions-Referenz)

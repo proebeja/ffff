@@ -79,7 +79,8 @@ ARBEITSBLAETTER = ("Mastersheet", "Review-Queue", "Zuordnung", "QA",
                    "Status je Spalte", "Verhaltensprüfung",
                    # dieselben Blätter in englischer Berichtssprache
                    "Review queue", "Mapping", "Status by column",
-                   "Behaviour check", "Assumptions", "Open items")
+                   "Behaviour check", "Assumptions", "Open items",
+                   "Nullkonten", "Nil accounts", "Reconciliation")
 
 
 def vergleiche_format(vorlage_pfad: str, ausgabe_pfad: str,

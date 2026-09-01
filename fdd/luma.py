@@ -1,33 +1,40 @@
-"""Projekt Luma — Databook aus einer jährlichen MYOB-Saldenliste, Option A.
+"""Projekt Luma — Databook aus MYOB-Exporten, Option A.
 
-Die Datenlage ist die dünnste bisher, und das bestimmt, was das Databook
-leisten kann:
+Vier Quellen: die Saldenliste je Geschäftsjahr, die GuV je Geschäftsjahr, die
+ungeprüften Abschlüsse dreier Jahre und der Entwurf für FY2026. Was daraus
+folgt:
 
-* **Nur eine Quelle.** Es gibt keinen Jahresabschluss, keinen Kontennachweis
-  und keinen Prüfbericht. Damit gibt es auch nichts abzustimmen: die
-  Saldenliste ist Werte- und Strukturquelle zugleich, und die Bilanz ist
-  **nicht abschlusstreu**. Sie ist aus der Systemgliederung des Exports
-  **abgeleitet**, und die Zuordnung jeder Kontogruppe steht im Reader.
+* **Zwei Exporte, ein Mastersheet.** Bilanz und GuV kommen aus getrennten
+  Dateien mit gleichem Aufbau. Zusammengeführt wird über die Kontonummer, die
+  Perioden werden nach Stichtag sortiert — die Tabs des GuV-Exports stehen als
+  FY2023, FY2026, FY2024, FY2025.
 
-* **Keine GuV.** Der Export führt nur die Klassen 10 bis 50. Das
-  Periodenergebnis steht als ein Betrag auf ``3-90000 Current Earnings``.
-  Der Lead PL bleibt deshalb leer — und zwar sichtbar: die Check-Zeile des
-  Lead PL weist das Ergebnis laut Quelle gegen eine leere GuV aus.
+* **Das Ergebniskonto fällt heraus.** ``3-90000 Current Earnings`` ist die GuV
+  in einer Zahl. Mit der GuV daneben stünde das Ergebnis zweimal in der
+  Mappe, und die Summe aller Konten ginge nicht mehr auf null.
+
+* **Die GuV folgt der Kostenartengliederung der Vorlage**, weil die Quelle so
+  gebaut ist. Abschreibungen, Zinsen und Raumkosten werden dabei kontoweise
+  aus der Sammelgruppe ``Administration`` gehoben; ohne das wäre das EBITDA um
+  die Abschreibungen falsch.
+
+* **Der Abschluss ist Abstimmziel, nicht Strukturquelle.** Er ist
+  konsolidiert, die Saldenliste ist eine Division. Die Überleitung weist die
+  Differenz je Periode aus, statt sie wegzudefinieren.
 
 * **Geschäftsjahr zum 31. März**, FY2023 als Rumpfjahr über neun Monate. Die
   Zeitachse der Vorlage wird aus den Stichtagen des Exports gesetzt, nicht
   aus den Tabellennamen.
 
 Gebaut wird nach **Option A**: die Lead-Tabs ziehen ihre Positionssummen per
-``SUMIFS`` direkt aus dem Mastersheet, die Kontoslots ebenso. Für ein Mandat
-ohne Normalisierungen und ohne Aufrisse ist das die kurze Kette — jede Zelle
-ist in einem Klick nachvollziehbar.
+``SUMIFS`` direkt aus dem Mastersheet, die Kontoslots ebenso.
 """
 
 from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+from typing import Optional
 
 from .core.hausconvention import Hausconvention
 from .core.model import Klasse
@@ -38,6 +45,7 @@ from .engine.spalten_status import SpaltenStatus, StatusMatrix
 from .engine.v28 import (loese_saldenvortraege, pruefe_verhalten,
                          setze_vorlaeufige_pfade, wende_seitenwechsel_an)
 from .export import vorlage
+from .readers.bt_abschluss_pdf import Abschlusszahlen, lies_abschluesse
 from .readers.myob_susa import lies_myob
 from .views.leads import baue_lead_na, baue_lead_pl
 from .views.net_debt import baue_net_debt
@@ -59,11 +67,16 @@ SPRACHE = "en"
 _STATUS_ABGELEITET = ("derived from the system hierarchy — not tied to "
                       "audited financial statements")
 _STATUS_KEINE_GUV = "no P&L in the source — classes 10 to 50 are balance sheet only"
+_STATUS_GUV = ("derived from the system hierarchy — reconciled against the "
+               "consolidated financial statements, see Reconciliation")
 
 
 @dataclass
 class Quellen:
     saldenliste: str
+    guv: Optional[str] = None
+    abschluss_geprueft: Optional[str] = None
+    abschluss_entwurf: Optional[str] = None
 
 
 def run(quellen: Quellen, ausgabe: str, verbose: bool = True) -> dict:
@@ -72,11 +85,18 @@ def run(quellen: Quellen, ausgabe: str, verbose: bool = True) -> dict:
         hc = Hausconvention.laden()
         d["detail"] = f"Hausconvention v{hc.version}, Architektur Option A"
 
-    with lp.phase("Einlesen Saldenliste (MYOB)") as d:
-        ledger, diag = lies_myob(quellen.saldenliste, entity="Projekt Luma")
+    with lp.phase("Einlesen Saldenliste und GuV (MYOB)") as d:
+        ledger, diag = lies_myob(quellen.saldenliste, quellen.guv,
+                                 entity="Projekt Luma")
         d["detail"] = (f"{len(ledger.perioden)} Perioden, "
                        f"{len(ledger.accounts)} Konten, "
                        f"{sum(diag.kontozeilen.values())} Zeilen")
+
+    with lp.phase("Einlesen Abschlüsse (PDF)") as d:
+        abschluss = (lies_abschluesse(quellen.abschluss_geprueft,
+                                      quellen.abschluss_entwurf)
+                     if quellen.abschluss_geprueft else Abschlusszahlen())
+        d["detail"] = f"{len(abschluss.stichtage)} Stichtage"
 
     with lp.phase("Mapping (Kaskade)") as d:
         mapped = Engine(hc).map_ledger(ledger)
@@ -92,7 +112,7 @@ def run(quellen: Quellen, ausgabe: str, verbose: bool = True) -> dict:
         d["detail"] = (f"{len(seitenwechsel)} Seitenwechsel, {len(ungeloest)} "
                        f"vorläufige Pfade, {len(verhalten)} Verhaltensbefunde")
 
-    status = _status(diag)
+    status = _status(diag, diag.hat_guv)
 
     with lp.phase("Views") as d:
         nd = baue_net_debt(mapped, ledger.perioden, ledger.entity)
@@ -102,12 +122,15 @@ def run(quellen: Quellen, ausgabe: str, verbose: bool = True) -> dict:
         review = baue_review_queue(mapped, ledger.perioden, SPRACHE)
         d["detail"] = f"{len(lead_na.bloecke)} NA-Blöcke, {len(review)} Review"
 
+    ergebnis = _periodenergebnis(mapped, ledger.perioden)
+    ueberleitung = _ueberleitung(mapped, ledger.perioden, diag, abschluss,
+                                 ergebnis)
+
     with lp.phase("QA-Diagnose") as d:
-        qa = _qa(mapped, ledger, diag, status, ungeloest)
+        qa = _qa(mapped, ledger, diag, status, ungeloest, ueberleitung)
         d["detail"] = (f"{len(qa.pruefungen)} Prüfungen, "
                        f"{len(qa.durchgefallen)} nicht bestanden")
 
-    ergebnis = _periodenergebnis(mapped, ledger.perioden)
     achse = vorlage.Zeitachse([
         vorlage.Periode(p, diag.stichtage[p], "jahr") for p in ledger.perioden])
 
@@ -122,8 +145,14 @@ def run(quellen: Quellen, ausgabe: str, verbose: bool = True) -> dict:
                 quelle_en="Annual trial balance per financial year "
                           "(MYOB export)"),
             achse=achse, periodenergebnis=ergebnis,
-            ergebnis_lt_quelle=ergebnis, review=review,
-            zusatzblaetter=_zusatzblaetter(qa, status, verhalten, diag))
+            # Zeile 264 der Vorlage heißt "Jahresergebnis lt. Quelldatei".
+            # Quelldatei ist hier der Abschluss, nicht die Saldenliste — die
+            # Check-Zeile darunter wird damit zur Überleitung.
+            ergebnis_lt_quelle=_ergebnis_lt_abschluss(diag, abschluss,
+                                                      ledger.perioden),
+            review=review,
+            zusatzblaetter=_zusatzblaetter(qa, status, verhalten, diag,
+                                           ueberleitung, ledger.perioden))
         d["detail"] = (f"{os.path.basename(ausgabe)}, {befuellt.zellen} Zellen, "
                        f"{len(befuellt.zeilen)} Mastersheet-Zeilen")
     lp.zaehle_arbeitsmappe(ausgabe)
@@ -131,28 +160,48 @@ def run(quellen: Quellen, ausgabe: str, verbose: bool = True) -> dict:
     kontrollen = _kontrollen(mapped, ledger.perioden, befuellt, ergebnis)
     if verbose:
         _zusammenfassung(meta, ledger, diag, status, ausgabe, lp, befuellt,
-                         kontrollen, review)
+                         kontrollen, review, ueberleitung)
     return {"laufprotokoll": lp, "ledger": ledger, "diagnose": diag,
             "mapped": mapped, "qa": qa, "status": status, "nd": nd, "wc": wc,
             "lead_na": lead_na, "lead_pl": lead_pl, "review": review,
             "verhalten": verhalten, "meta": meta, "befuellt": befuellt,
             "kontrollen": kontrollen, "ergebnis": ergebnis,
+            "abschluss": abschluss, "ueberleitung": ueberleitung,
             "seitenwechsel": seitenwechsel, "ungeloest": ungeloest,
             "saldenvortrag": saldenvortrag}
 
 
 def _periodenergebnis(mapped, perioden) -> dict[str, float]:
-    """Das Ergebnis der Periode, wie die Quelle es ausweist.
+    """Das Ergebnis der Periode aus den GuV-Konten.
 
-    ``3-90000 Current Earnings`` trägt den Saldo des laufenden Jahres und wird
-    zum Jahreswechsel geleert. Sein Saldo ist damit unmittelbar das
-    Periodenergebnis — mit umgekehrtem Vorzeichen, weil ein Gewinn im
-    Eigenkapital im Haben steht und das Nettovermögen erhöht.
+    Vorzeichen: die Saldenliste führt Erträge im Haben, also negativ. Ein
+    Gewinn ist damit eine negative Summe und erhöht das Nettovermögen — das
+    Ergebnis ist die Summe mit umgekehrtem Vorzeichen.
+
+    Fehlt die GuV, tritt das Eigenkapitalkonto ``Current Earnings`` an ihre
+    Stelle; es trägt dasselbe Ergebnis in einer Zahl.
     """
+    guv = [m for m in mapped if m.klasse is Klasse.PL]
+    if guv:
+        return {p: round(-sum(m.saldo(p) for m in guv), 2) for p in perioden}
     konto = next((m for m in mapped if m.konto == ERGEBNISKONTO), None)
     if konto is None:
         return {}
     return {p: round(-konto.saldo(p), 2) for p in perioden}
+
+
+def _ergebnis_lt_abschluss(diag, abschluss, perioden) -> dict[str, float]:
+    """Periodenergebnis laut Abschluss, für die Gegenprobe im Lead PL."""
+    if not abschluss.stichtage:
+        return {}
+    werte = {}
+    for p in perioden:
+        tag = diag.stichtage.get(p)
+        wert = abschluss.wert("guv", tag, "Profit (Loss) for the year") if tag \
+            else None
+        if wert is not None:
+            werte[p] = wert
+    return werte
 
 
 def _nachgewiesene_seiten(mapped, ledger) -> dict[str, dict[str, str]]:
@@ -176,7 +225,7 @@ def _schwelle(mapped, perioden, hc) -> float:
     return max(summen or [0.0]) * prozent
 
 
-def _status(diag) -> StatusMatrix:
+def _status(diag, hat_guv: bool = False) -> StatusMatrix:
     """Jede Spalte ist abgeleitet, keine ist abschlusstreu.
 
     Es liegt kein Abschluss vor, gegen den sich das Databook überleiten
@@ -187,7 +236,8 @@ def _status(diag) -> StatusMatrix:
     for p in diag.perioden:
         monate = diag.monate.get(p)
         spalten.append(SpaltenStatus(
-            periode=p, bilanz=_STATUS_ABGELEITET, guv=_STATUS_KEINE_GUV,
+            periode=p, bilanz=_STATUS_ABGELEITET,
+            guv=_STATUS_GUV if hat_guv else _STATUS_KEINE_GUV,
             quelle=f"MYOB trial balance, closing balances as at "
                    f"{diag.stichtage[p].strftime('%d %b %Y')}",
             hinweis=(f"Short year of {monate} months."
@@ -195,7 +245,7 @@ def _status(diag) -> StatusMatrix:
     return StatusMatrix(spalten=spalten)
 
 
-def _qa(mapped, ledger, diag, status, ungeloest) -> QAReport:
+def _qa(mapped, ledger, diag, status, ungeloest, ueberleitung=None) -> QAReport:
     """QA für eine Quelle ohne Abschluss. Was gegenstandslos ist, wird als
     gegenstandslos ausgewiesen und nicht stillschweigend weggelassen.
 
@@ -272,12 +322,20 @@ def _qa(mapped, ledger, diag, status, ungeloest) -> QAReport:
           "carried as equity.")
 
     r.add("C1", "Structure source coverage per period and statement", False, FLAG,
+          "Balance sheet and P&L are both DERIVED from the system hierarchy of "
+          "the export. They are reconciled against the financial statements, "
+          "but not tied to them: the statements are consolidated, the trial "
+          "balance is one division." if diag.hat_guv else
           "The balance sheet is DERIVED from the system hierarchy, not tied "
           "to audited financial statements. There is no data for the P&L.",
           [f"{s.periode}: balance sheet {s.bilanz} · P&L {s.guv}"
            for s in status.spalten])
 
-    r.add("C2", "Reconciliation at account level", True, FLAG,
+    r.add("C2", "Reconciliation at account level", not ueberleitung, FLAG,
+          "Not possible at account level: the financial statements report "
+          "consolidated totals per line item, not accounts. The bridge is "
+          "drawn at line-item level on the Reconciliation sheet — net assets, "
+          "revenue and the result for the period." if ueberleitung else
           "Not applicable: there is no second source of values. Without "
           "financial statements there is nothing to reconcile against.")
 
@@ -306,15 +364,31 @@ def _qa(mapped, ledger, diag, status, ungeloest) -> QAReport:
     r.annahmen.append(
         "Cost centres are summed per account. The mastersheet carries an "
         "account exactly once; the cost centre would be a second key.")
-    r.annahmen.append(
-        f"The result for the period comes from account {ERGEBNISKONTO} "
-        "'Current Earnings'. No P&L is available.")
+    if diag.hat_guv:
+        r.annahmen.append(
+            f"Account {ERGEBNISKONTO} 'Current Earnings' is left out of the "
+            "mastersheet: it is the P&L in a single figure, and with the P&L "
+            "loaded the result would be counted twice.")
+        r.annahmen.append(
+            "The P&L follows the cost-type layout of the template, because "
+            "that is how the source is structured. Depreciation, interest and "
+            "occupancy costs are lifted out of the collective group "
+            "'Administration' account by account — otherwise EBITDA would be "
+            "wrong by the depreciation.")
+    else:
+        r.annahmen.append(
+            f"The result for the period comes from account {ERGEBNISKONTO} "
+            "'Current Earnings'. No P&L is available.")
+    for konto, grund in diag.eliminiert.items():
+        r.offene_befunde.append(f"Not carried into the mastersheet: {konto} — "
+                                f"{grund}")
     for k, b, grund in diag.ohne_pfad:
         r.offene_befunde.append(f"Account {k} ({b}): {grund}")
     return r
 
 
-def _zusatzblaetter(qa, status, verhalten, diag) -> dict:
+def _zusatzblaetter(qa, status, verhalten, diag, ueberleitung=None,
+                    perioden=None) -> dict:
     """Arbeitsblätter des Laufs, beschriftet in der Berichtssprache."""
     blaetter = {
         "QA": (["Check", "Title", "Passed", "Severity", "Finding", "Details"],
@@ -328,6 +402,18 @@ def _zusatzblaetter(qa, status, verhalten, diag) -> dict:
              for s in status.spalten]),
         "Assumptions": (["Assumption"], [[a] for a in qa.annahmen]),
     }
+    if ueberleitung and perioden:
+        kopf = ["Position", "Statement", "Source"]
+        for p in perioden:
+            kopf += [f"{p} databook", f"{p} accounts", f"{p} difference"]
+        zeilen = []
+        for u in ueberleitung:
+            z = [u.position, u.rechenwerk, "consolidated financial statements"]
+            for p in perioden:
+                z += [round(u.databook.get(p, 0.0), 2),
+                      round(u.abschluss.get(p, 0.0), 2), u.differenz(p)]
+            zeilen.append(z)
+        blaetter["Reconciliation"] = (kopf, zeilen)
     if qa.offene_befunde:
         blaetter["Open items"] = (["Open item"],
                                   [[b] for b in qa.offene_befunde])
@@ -337,6 +423,56 @@ def _zusatzblaetter(qa, status, verhalten, diag) -> dict:
             [[v.konto, v.bezeichnung, v.klasse, v.kriterium,
               "yes" if v.wesentlich else "no", v.hinweis] for v in verhalten])
     return blaetter
+
+
+@dataclass
+class Ueberleitungszeile:
+    """Eine Position im Abgleich Databook gegen Abschluss."""
+
+    position: str
+    rechenwerk: str                 # "balance sheet" | "P&L"
+    databook: dict[str, float]
+    abschluss: dict[str, float]
+
+    def differenz(self, periode: str) -> float:
+        return round(self.databook.get(periode, 0.0)
+                     - self.abschluss.get(periode, 0.0), 2)
+
+
+def _ueberleitung(mapped, perioden, diag, abschluss, ergebnis
+                  ) -> list[Ueberleitungszeile]:
+    """Databook gegen Abschluss, je Periode.
+
+    Die Abschlüsse sind **konsolidiert** ("and its controlled entities"), die
+    Saldenliste ist eine Division. Eine Differenz ist deshalb zu erwarten und
+    wird ausgewiesen, nicht wegdefiniert. Die Überleitung ist damit keine
+    Kontrolle, die auf null gehen muss, sondern die Aussage, wie weit das
+    Databook vom Abschluss entfernt ist und in welche Richtung.
+    """
+    if not abschluss.stichtage:
+        return []
+
+    def summe(klassen, p):
+        return sum(m.saldo(p) for m in mapped if m.klasse in klassen)
+
+    netto = {p: round(summe((Klasse.FA, Klasse.TWC, Klasse.OWC, Klasse.ND,
+                             Klasse.DT), p), 2) for p in perioden}
+    umsatz = {p: round(-sum(m.saldo(p) for m in mapped
+                            if m.na_de == "Umsatzerloese"), 2)
+              for p in perioden}
+
+    def aus_abschluss(werk, position):
+        return {p: abschluss.wert(werk, diag.stichtage[p], position) or 0.0
+                for p in perioden if p in diag.stichtage}
+
+    return [
+        Ueberleitungszeile("Net assets", "balance sheet", netto,
+                           aus_abschluss("bilanz", "NET ASSETS")),
+        Ueberleitungszeile("Revenue", "P&L", umsatz,
+                           aus_abschluss("guv", "Sales")),
+        Ueberleitungszeile("Result for the period", "P&L", ergebnis,
+                           aus_abschluss("guv", "Profit (Loss) for the year")),
+    ]
 
 
 @dataclass
@@ -378,8 +514,12 @@ def _kontrollen(mapped, perioden, befuellt, ergebnis) -> list[Kontrolle]:
     kontrollen = [
         Kontrolle("Balance sheet identity (sum of all accounts = 0)",
                   {p: round(sum(m.saldo(p) for m in mapped), 2) for p in perioden}),
-        Kontrolle("Lead NA: net assets + equity = 0",
-                  {p: round(netto[p] + eigen[p], 2) for p in perioden}),
+        # Das Periodenergebnis gehört in die Identität, sobald die GuV
+        # geladen ist: es steht dann auf den GuV-Konten und nicht mehr im
+        # Eigenkapital.
+        Kontrolle("Lead NA: net assets + equity + result = 0",
+                  {p: round(netto[p] + eigen[p] - ergebnis.get(p, 0.0), 2)
+                   for p in perioden}),
         Kontrolle("Accounts with no line item in the lead", fehlbetrag),
         Kontrolle("Equity roll forward incl. residual = net assets", rf),
         Kontrolle("Unexplained movement in equity (residual)",
@@ -425,7 +565,7 @@ def _meta(quellen, ledger, mapped, diag, status, review, hc) -> dict:
 
 
 def _zusammenfassung(meta, ledger, diag, status, ausgabe, lp, befuellt,
-                     kontrollen, review) -> None:
+                     kontrollen, review, ueberleitung=None) -> None:
     """Laufbericht auf der Konsole, in der Berichtssprache des Mandats."""
     print("=" * 78)
     for k, v in meta.items():
@@ -441,6 +581,15 @@ def _zusammenfassung(meta, ledger, diag, status, ausgabe, lp, befuellt,
         print(f"  {'ok ' if k.ok else '!! '}{k.name}")
         print("      " + "  ".join(f"{p}: {v:,.2f}"
                                    for p, v in k.je_periode.items()))
+    if ueberleitung:
+        print("-" * 78)
+        print("  Reconciliation against the consolidated financial statements")
+        for u in ueberleitung:
+            print(f"    {u.position} ({u.rechenwerk})")
+            for p in ledger.perioden:
+                print(f"      {p:8s} databook {u.databook.get(p, 0.0):>14,.0f}"
+                      f"   accounts {u.abschluss.get(p, 0.0):>14,.0f}"
+                      f"   difference {u.differenz(p):>13,.0f}")
     for z in befuellt.ohne_zeile:
         print(f"  [finding] No line item in the lead: {z.ziel_na} "
               f"({z.klasse}), {z.konten} accounts — {z.grund}")
