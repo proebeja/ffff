@@ -31,7 +31,7 @@ from .engine.qa import FLAG, ABBRUCH, QAReport, _r2
 from .engine.spalten_status import ABSCHLUSSTREU, SpaltenStatus, StatusMatrix
 from .engine.v28 import (loese_saldenvortraege, pruefe_verhalten,
                          setze_vorlaeufige_pfade, wende_seitenwechsel_an)
-from .export import excel
+from .export import vorlage
 from .readers.datev_ja_hds_pdf import lies_brehna_jahre
 from .views.leads import baue_lead_na, baue_lead_pl
 from .views.net_debt import baue_net_debt
@@ -95,21 +95,146 @@ def run(quellen: Quellen, ausgabe: str, verbose: bool = True) -> dict:
                        f"{len(qa.durchgefallen)} nicht bestanden")
 
     meta = _meta(quellen, ledger, mapped, abschluesse, status, review, schedules, hc, qa)
-    with lp.phase("Excel-Ausgabe") as d:
-        excel.schreibe_databook(
-            ausgabe, mapped, nd, review, ledger.perioden, ledger.entity, meta=meta,
-            wc=wc, schedules=schedules, lead_na=lead_na, lead_pl=lead_pl,
-            status=status, qa=qa, verhalten=verhalten)
-        d["detail"] = os.path.basename(ausgabe)
+    with lp.phase("Vorlage befüllen (Dealtool)") as d:
+        befuellt = vorlage.schreibe_dealtool(
+            ausgabe, mapped=mapped, perioden=ledger.perioden,
+            mandat=vorlage.Mandat(
+                projekt=ledger.entity,
+                quelle_de="Jahresabschlüsse 2023–2026 inkl. Kontennachweis",
+                quelle_en="Annual accounts 2023–2026 incl. account schedules"),
+            ergebnis_lt_quelle=_ergebnis_lt_quelle(abschluesse),
+            review=review,
+            zusatzblaetter=_zusatzblaetter(qa, status, verhalten))
+        d["detail"] = (f"{os.path.basename(ausgabe)}, {befuellt.zellen} Zellen, "
+                       f"{len(befuellt.zeilen)} Mastersheet-Zeilen")
     lp.zaehle_arbeitsmappe(ausgabe)
 
+    kontrollen = _kontrollen(mapped, ledger.perioden, befuellt, abschluesse)
     if verbose:
-        _zusammenfassung(meta, ledger, abschluesse, status, ausgabe, lp)
+        _zusammenfassung(meta, ledger, abschluesse, status, ausgabe, lp,
+                         befuellt, kontrollen)
     return {"laufprotokoll": lp, "ledger": ledger, "mapped": mapped, "qa": qa,
             "abschluesse": abschluesse, "status": status, "nd": nd, "wc": wc,
             "lead_na": lead_na, "lead_pl": lead_pl, "schedules": schedules,
             "review": review, "verhalten": verhalten, "meta": meta,
-            "seitenwechsel": seitenwechsel, "ungeloest": ungeloest}
+            "seitenwechsel": seitenwechsel, "ungeloest": ungeloest,
+            "befuellt": befuellt, "kontrollen": kontrollen}
+
+
+def _ergebnis_lt_quelle(abschluesse) -> dict[str, float]:
+    """Jahresergebnis, wie der Abschluss selbst es ausweist.
+
+    Der GuV-Nachweis führt unter der GuV auch den Gewinn-/Verlustvortrag mit,
+    weil er zum Bilanzgewinn überleitet. Für das **Perioden**ergebnis muss der
+    Vortrag heraus, sonst ist der Wert kumuliert — bei Brehna stünde ab FY2024
+    in jeder Spalte dieselbe Zahl.
+
+    Das Vorzeichen bleibt, wie der Abschluss es druckt: Erträge positiv,
+    Aufwendungen negativ. Genau so rechnet auch die Vorlage.
+    """
+    from .readers.datev_ja_hds_pdf import POSITIONEN
+
+    out: dict[str, float] = {}
+    for a in abschluesse:
+        out[a.periode] = round(sum(
+            z.betrag for z in a.zeilen if z.sektion == "GUV"
+            and POSITIONEN.get(z.pos, ("", "guv"))[1] == "guv"), 2)
+    return out
+
+
+def _zusatzblaetter(qa: QAReport, status: StatusMatrix, verhalten) -> dict:
+    """QA, Status und Verhaltensprüfung als schlichte Arbeitsblätter.
+
+    Sie sind vom Formatgrundsatz ausgenommen (``excel_format.geltung``) und
+    werden deshalb nicht gestaltet, sondern nur geschrieben.
+    """
+    blaetter = {
+        "QA": (["Prüfung", "Titel", "Bestanden", "Schwere", "Befund", "Details"],
+               [[p.id, p.titel, "ja" if p.bestanden else "NEIN", p.schwere,
+                 p.befund, " | ".join(p.details)] for p in qa.pruefungen]),
+        "Status je Spalte": (
+            ["Periode", "Bilanz", "GuV", "Quelle", "Hinweis"],
+            [[s.periode, s.bilanz, s.guv, s.quelle, s.hinweis]
+             for s in status.spalten]),
+    }
+    if verhalten:
+        blaetter["Verhaltensprüfung"] = (
+            ["Konto", "Bezeichnung", "Klasse", "Kriterium", "wesentlich",
+             "Hinweis"],
+            [[v.konto, v.bezeichnung, v.klasse, v.kriterium,
+              "ja" if v.wesentlich else "nein", v.hinweis] for v in verhalten])
+    return blaetter
+
+
+@dataclass
+class Kontrolle:
+    """Eine Kontrollzeile, im Datenmodell gerechnet — nicht aus Excel gelesen.
+
+    Der Zweck ist die Gegenprobe: wenn Modell und Arbeitsmappe dasselbe sagen,
+    ist die Befüllung angekommen; sagen sie Verschiedenes, liegt der Fehler im
+    Weg dorthin und nicht in den Zahlen.
+    """
+
+    name: str
+    je_periode: dict[str, float]
+    toleranz: float = 1.0
+
+    @property
+    def ok(self) -> bool:
+        return all(abs(v) <= self.toleranz for v in self.je_periode.values())
+
+
+def _kontrollen(mapped, perioden, befuellt, abschluesse) -> list[Kontrolle]:
+    from .core.model import Klasse
+
+    def summe(klassen, p):
+        return sum(m.saldo(p) for m in mapped if m.klasse in klassen)
+
+    netto = {p: summe((Klasse.FA, Klasse.TWC, Klasse.OWC, Klasse.ND, Klasse.DT), p)
+             for p in perioden}
+    eigen = {p: summe((Klasse.EQ,), p) for p in perioden}
+    ergebnis = _ergebnis_lt_quelle(abschluesse)
+
+    # Equity Roll Forward: Anfangsbestand + Bewegungen + Ergebnis = Endbestand.
+    rf: dict[str, float] = {}
+    vorher = 0.0
+    for p in perioden:
+        bewegung = sum(w.get(p, 0.0) for w in befuellt.roll_forward.bewegungen.values())
+        rf[p] = round(vorher + bewegung + ergebnis.get(p, 0.0) - netto[p], 2)
+        vorher = netto[p]
+
+    kontrollen = [
+        Kontrolle("Bilanzidentität (Summe aller Konten = 0)",
+                  {p: round(sum(m.saldo(p) for m in mapped), 2) for p in perioden}),
+        # Das Periodenergebnis gehört in diese Identität hinein: der Abschluss
+        # weist den Bilanzverlust als Position ohne eigenes Konto aus, das
+        # Ergebnis steht also noch auf den GuV-Konten und nicht im
+        # Eigenkapital. Ohne den Summanden ginge die Zeile Jahr für Jahr genau
+        # um das Periodenergebnis daneben.
+        Kontrolle("Lead NA: Nettovermögen + Eigenkapital + Periodenergebnis = 0",
+                  {p: round(netto[p] + eigen[p] + summe((Klasse.PL,), p), 2)
+                   for p in perioden}),
+        Kontrolle("Lead NA Check: Equity Roll Forward = Nettovermögen", rf),
+        Kontrolle("Lead PL Check: Ergebnis lt. Quelle = Summe der GuV-Positionen",
+                  {p: round(ergebnis.get(p, 0.0)
+                            + summe((Klasse.PL,), p), 2) for p in perioden}),
+    ]
+
+    # Je Position: stimmt die Summe der befüllten Kontoslots mit der Position
+    # überein? Rechnerisch kann sie nur abweichen, wenn Slots fehlen — genau
+    # das ist der Befund.
+    fehlt = {(b.position, b.klasse): b for b in befuellt.slotbefunde}
+    ohne_detail = {p: 0.0 for p in perioden}
+    for z in befuellt.zeilen:
+        b = fehlt.get((z.na_zeile, z.klasse))
+        if b is None:
+            continue
+        for p in perioden:
+            ohne_detail[p] += abs(z.werte.get(p, 0.0))
+    kontrollen.append(Kontrolle(
+        "Positionen ohne vollständige Kontoslots (Betrag ohne Detail)",
+        {p: round(v, 2) for p, v in ohne_detail.items()}, toleranz=0.0))
+    return kontrollen
 
 
 def _nachgewiesene_seiten(abschluesse) -> dict[str, dict[str, str]]:
@@ -287,7 +412,8 @@ def _meta(quellen, ledger, mapped, abschluesse, status, review, schedules, hc, q
     }
 
 
-def _zusammenfassung(meta, ledger, abschluesse, status, ausgabe, lp) -> None:
+def _zusammenfassung(meta, ledger, abschluesse, status, ausgabe, lp,
+                     befuellt=None, kontrollen=None) -> None:
     print("=" * 78)
     for k, v in meta.items():
         print(f"  {k:38} {v}")
@@ -300,8 +426,20 @@ def _zusammenfassung(meta, ledger, abschluesse, status, ausgabe, lp) -> None:
         print("-" * 78)
         for w in ledger.warnungen[:8]:
             print(f"  [warn] {w}")
+    if kontrollen:
+        print("-" * 78)
+        for k in kontrollen:
+            zeichen = "ok " if k.ok else "!! "
+            werte = "  ".join(f"{p}: {v:,.2f}" for p, v in k.je_periode.items())
+            print(f"  {zeichen}{k.name}")
+            print(f"      {werte}")
+    if befuellt and befuellt.slotbefunde:
+        print("-" * 78)
+        for b in befuellt.slotbefunde:
+            print(f"  [Befund] {b.art}: {b.position} ({b.klasse}), Zeile "
+                  f"{b.zeile} — {b.konten} Konten, {b.slots} Slots")
     print("-" * 78)
     print("\n".join("  " + z for z in lp.als_text()))
     print("-" * 78)
-    print(f"  Databook geschrieben: {ausgabe}")
+    print(f"  Dealtool geschrieben: {ausgabe}")
     print("=" * 78)

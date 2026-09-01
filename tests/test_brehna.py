@@ -130,10 +130,10 @@ def test_kein_konto_ausserhalb_der_bilanz(res):
         assert not m.hgb_pfad.startswith("("), m.konto
 
 
-# ---- Databook -------------------------------------------------------------
-@pytest.mark.parametrize("tab", ["Mastersheet", "Lead NA", "Net Debt",
-                                 "Working Capital", "Lead PL", "QA",
-                                 "Status je Spalte", "Review-Queue"])
+# ---- Ausgabe (Dealtool-Vorlage) -------------------------------------------
+@pytest.mark.parametrize("tab", ["Cockpit", "Mastersheet", "Lead NA", "Lead PL",
+                                 "QA", "Status je Spalte", "Review-Queue",
+                                 "Zuordnung"])
 def test_tab_vorhanden(wb, tab):
     assert tab in wb.sheetnames
 
@@ -141,6 +141,18 @@ def test_tab_vorhanden(wb, tab):
 def test_kein_benchmark_tab(wb):
     """Es gibt keine fremde Klassifizierung, also auch nichts zu vergleichen."""
     assert "Benchmark" not in wb.sheetnames
+
+
+def test_alle_kontrollen_gehen_auf(res):
+    """Bilanzidentität, Net-Asset-Brücke, Roll Forward und GuV-Gegenprobe.
+
+    Ausgenommen ist nur die Kontrolle über die Kontoslots: die Vorlage hält
+    für die drei über Dummy-Zeilen angelegten Net-Debt-Positionen keine Slots
+    vor. Das ist ein Befund an der Vorlage, kein Rechenfehler.
+    """
+    offen = [k.name for k in res["kontrollen"]
+             if not k.ok and "Kontoslots" not in k.name]
+    assert offen == []
 
 
 def test_qa_weist_gegenstandslose_pruefungen_aus(res):
