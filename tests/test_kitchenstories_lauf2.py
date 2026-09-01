@@ -48,18 +48,8 @@ def wb(tmp_path_factory):
 
 
 # ---- Hausconvention v2.8 --------------------------------------------------
-def test_v28_regeln_ueberleben_den_versionssprung():
-    """Nicht die Versionsnummer ist die Zusage, sondern der Regelbestand.
-
-    v3.0 stellt die Ausgabe auf die Dealtool-Vorlage um und lässt die Regeln
-    unangetastet. Diese Prüfung hält genau das fest: ein Versionssprung darf
-    die Blöcke aus v2.8 nicht stillschweigend verlieren.
-    """
-    hc = Hausconvention.laden()
-    assert tuple(int(t) for t in hc.version.split(".")) >= (2, 8)
-    for block in ("seitenwechsel", "lead_na_eigenkapital",
-                  "regelgruppe_zahlungsverkehr", "_aenderungen_v2_8"):
-        assert block in hc._d, block
+def test_hausconvention_ist_v28():
+    assert Hausconvention.laden().version == "2.8"
 
 
 def test_zahlungsverkehr_regeln_greifen_in_allen_gemischten_positionen():

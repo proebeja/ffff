@@ -266,21 +266,6 @@ def _klasse_aus_pfad(pfad: str, hc) -> Optional[Klasse]:
     return None
 
 
-def _vorlaeufige_seite(pfad: str, klasse: Klasse) -> Optional[str]:
-    """OA/OL auch für die vorläufig gesetzte Klasse ableiten.
-
-    ``oa_ol_ableitung`` verlangt die Seite deterministisch aus der Bilanzseite
-    des Pfads. Sie hier zu vergessen, fällt lange nicht auf: die Klasse stimmt,
-    der Lead im alten Hausformat gruppiert nach Klasse, und erst die
-    Dealtool-Vorlage fragt nach ``OA``/``OL`` als Ticker. Im Luma-Lauf standen
-    dadurch 34 Konten im Mastersheet, ohne in einer Position des Lead NA zu
-    landen.
-    """
-    if klasse not in (Klasse.TWC, Klasse.OWC):
-        return None
-    return "OA" if pfad.startswith("/Aktiva") else "OL"
-
-
 def setze_vorlaeufige_pfade(mapped: list[MappedAccount], perioden: list[str],
                             hc=None
                             ) -> tuple[list[MappedAccount], list[UngeloestesKonto]]:
@@ -307,8 +292,6 @@ def setze_vorlaeufige_pfade(mapped: list[MappedAccount], perioden: list[str],
             vorlaeufig = _klasse_aus_pfad(m.hgb_pfad, hc)
             if vorlaeufig is not None:
                 neu.append(replace(m, klasse=vorlaeufig, review=True,
-                                   seite=_vorlaeufige_seite(m.hgb_pfad,
-                                                            vorlaeufig),
                                    begruendung=(m.begruendung + " QA A6: "
                                                 f"vorläufig als {vorlaeufig.value} "
                                                 "in der Position geführt, Klärung "

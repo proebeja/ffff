@@ -53,21 +53,7 @@ FRAGEN: list[str] = [
     "1 % für Net-Debt-Positionen).",
     "4. Deal-Kontext: Stichtag, Konsolidierungskreis, Locked Box oder "
     "Completion Accounts?",
-    # v2.9: Architekturwahl und Berichtssprache.
-    "5. Zwei oder drei Schichten? Vorgabe ist Option B (Aufriss-Tabs je "
-    "Position). Option A zieht die Lead-Tabs direkt aus dem Mastersheet.",
-    "6. Berichtssprache deutsch oder englisch? Beide Fassungen bleiben in der "
-    "Datei; die Wahl blendet den jeweils anderen Kopfblock und die andere "
-    "Bezeichnungsspalte aus.",
 ]
-
-#: Die Antworten auf Projektname, Währung, Quellenangaben, Perioden, Sprache
-#: und Architektur werden in ``fdd.export.vorlage.Mandat`` gebündelt und
-#: ausschließlich ins Cockpit geschrieben. Kein Tab hält sie ein zweites Mal.
-COCKPIT_FELDER = ("C4 Projektname", "C5 Währung", "C7/C8 Quellenangaben",
-                  "C17 Ende der ersten historischen Periode",
-                  "C18 Anzahl historischer Perioden",
-                  "C21/C22 CYT-Daten", "C19/C23–C25/C27 Labels")
 
 
 def setup(kontennachweis_datei: Optional[str], konten_gesamt: int = 0,

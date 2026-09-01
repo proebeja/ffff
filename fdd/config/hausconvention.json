@@ -1,5 +1,5 @@
 {
-  "version": "3.0",
+  "version": "2.8",
   "stand": "2026-08-14",
   "name": "Hausconvention FDD-Mapping",
   "geltungsbereich": "SKR03 und SKR04 (DATEV). Fuer non-DATEV-ERP sinngemaess uebertragbar.",
@@ -1971,9 +1971,7 @@
         "typ": "parameter",
         "folge": "Basis fuer die Verhaltenspruefung (Wiederkehr ueber Perioden) und die WC-Referenzbildung."
       }
-    ],
-    "databook_architektur": "Zwei Schichten direkt aus dem Mastersheet (A) oder drei Schichten mit Aufriss-Tabs (B)? Vorgabe B.",
-    "berichtssprache": "Deutsch oder Englisch? Steuert Beschriftungen, IST gegen Act und die NA-Zeilen-Spalte des Mastersheets."
+    ]
   },
   "_aenderungen_v2_4": [
     "KORREKTUR 1 (Kategorienamen): Regeln, deren Stichwort nur eine KATEGORIE benennt (Personalkosten, sonstige Forderungen CPD/OP), setzen jetzt nur einen Default + Pflichtfrage Aufriss statt einer verbindlichen Klasse. Neues Prinzip 'inhalt_vs_kategorie'.",
@@ -2156,114 +2154,5 @@
     "Neue Regelgruppe 'regelgruppe_zahlungsverkehr': Zahlungsdienstleister, Kreditkarten, Gesellschafter- und GF-Konten. Drei Ermessensfaelle bewusst NICHT kodiert.",
     "QA B4 korrigiert (nur mit Eroeffnungsbilanz pruefbar, sonst Ersatzpruefung), B5 Saldenvortragspraesenz ergaenzt.",
     "QA-Tab als eigener Tab verpflichtend, Rundungsregel fuer Differenzspalten ergaenzt."
-  ],
-  "databook_architektur": {
-    "_zweck": "Legt fest, ueber wie viele Schichten ein Databook gebaut wird. Wird im Setup-Dialog je Mandat gewaehlt.",
-    "_default": "option_b",
-    "option_a": {
-      "name": "Zwei Schichten, direkt aus dem Mastersheet",
-      "aufbau": "Mastersheet -> Lead-Tabs. Keine Aufriss-Tabs.",
-      "positionssumme": "SUMIFS im Lead-Tab gegen das Mastersheet, Kriterien NA-Zeile und Klasse ueber die Ticker-Spalten.",
-      "geeignet_fuer": "kleine Mandate, wenige Konten, keine Normalisierungen, schnelle Zwischenstaende",
-      "vorteil": "kurze Kette, jede Zelle in einem Klick nachvollziehbar",
-      "grenze": "kein Ort fuer Analysen, Normalisierungen und Kommentare je Position"
-    },
-    "option_b": {
-      "name": "Drei Schichten, Aufriss-Tabs je Position",
-      "aufbau": "Mastersheet -> Aufriss-Tabs (NA_OA, NA_OL, NA_TWC, NA_Net Debt, NA_Ford LuL, NA_Verb LuL, NA_Vorraete, NA_Sachanlagen, NA_CAPEX) -> Lead-Tabs.",
-      "positionssumme": "Der Lead-Tab zieht die Positionssumme per Formelverweis aus dem zugehoerigen Aufriss-Tab.",
-      "kontodetails": "Die eingeklappten Kontozeilen im Lead-Tab ziehen weiterhin per SUMIFS aus dem MASTERSHEET, nicht aus dem Aufriss. Sonst muesste jeder Aufriss seine Kontozeilen in fester Zeilenlage vorhalten und die Verweise braechen bei jeder Aenderung.",
-      "kontrollzeile": "Pflicht: je Position wird geprueft, ob Aufrisssumme und Summe der Kontozeilen uebereinstimmen. Das ist eine echte Kontrolle ueber zwei unabhaengige Wege, keine Doppelung.",
-      "geeignet_fuer": "Regelfall. Mandate mit OA/OL-Systematik, Normalisierungen, Kommentaren und Bericht",
-      "single_source_of_truth": "Das Mastersheet bleibt in beiden Optionen die einzige Datenquelle. Aufrisse rechnen, sie erfassen nicht."
-    },
-    "setup_frage": "Zwei oder drei Schichten? Vorgabe ist Option B."
-  },
-  "lead_tab_konvention": {
-    "_geltung": "Lead NA und Lead P&L, in beiden Architektur-Optionen.",
-    "reihenfolge": "Die Positionszeile steht OBEN, die Kontoslots eingeklappt DARUNTER. Technisch summaryBelow = False.",
-    "_warum": "Die Zusammensetzung einer Position muss ohne Wechsel ins Mastersheet sichtbar sein.",
-    "kontozeilen": [
-      "Beschriftung immer aus der Kontobezeichnung des Mastersheets, nie frei getippt.",
-      "Einzug 2, outlineLevel 1, beim Oeffnen eingeklappt.",
-      "Werte per SUMIFS ueber die Kontonummer gegen das Mastersheet, in beiden Optionen."
-    ],
-    "ticker": [
-      "Ticker 1 traegt die NA-Zeile bei Positionen und die Kontonummer bei Kontoslots.",
-      "Ticker 2 traegt die Klasse (FA, TWC, OA, OL, ND, DT, PL) bei Positionen und Account bei Kontoslots.",
-      "Ticker werden aus dem Mastersheet uebernommen, nie getippt. Eine abweichende Schreibweise liefert stumm null."
-    ],
-    "vollstaendigkeit": "Je Position muss die Summe der eingeklappten Kontozeilen der Positionszeile entsprechen. Abweichung ist ein Befund, kein Rundungsthema.",
-    "darstellung": "Kontozeilen in grauer Schrift und mit Einzug 2, Positionszeilen in der normalen Schriftfarbe. Die Farbe trennt Ueber- von Unterkonto."
-  },
-  "excel_format": {
-    "_grundsatz": "Ein Databook entsteht als KOPIE der Vorlagedatei. Formate werden nie konstruiert. Theme-Farben, Zeilenhoehen und Gliederungsebenen lassen sich aus einer Beschreibung nicht rekonstruieren.",
-    "vorlagedatei": "Dealtool_Template_v4.xlsx (38 Tabs, Baker Tilly Hausvorlage). Ersetzt die frueher genutzte databook_formatvorlage_v01.xlsx.",
-    "technik": [
-      "shutil.copy der Vorlage, dann befuellen. Niemals openpyxl.Workbook() fuer ein Databook.",
-      "Stile per cell._style = copy.copy(quelle._style). Das funktioniert nur INNERHALB einer Arbeitsmappe.",
-      "Recalc mit --force, weil die Vorlage einen Rest an Fremdverknuepfungen tragen kann. Nach dem Recalc nicht erneut mit openpyxl speichern."
-    ],
-    "geltung": "Alle Ausgabeblaetter. Mastersheet und Review-Queue sind Arbeitsblaetter und ausgenommen."
-  },
-  "_aenderungen_v2_9": [
-    "Neuer Block databook_architektur: Option A mit zwei Schichten direkt aus dem Mastersheet, Option B mit drei Schichten und Aufriss-Tabs. Vorgabe ist B.",
-    "In Option B zieht die Positionssumme aus dem Aufriss, die eingeklappten Kontozeilen weiterhin aus dem Mastersheet. Pflicht-Kontrollzeile stellt beide Wege gegeneinander.",
-    "Neuer Block lead_tab_konvention: Positionszeile oben, Konten eingeklappt darunter (summaryBelow = False). Kontobeschriftungen und Ticker stammen immer aus dem Mastersheet.",
-    "Neuer Block excel_format: Formate werden aus einer Vorlagedatei kopiert, nie konstruiert. Gilt fuer alle Ausgabeblaetter, nicht fuer Mastersheet und Review-Queue.",
-    "Setup-Dialog um Architekturwahl und Berichtssprache ergaenzt."
-  ],
-  "dealtool_vorlage": {
-    "_zweck": "Aufbau der Hausvorlage. Diese Mechanismen sind zu nutzen, nicht zu ersetzen.",
-    "cockpit": {
-      "rolle": "Steuertafel der gesamten Mappe. Projektname C4, Waehrung C5, Quellenangaben C7 und C8, Ende der ersten historischen Periode C17, Anzahl historischer Perioden C18, CYT-Daten C21 und C22, Labels IST C19, LTM C23, YTD C24, YTG C25, Plan C27.",
-      "zeitachsen": "Drei Stueck: GuV jaehrlich (Zeilen 32 bis 34), Bilanz jaehrlich (38 bis 40), monatlich (44 bis 46). Alle Kopfzeilen der uebrigen Tabs verweisen darauf.",
-      "regel": "Perioden und Beschriftungen werden NIE in einem Tab hartcodiert, sondern immer aus dem Cockpit gezogen."
-    },
-    "sprache": {
-      "mechanik": "Jeder Tab traegt zwei Kopfbloecke. Zeilen 4 und 5 deutsch, Zeilen 6 und 7 englisch auf Gliederungsebene 1. Spalte C traegt die deutsche, Spalte D die englische Bezeichnung.",
-      "regel": "Sprachwahl erfolgt durch Ein- und Ausblenden, NICHT durch Uebersetzen. Beide Fassungen bleiben in der Datei."
-    },
-    "dummy_zeilen": {
-      "mechanik": "In jedem Summenbereich stehen drei ausgeblendete Dummy-Zeilen auf Gliederungsebene 2.",
-      "regel": "Eine neue POSITION entsteht durch Umbenennen einer Dummy-Zeile. Keine Formel wird angefasst."
-    },
-    "kontoslots": {
-      "mechanik": "Unter jeder Positionszeile liegen acht eingeklappte Kontoslots auf Gliederungsebene 3, Zeilentyp KTO, graue Schrift, Einzug 2.",
-      "formel": "=IF(Ticker1=\"\",\"\",SUMIFS(Mastersheet!<Periodenspalte>,Mastersheet!$A:$A,Ticker1)/1000)",
-      "regel": "NIEMALS Zeilen in Lead NA oder Lead PL einfuegen. Die Vorlage haelt die Slots vor. Ein Einschub verschiebt Zeilennummern und bricht ueber 2.000 Verweise aus den uebrigen Tabs, die openpyxl nicht mitzieht.",
-      "wenn_slots_nicht_reichen": "Befund in die Review-Queue, nicht Zeilen einfuegen. Die Vorlage wird zentral erweitert, nicht je Mandat."
-    },
-    "summenlogik": {
-      "form": "=SUMIF($<Zeilentypspalte>$a:$<Zeilentypspalte>$b,\"<>KTO\",<Wertspalte>a:b)",
-      "grund": "Die Kontoslots liegen innerhalb der Summenbereiche. Ein einfaches SUM wuerde sie doppelt zaehlen.",
-      "regel": "Jede neue Summenzeile folgt dieser Form. Kein blankes SUM ueber einen Zeilenbereich, der Kontoslots enthalten kann."
-    },
-    "spalten": {
-      "Lead NA": "C deutsch, D englisch, E bis M neun Perioden, P Ticker 1, Q Ticker 2, R Zeilentyp",
-      "Lead PL": "C deutsch, D englisch, E bis N zehn Perioden, T Ticker 1, U Ticker 2, V Zeilentyp",
-      "hinweis": "Bilanz und GuV haben unterschiedlich viele Periodenspalten. Genau daraus entstand der Off-by-one im Equity Roll Forward. Bei jedem Verweis zwischen Lead NA und Lead PL die Spaltenzuordnung pruefen."
-    },
-    "zeilentypen": [
-      "POS Positionszeile",
-      "KTO Kontoslot",
-      "leer fuer Summen-, Dummy- und Textzeilen"
-    ],
-    "mastersheet": {
-      "spalten": "A Konto, B Bezeichnung, C Klasse, D NA-Zeile, E Review, F bis O die Perioden in EUR",
-      "abbildung": "Lead NA Spalte E entspricht Mastersheet F, Lead PL Spalte E entspricht ebenfalls Mastersheet F. Die Division durch 1000 steht in der Formel des Lead-Tabs, nicht im Zahlenformat."
-    },
-    "bekannte_altlasten": [
-      "112 #NAME? in NA_monthly und PL_monthly stammen von Add-in-Funktionen und rechnen in Excel normal.",
-      "3 #DIV/0! in PL_Top customer und 2 #VALUE! im Cockpit sind vorlagenseitig und nicht durch Befuellung verursacht.",
-      "NA_Cons Zeile 45 traegt einen offenen Punkt, der zerstoerte Verweis auf Lead NA ist neu zu setzen."
-    ]
-  },
-  "_aenderungen_v3_0": [
-    "Vorlagedatei ist jetzt Dealtool_Template_v4.xlsx, die Baker-Tilly-Hausvorlage mit 38 Tabs. databook_formatvorlage_v01.xlsx entfaellt.",
-    "Neuer Block dealtool_vorlage: Cockpit als Steuertafel, Sprache ueber Ein- und Ausblenden statt Uebersetzen, Dummy-Zeilen als Positions-Erweiterung, acht Kontoslots je Position, Summenlogik SUMIF(...,\"<>KTO\",...).",
-    "Harte Regel: keine Zeileneinschuebe in Lead NA und Lead PL. Ein Einschub bricht ueber 2.000 Verweise aus den uebrigen Tabs.",
-    "Pfad-Strings der Vorlage (/net debt/... usw.) durch unser Ticker-Paar aus NA-Zeile und Klasse ersetzt. Sonstige Aktiva und Passiva ueber OA und OL getrennt.",
-    "Kontozeilen grau und eingerueckt, Positionszeilen normal. Gliederungsebene 3 fuer Konten, Ebene 2 bleibt den Dummy-Positionen vorbehalten."
   ]
 }

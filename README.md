@@ -27,9 +27,6 @@ fdd/
               hausconvention.py  Loader + Normalisierung + Pfad-Wörterbuch
   readers/    base.py            Reader-Interface + dt. Zahl-Parser + Fingerprint
               datev_susa.py      rohe DATEV-SuSa (Eckart) — Spaltenversatz-robust
-              myob_susa.py       MYOB-Saldenliste und -GuV (Luma) — Kontogruppen-
-                                 Crosswalk, Schlussbestand statt Bewegung, GJ 31.03.
-              bt_abschluss_pdf.py  Abschlusszahlen als Abstimmziel (Luma)
               sap_bw.py          SAP-BW HGB-Export (BK4756) — FS-Hierarchie-Crosswalk
               pdf_kontennachweis.py  PDF-Kontennachweis (Huchtemeier) — best-effort
               namur_databook.py  Namur-Databook (Regressions-Referenz)
@@ -44,69 +41,9 @@ fdd/
               net_debt.py        Net-Debt-View (Klasse=ND, nach NA-Zeile gruppiert)
               working_capital.py Working-Capital-View (OA/OL × TWC/OWC, Ist je Periode)
               review_queue.py    ungelöste/geflaggte Konten (mit v2.3-Marker-Status)
-  export/     vorlage.py         befüllt die Dealtool-Vorlage (v3.0, siehe unten)
-              aufrisse.py        Option B: die Lead-Position zieht aus einem
-                                 Aufriss-Tab statt aus dem Mastersheet
-              vorlage_layout.py  liest den Aufbau eines Lead-Tabs aus der Vorlage
-              vorlage_zuordnung.py  unser Positionsvokabular -> das der Vorlage
-              pruefung.py        Formatvergleich gegen die Vorlage + Recalc
-              excel.py           altes Hausformat — nur noch für die Mandate,
-                                 die noch nicht auf die Vorlage umgestellt sind
-  vorlagen/   Dealtool_Template_v4_1.xlsx   die Hausvorlage (39 Tabs)
+  export/     excel.py           Hausformat, sichtbare SUMIFS-Formeln, Kontrollzeile
   cli.py                         end-to-end-Verdrahtung
 ```
-
-### Ausgabe: die Vorlage wird befüllt, nicht gebaut (v3.0)
-
-Ein Databook entsteht als `shutil.copy` der Hausvorlage; der Code schreibt nur
-Werte in vorhandene Zellen. Es gibt keinen Grund mehr, Font, Fill, Rahmen oder
-Spaltenbreite zu erzeugen — Theme-Farben und Zeilenhöhen lassen sich aus einer
-Beschreibung ohnehin nicht rekonstruieren.
-
-Drei Regeln bestimmen den Aufbau, und alle drei sind in `tests/test_vorlage.py`
-festgenagelt:
-
-- **Keine Zeileneinschübe in Lead NA oder Lead PL.** Über 2.000 Verweise aus
-  den übrigen Tabs zeigen auf feste Zeilennummern, und openpyxl zieht sie beim
-  Einfügen nicht mit. Eine neue Position entsteht durch Umbenennen einer
-  Dummy-Zeile; reichen die acht Kontoslots nicht, ist das ein Befund für die
-  Review-Queue.
-- **Ticker werden nie getippt.** Ticker 1 (NA-Zeile bzw. Kontonummer) und
-  Ticker 2 (Klasse) stammen aus dem Mastersheet. Eine abweichende Schreibweise
-  liefert stumm null, während die Kontozeile darunter einen Wert zeigt.
-- **Summen immer als `SUMIF(<Zeilentyp>;"<>KTO";…)`.** Die Kontoslots liegen
-  innerhalb der Summenbereiche; ein blankes `SUM` zählt sie doppelt.
-
-### Zwei oder drei Schichten (Option A / Option B)
-
-`Mandat.architektur` wählt zwischen beiden Formen der Hausconvention:
-
-- **Option A** (Vorgabewert): zwei Schichten. Jede Lead-Position zieht per
-  `SUMIFS` aus dem Mastersheet, die eingeklappten Kontoslots ebenso.
-- **Option B**: drei Schichten. Die Lead-Position zeigt auf die Summenzeile
-  eines Aufriss-Tabs, der Aufriss gliedert die Position und holt jede Zeile
-  per sichtbarer `SUMIFS` aus dem Mastersheet. Die Kontoslots bleiben am
-  Mastersheet — zwei unabhängige Wege auf dieselbe Zahl.
-
-Option B verlangt einen **Aufrissplan je Mandat** (`aufrisse=`): welches Konto
-in welche Aufrisszeile gehört, ist eine fachliche Entscheidung und steht
-deshalb im Runner. Ohne Plan bricht der Lauf ab, statt Positionen von null zu
-schreiben. Die Pflichtkontrolle — Aufriss gegen die Kontozeilen, je Position
-und Periode, plus die Konten, die keine Aufrisszeile gefunden haben — schreibt
-`vorlage.py` selbst auf das Blatt `Aufriss-Kontrolle` / `Schedule control`.
-
-Nicht jeder Aufriss der Vorlage kann eine Position tragen: `NA_TWC` und
-`NA_Net Debt` lesen die Leads und wären zirkulär, `NA_Ford LuL` und
-`NA_Verb LuL` gliedern nach Fälligkeit und brauchen eine offene-Posten-Liste.
-`NA_Vorräte` und `NA_Sachanlagen` gliedern nach Bestandteilen und lassen sich
-aus dem Kontenplan füllen — siehe `fdd/luma.py` und
-`protokoll/luma_run4_option_b.md`.
-
-Perioden und Beschriftungen stehen ausschließlich im Cockpit. Bilanz und GuV
-haben unterschiedlich viele Periodenspalten: in der Bilanz folgt auf die
-Jahre unmittelbar der CYT-Stichtag, in der GuV liegt davor noch die
-LTM-Spalte. `vorlage.Zeitachse` rechnet diese Zuordnung aus, statt sie
-abzuzählen — genau dort saß der Off-by-one im Equity Roll Forward.
 
 ### Tragende Prinzipien (aus der Architektur-Spec)
 
