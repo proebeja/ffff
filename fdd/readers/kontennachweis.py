@@ -153,6 +153,40 @@ class Kontennachweis:
         return out
 
 
+#: Eine "Bezeichnung", die nur aus Ziffern, Punkt, Komma und Minus besteht,
+#: ist keine. Sie entsteht, wenn das Druckbild eine Betragsspalte anschneidet.
+_NUR_ZAHL = re.compile(r"[\d.,\s-]+")
+
+#: GuV-Positionen, die ERTRAEGE tragen. Der Abschluss druckt jede Zeile als
+#: Betrag ohne Vorzeichen; das Databook fuehrt Soll positiv und Haben negativ.
+#: Auf der Passivseite genuegt dafuer die Sektion, in der GuV nicht: dort
+#: stehen Ertraege und Aufwendungen nebeneinander und beide positiv gedruckt.
+#: Wer die GuV pauschal dreht, macht aus dem Personalaufwand einen Ertrag.
+_GUV_ERTRAG = (
+    "/GuV/Umsatzerloese",
+    "/GuV/Bestandsveraenderungen Erzeugnisse",
+    "/GuV/Andere aktivierte Eigenleistungen",
+    "/GuV/Sonstige betriebliche Ertraege",
+    "/GuV/Ertraege aus Beteiligungen",
+    "/GuV/Sonstige Zinsen und aehnliche Ertraege",
+)
+
+
+def vorzeichenrichtig(betrag: float, hgb_pfad: str) -> float:
+    """Gedruckter Betrag -> Databook-Vorzeichen (Soll positiv, Haben negativ).
+
+    Der Jahresabschluss druckt Aktiva, Passiva und beide GuV-Seiten als
+    positive Betraege. Ohne diese Umrechnung stuende das Eigenkapital positiv
+    im Mastersheet, und jede Abstimmung gegen die Saldenliste zeigte die
+    doppelte Differenz in der falschen Richtung.
+    """
+    if hgb_pfad.startswith("/Passiva"):
+        return -betrag
+    if hgb_pfad.startswith(_GUV_ERTRAG):
+        return -betrag
+    return betrag
+
+
 def _match_ueberschrift(text: str, sektion: Optional[str]) -> Optional[str]:
     """Überschrift -> kanonischer HGB-Pfad.
 
@@ -247,6 +281,19 @@ class KontennachweisPdfReader:
                             konto = m.group("konto")
                             bez = re.sub(r"\s+", " ", m.group("bez")).strip()
                             betraege = _BETRAG_RE.findall(m.group("betraege"))
+                            if _NUR_ZAHL.fullmatch(bez):
+                                # Kein Konto, sondern eine Betragsspalte, die
+                                # das Druckbild links angeschnitten hat: die
+                                # "Kontonummer" ist eine Zahl aus der Spalte
+                                # daneben, die "Bezeichnung" der Betrag. So
+                                # entstanden fuenf Phantomkonten, die die
+                                # Bilanzidentitaet um 8.418,52 verschoben.
+                                warnungen.append(
+                                    f"Zeile '{konto} {bez}' ist keine "
+                                    "Kontozeile (Bezeichnung ist eine Zahl) — "
+                                    "uebersprungen.")
+                                puffer.clear()
+                                continue
                             if self._korrupt(bez):
                                 warnungen.append(
                                     f"Konto {konto}: Zeile unlesbar (Wasserzeichen) — übersprungen.")
@@ -259,12 +306,44 @@ class KontennachweisPdfReader:
                                 puffer.clear()
                                 continue
                             werte = [parse_deutsche_zahl(b) for b in betraege]
-                            salden = {perioden[0]: werte[0] if werte else 0.0}
+                            salden = {perioden[0]: vorzeichenrichtig(
+                                werte[0] if werte else 0.0, aktueller_pfad)}
                             if len(perioden) > 1:
-                                salden[perioden[1]] = werte[-1] if len(werte) > 1 else 0.0
-                            konten.setdefault(konto, KNKonto(
-                                konto=konto, bezeichnung=bez,
-                                hgb_pfad=aktueller_pfad, salden=salden))
+                                salden[perioden[1]] = vorzeichenrichtig(
+                                    werte[-1] if len(werte) > 1 else 0.0,
+                                    aktueller_pfad)
+                            vorhanden = konten.get(konto)
+                            if vorhanden is None:
+                                konten[konto] = KNKonto(
+                                    konto=konto, bezeichnung=bez,
+                                    hgb_pfad=aktueller_pfad, salden=salden)
+                            elif vorhanden.hgb_pfad != aktueller_pfad:
+                                # Dasselbe Konto auf beiden Bilanzseiten: der
+                                # Abschluss zeigt es brutto (Debitor mit
+                                # Habensaldo unter den sonstigen Vermoegens-
+                                # gegenstaenden, Kreditor unter den
+                                # Verbindlichkeiten), die Saldenliste fuehrt es
+                                # netto. Verworfen wird nichts: die Betraege
+                                # werden saldiert und der Position mit dem
+                                # groesseren Betrag zugeordnet.
+                                zusammen = {p: vorhanden.salden.get(p, 0.0)
+                                            + salden.get(p, 0.0)
+                                            for p in set(vorhanden.salden)
+                                            | set(salden)}
+                                fuehrend = max(
+                                    (vorhanden, KNKonto(konto, bez,
+                                                        aktueller_pfad, salden)),
+                                    key=lambda k: max(abs(v) for v
+                                                      in k.salden.values()))
+                                warnungen.append(
+                                    f"Konto {konto} steht im Kontennachweis auf "
+                                    f"zwei Positionen ({vorhanden.hgb_pfad} und "
+                                    f"{aktueller_pfad}). Die Betraege sind "
+                                    f"saldiert und der betragsmaessig "
+                                    f"fuehrenden Position zugeordnet.")
+                                konten[konto] = KNKonto(
+                                    konto=konto, bezeichnung=fuehrend.bezeichnung,
+                                    hgb_pfad=fuehrend.hgb_pfad, salden=zusammen)
                             puffer.clear()
                             continue
 
