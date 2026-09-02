@@ -1,5 +1,5 @@
 {
-  "version": "2.8",
+  "version": "2.9",
   "stand": "2026-08-14",
   "name": "Hausconvention FDD-Mapping",
   "geltungsbereich": "SKR03 und SKR04 (DATEV). Fuer non-DATEV-ERP sinngemaess uebertragbar.",
@@ -1971,7 +1971,9 @@
         "typ": "parameter",
         "folge": "Basis fuer die Verhaltenspruefung (Wiederkehr ueber Perioden) und die WC-Referenzbildung."
       }
-    ]
+    ],
+    "databook_architektur": "Zwei Schichten direkt aus dem Mastersheet (A) oder drei Schichten mit Aufriss-Tabs (B)? Vorgabe B.",
+    "berichtssprache": "Deutsch oder Englisch? Steuert Beschriftungen, IST gegen Act und die NA-Zeilen-Spalte des Mastersheets."
   },
   "_aenderungen_v2_4": [
     "KORREKTUR 1 (Kategorienamen): Regeln, deren Stichwort nur eine KATEGORIE benennt (Personalkosten, sonstige Forderungen CPD/OP), setzen jetzt nur einen Default + Pflichtfrage Aufriss statt einer verbindlichen Klasse. Neues Prinzip 'inhalt_vs_kategorie'.",
@@ -2154,5 +2156,69 @@
     "Neue Regelgruppe 'regelgruppe_zahlungsverkehr': Zahlungsdienstleister, Kreditkarten, Gesellschafter- und GF-Konten. Drei Ermessensfaelle bewusst NICHT kodiert.",
     "QA B4 korrigiert (nur mit Eroeffnungsbilanz pruefbar, sonst Ersatzpruefung), B5 Saldenvortragspraesenz ergaenzt.",
     "QA-Tab als eigener Tab verpflichtend, Rundungsregel fuer Differenzspalten ergaenzt."
+  ],
+  "databook_architektur": {
+    "_zweck": "Legt fest, ueber wie viele Schichten ein Databook gebaut wird. Wird im Setup-Dialog je Mandat gewaehlt.",
+    "_default": "option_b",
+    "option_a": {
+      "name": "Zwei Schichten, direkt aus dem Mastersheet",
+      "aufbau": "Mastersheet -> Lead-Tabs. Keine Aufriss-Tabs.",
+      "positionssumme": "SUMIFS im Lead-Tab gegen das Mastersheet, Kriterien NA-Zeile und Klasse ueber die Ticker-Spalten.",
+      "geeignet_fuer": "kleine Mandate, wenige Konten, keine Normalisierungen, schnelle Zwischenstaende",
+      "vorteil": "kurze Kette, jede Zelle in einem Klick nachvollziehbar",
+      "grenze": "kein Ort fuer Analysen, Normalisierungen und Kommentare je Position"
+    },
+    "option_b": {
+      "name": "Drei Schichten, Aufriss-Tabs je Position",
+      "aufbau": "Mastersheet -> Aufriss-Tabs (NA_OA, NA_OL, NA_TWC, NA_Net Debt, NA_Ford LuL, NA_Verb LuL, NA_Vorraete, NA_Sachanlagen, NA_CAPEX) -> Lead-Tabs.",
+      "positionssumme": "Der Lead-Tab zieht die Positionssumme per Formelverweis aus dem zugehoerigen Aufriss-Tab.",
+      "kontodetails": "Die eingeklappten Kontozeilen im Lead-Tab ziehen weiterhin per SUMIFS aus dem MASTERSHEET, nicht aus dem Aufriss. Sonst muesste jeder Aufriss seine Kontozeilen in fester Zeilenlage vorhalten und die Verweise braechen bei jeder Aenderung.",
+      "kontrollzeile": "Pflicht: je Position wird geprueft, ob Aufrisssumme und Summe der Kontozeilen uebereinstimmen. Das ist eine echte Kontrolle ueber zwei unabhaengige Wege, keine Doppelung.",
+      "geeignet_fuer": "Regelfall. Mandate mit OA/OL-Systematik, Normalisierungen, Kommentaren und Bericht",
+      "single_source_of_truth": "Das Mastersheet bleibt in beiden Optionen die einzige Datenquelle. Aufrisse rechnen, sie erfassen nicht."
+    },
+    "setup_frage": "Zwei oder drei Schichten? Vorgabe ist Option B."
+  },
+  "lead_tab_konvention": {
+    "_geltung": "Lead NA und Lead P&L, in beiden Architektur-Optionen.",
+    "reihenfolge": "Die Positionszeile steht OBEN, die zugehoerigen Einzelkonten stehen eingeklappt DARUNTER. Technisch summaryBelow = False, damit das Gliederungssymbol neben der Positionszeile sitzt.",
+    "_warum": "Die Zusammensetzung einer Position muss ohne Wechsel ins Mastersheet sichtbar sein.",
+    "kontozeilen": [
+      "Beschriftung immer aus der Kontobezeichnung des Mastersheets, nie frei getippt.",
+      "Einzug 2, outlineLevel 1, beim Oeffnen eingeklappt.",
+      "Werte per SUMIFS ueber die Kontonummer gegen das Mastersheet, in beiden Optionen."
+    ],
+    "ticker": [
+      "Ticker 1 traegt die NA-Zeile bzw. die Kontonummer, Ticker 2 die Klasse.",
+      "Ticker werden aus dem Mastersheet uebernommen, nie getippt. Eine abweichende Schreibweise liefert stumm null.",
+      "Stern bedeutet keine Einschraenkung."
+    ],
+    "vollstaendigkeit": "Je Position muss die Summe der eingeklappten Kontozeilen der Positionszeile entsprechen. Abweichung ist ein Befund, kein Rundungsthema."
+  },
+  "excel_format": {
+    "_grundsatz": "Formate werden aus der Vorlagedatei KOPIERT, nie konstruiert. Theme-Farben und Zeilenhoehen lassen sich nicht aus einer Beschreibung rekonstruieren.",
+    "vorlagedatei": "databook_formatvorlage_v01.xlsx, Blatt VORLAGE",
+    "technik": "Ein neues Databook entsteht als Kopie der Vorlagedatei. Stile per cell._style = copy.copy(vorlage._style). Kopieren funktioniert nur innerhalb einer Arbeitsmappe, nie ueber openpyxl.Workbook() neu anlegen.",
+    "zeilentypen": [
+      "KOPF_1",
+      "KOPF_2",
+      "ABSTAND",
+      "POSITION",
+      "DETAIL",
+      "SUMME",
+      "BLOCKSUMME",
+      "UEBERSCHRIFT",
+      "KONTROLLE",
+      "FUSSNOTE"
+    ],
+    "geltung": "Alle Ausgabeblaetter. Mastersheet und Review-Queue sind Arbeitsblaetter und ausgenommen.",
+    "verweis": "Details im Skill excel-hausformat."
+  },
+  "_aenderungen_v2_9": [
+    "Neuer Block databook_architektur: Option A mit zwei Schichten direkt aus dem Mastersheet, Option B mit drei Schichten und Aufriss-Tabs. Vorgabe ist B.",
+    "In Option B zieht die Positionssumme aus dem Aufriss, die eingeklappten Kontozeilen weiterhin aus dem Mastersheet. Pflicht-Kontrollzeile stellt beide Wege gegeneinander.",
+    "Neuer Block lead_tab_konvention: Positionszeile oben, Konten eingeklappt darunter (summaryBelow = False). Kontobeschriftungen und Ticker stammen immer aus dem Mastersheet.",
+    "Neuer Block excel_format: Formate werden aus einer Vorlagedatei kopiert, nie konstruiert. Gilt fuer alle Ausgabeblaetter, nicht fuer Mastersheet und Review-Queue.",
+    "Setup-Dialog um Architekturwahl und Berichtssprache ergaenzt."
   ]
 }

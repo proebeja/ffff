@@ -48,8 +48,15 @@ def wb(tmp_path_factory):
 
 
 # ---- Hausconvention v2.8 --------------------------------------------------
-def test_hausconvention_ist_v28():
-    assert Hausconvention.laden().version == "2.8"
+def test_hausconvention_ist_v29():
+    """Die geltende Konvention ist v2.9 (ROLLBACK.md).
+
+    Der Pin steht hier, damit ein stiller Wechsel der Konfigurationsdatei
+    auffaellt. Die v2.8-Mechaniken (Seitenwechsel je Periode, Saldenvortrag,
+    Verhaltenspruefung) gelten unveraendert weiter — v2.9 ergaenzt sie nur um
+    ``databook_architektur``, ``excel_format`` und ``lead_tab_konvention``.
+    """
+    assert Hausconvention.laden().version == "2.9"
 
 
 def test_zahlungsverkehr_regeln_greifen_in_allen_gemischten_positionen():
