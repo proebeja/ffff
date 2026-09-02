@@ -6,7 +6,7 @@ die Stellen, an die jemand gedacht hat. Der Referenzfall ist ein echter
 Kontenplan mit 198 Bilanz- und 237 GuV-Konten ueber vier Geschaeftsjahre und
 prueft das, woran niemand gedacht hat.
 
-Geprueft werden vier Dinge, die unabhaengig voneinander schieflaufen koennen:
+Geprueft werden sechs Dinge, die unabhaengig voneinander schieflaufen koennen:
 
 1. **Das Einlesen.** Der Export fuehrt zwei Wertespalten, und beide summieren
    je Periode auf null. Wer die Bewegungsspalte nimmt, baut ein Databook aus
@@ -29,6 +29,11 @@ Geprueft werden vier Dinge, die unabhaengig voneinander schieflaufen koennen:
    Keine Positionssumme im Lead darf aus dem Mastersheet ziehen, jede
    Kontozeile muss es, und je Block steht eine Pflicht-Kontrollzeile
    Aufrisssumme gegen Summe der Kontozeilen.
+6. **Rechenwerke und Recon.** Bilanz und GuV gliedern nach der
+   Bilanzposten-Spalte des Exports und NICHT nach unserer Klassifizierung —
+   eine Recon, die ueber dieselbe Zuordnung liefe, die sie pruefen soll,
+   pruefte nichts. Die Recon zeigt drei Bloecke nebeneinander, und sie hat
+   bewusst KEINE Summe ueber alle Zeilen.
 
 Die Sollwerte unter ``ERWARTET`` sind aus dem Referenzfall abgeleitet und
 danach festgeschrieben. Sie sind keine Wunschzahlen: die Bilanzsumme muss
@@ -71,7 +76,14 @@ SPALTEN = {
     "konto": "AccountNo",
     "bezeichnung": "GLDescription",
     "gruppe": "AccountGroupDesc",
+    #: Der BILANZPOSTEN: die Gliederungsebene, die der Export selbst fuehrt.
+    #: Aus ihr entstehen die Tabs Bilanz und GuV — unabhaengig von unserer
+    #: Klassifizierung, denn eine Recon gegen den Abschluss darf nicht ueber
+    #: dieselbe Zuordnung laufen, die sie pruefen soll.
     "klasse_quelle": "ClassDescription",
+    #: Die Sortierung der Posten. Die Zeilenreihenfolge des Blattes taugt
+    #: nicht: in der GuV steht 'Other Income' (90) an zweiter Stelle.
+    "postencode": "ClassCode",
     #: ``Year`` ist der SCHLUSSBESTAND. Der Kopf ist irrefuehrend.
     "saldo": "Year",
     #: ``PeriodMovementTYD`` ist die BEWEGUNG der Periode. Sie summiert
@@ -130,6 +142,9 @@ class Konto:
     bezeichnung: str
     gruppe: str
     seite: str
+    #: Bilanzposten des Exports und sein Sortierschluessel.
+    posten: str = ""
+    postencode: str = ""
     salden: dict[str, float] = field(default_factory=dict)
     bewegungen: dict[str, float] = field(default_factory=dict)
     #: Wie oft das Konto je Periode in der Liste steht (Kostenstellen).
@@ -182,10 +197,12 @@ def lies_export(pfad: str) -> Export:
                 continue
             k = konten.get(nummer)
             if k is None:
+                posten = str(reihe[idx["klasse_quelle"]] or "").strip()
                 k = konten[nummer] = Konto(
                     nummer, str(reihe[idx["bezeichnung"]] or "").strip(),
                     str(reihe[idx["gruppe"]] or "").strip(),
-                    SEITEN.get(str(reihe[idx["klasse_quelle"]] or "").strip(), ""))
+                    SEITEN.get(posten, ""), posten,
+                    str(reihe[idx["postencode"]] or "").strip())
             k.salden[periode] = k.saldo(periode) + _zahl(reihe[idx["saldo"]])
             k.bewegungen[periode] = (k.bewegungen.get(periode, 0.0)
                                      + _zahl(reihe[idx["bewegung"]]))
@@ -446,6 +463,142 @@ def _recalc_kriterium() -> Kriterium:
 #: Die Lead-Tabs der dritten Schicht.
 LEAD_TABS = ["Lead NA", "Lead PL"]
 
+#: Rechenwerke und Recon.
+RECHENWERK_TABS = ["Bilanz", "GuV", "Recon Bilanz", "Recon GuV"]
+
+
+def _pruefe_recon(wb, r: dict, bs, guv_konten) -> list[Kriterium]:
+    """Bilanz, GuV und die beiden Recon-Tabs.
+
+    Der wichtigste Punkt steht im ersten Kriterium: Bilanz und GuV gliedern
+    nach dem BILANZPOSTEN des Exports und nicht nach unserer Klassifizierung.
+    Liefe die Recon ueber dieselbe Zuordnung, die sie pruefen soll, pruefte
+    sie nichts.
+    """
+    import aufrisse as auf
+    from recon import EIGENKAPITALPOSTEN, _recon_spalten
+
+    k: list[Kriterium] = []
+    abschluss = r["abschluss"]
+
+    k.append(Kriterium(
+        "Bilanz, GuV und beide Recon-Tabs sind angelegt",
+        [b for b in wb.sheetnames if b in RECHENWERK_TABS] == RECHENWERK_TABS,
+        "Vier Blaetter in dieser Reihenfolge.",
+        [", ".join(b for b in wb.sheetnames if b in RECHENWERK_TABS)]))
+
+    # Die Posten muessen die des Exports sein, nicht unsere Kategorien.
+    posten_bilanz = [p for p, _ in r["bilanz"]["posten"]]
+    posten_guv = [p for p, _ in r["guv"]["posten"]]
+    ist_export = (posten_bilanz == sorted(
+        {x.posten for x in bs.konten.values()},
+        key=lambda p: next(x.postencode for x in bs.konten.values()
+                           if x.posten == p)))
+    k.append(Kriterium(
+        "Bilanz und GuV gliedern nach der Bilanzposten-Spalte",
+        ist_export and len(posten_guv) == 6,
+        f"Bilanz: {', '.join(posten_bilanz)}. GuV: {', '.join(posten_guv)}. "
+        "Sortiert nach ClassCode — die Zeilenreihenfolge des Blattes stellt "
+        "'Other Income' (90) an zweite Stelle.",
+        []))
+
+    fehlend = [no for no in list(bs.konten) + list(guv_konten)
+               if not _hat_kontozeile(wb, no)]
+    k.append(Kriterium(
+        "Jedes Konto beider Rechenwerke steht unter seinem Posten",
+        not fehlend,
+        f"{len(bs.konten)} Bilanz- und {len(guv_konten)} GuV-Konten. Das "
+        "Mastersheet traegt beide Rechenwerke; die GuV-Konten bleiben "
+        "unklassifiziert, damit ein Zinsaufwand nicht im Net Debt landet.",
+        fehlend[:10]))
+
+    k.append(Kriterium(
+        "abschluss.json ist gelesen und als Beispiel gekennzeichnet",
+        abschluss.vorhanden,
+        f"Mandant '{abschluss.mandant}', {len(abschluss.bilanz)} Bilanz- und "
+        f"{len(abschluss.guv)} GuV-Posten. "
+        + ("Die Datei traegt den Status BEISPIEL — ihre Zahlen sind keine "
+           "Abschlusszahlen." if abschluss.beispiel else
+           "Die Datei ist NICHT als Beispiel gekennzeichnet.")
+        if abschluss.vorhanden else "abschluss.json fehlt.",
+        [f"Quelle: {abschluss.quelle}"]))
+
+    k.append(Kriterium(
+        "Perioden der Abschlussdatei passen zur Saldenliste",
+        abschluss.perioden == bs.perioden,
+        f"abschluss.json: {', '.join(abschluss.perioden)} · Saldenliste: "
+        f"{', '.join(bs.perioden)}. Weichen sie ab, laeuft die Recon ins "
+        "Leere und zeigt lauter Differenzen in voller Hoehe."))
+
+    # Drei Bloecke nebeneinander: Kopfzeile und Spaltenlage.
+    ja, susa, dif = _recon_spalten(len(bs.perioden))
+    schlecht = []
+    for blatt in ("Recon Bilanz", "Recon GuV"):
+        ws = wb[blatt]
+        titel = [str(ws.cell(auf.Z_KOPF - 1, s[0]).value or "")
+                 for s in (ja, susa, dif)]
+        if titel != ["Jahresabschluss", "Saldenliste",
+                     "Differenz (Abschluss ./. Saldenliste)"]:
+            schlecht.append(f"{blatt}: {titel}")
+    k.append(Kriterium(
+        "Recon zeigt drei Bloecke nebeneinander",
+        not schlecht,
+        "Links Jahresabschluss, Mitte Saldenliste, rechts Differenz — je vier "
+        "Periodenspalten, dazwischen eine Leerspalte.",
+        schlecht))
+
+    # Das Kernkriterium dieses Punktes.
+    ueberfluessig = []
+    for blatt, w in (("Recon Bilanz", r["recon_bilanz"]),
+                     ("Recon GuV", r["recon_guv"])):
+        ws = wb[blatt]
+        summen = [r_ for r_ in range(1, ws.max_row + 1)
+                  if ws.cell(r_, auf.SP_TYP).value == "SUM"]
+        if summen:
+            ueberfluessig.append(f"{blatt}: Summenzeile in {summen}")
+    k.append(Kriterium(
+        "Keine Gesamtsumme ueber alle Zeilen der Recon",
+        not ueberfluessig,
+        "Sie mischte Aktiva, Passiva und Eigenkapital und waere "
+        "bedeutungslos; in der Saldenliste ist sie zudem konstruktionsbedingt "
+        "null und taeuschte Uebereinstimmung vor. Die einzige Gesamtgroesse "
+        "ist die Differenz im Nettovermoegen.",
+        ueberfluessig))
+
+    netto_ja = sum(v.get(bs.perioden[-1], 0.0)
+                   for p, v in abschluss.bilanz.items()
+                   if p != EIGENKAPITALPOSTEN)
+    netto_susa = sum(x.saldo(bs.perioden[-1]) for x in bs.konten.values()
+                     if x.posten != EIGENKAPITALPOSTEN)
+    k.append(Kriterium(
+        "Die Recon weist die Differenz im Nettovermoegen aus",
+        r["recon_bilanz"]["gesamtzeile"] is not None,
+        f"{bs.perioden[-1]}: Abschluss {netto_ja:,.2f} ./. Saldenliste "
+        f"{netto_susa:,.2f} = {netto_ja - netto_susa:,.2f}. Das Eigenkapital "
+        "zaehlt nicht hinein — es ist die Gegenprobe, nicht ein Bestandteil.",
+        []))
+
+    nur_a = r["recon_bilanz"]["nur_abschluss"] + r["recon_guv"]["nur_abschluss"]
+    nur_s = r["recon_bilanz"]["nur_susa"] + r["recon_guv"]["nur_susa"]
+    k.append(Kriterium(
+        "Posten, die nur eine Seite kennt, sind markiert",
+        True,
+        f"{len(nur_a)} nur im Abschluss, {len(nur_s)} nur in der "
+        "Saldenliste. Beides ist ein Befund und wird gelb gezeigt, nicht "
+        "weggelassen.",
+        [f"nur im Abschluss: {p}" for p in nur_a]
+        + [f"nur in der Saldenliste: {p}" for p in nur_s]))
+    return k
+
+
+def _hat_kontozeile(wb, konto: str) -> bool:
+    for blatt in ("Bilanz", "GuV"):
+        ws = wb[blatt]
+        for r in range(1, ws.max_row + 1):
+            if ws.cell(r, 1).value == "KTO" and ws.cell(r, 2).value == konto:
+                return True
+    return False
+
 
 def _pruefe_leads(wb, leads: list[dict], befunde: dict, bs,
                   ergebnisse) -> list[Kriterium]:
@@ -704,6 +857,9 @@ def pruefe_aufrisse(bs, ergebnisse, spec: str, ordner: str, net_debt: dict,
 
     # -- 5 Die Lead-Schicht -----------------------------------------------
     k += _pruefe_leads(wb, ergebnis["leads"], befunde, bs, ergebnisse)
+
+    # -- 6 Rechenwerke und Recon ------------------------------------------
+    k += _pruefe_recon(wb, ergebnis["rechenwerke"], bs, ergebnis["guv_konten"])
 
     if "--recalc" in sys.argv:
         k.append(_recalc_kriterium())

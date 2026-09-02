@@ -69,11 +69,18 @@ def lies_kontrollzeilen(pfad: str = MAPPE, werte: dict | None = None
             if ws.cell(r, 1).value != TYP:
                 continue
             w = [werte.get(f"{blatt.upper()}!{c}{r}") for c in spalten]
+            # Leere Zellen sind nicht "nicht null", sondern nicht belegt: die
+            # Recon-Tabs fuehren drei Bloecke nebeneinander, und eine
+            # Kontrollzeile gehoert immer nur zu einem davon. Geprueft wird,
+            # was dasteht — aber es muss etwas dastehen.
+            belegt = [x for x in w if x is not None]
             zeilen.append({
                 "blatt": blatt, "zeile": r,
                 "text": str(ws.cell(r, 3).value or ""),
-                "perioden": perioden, "werte": w,
-                "null": all(x is not None and abs(x) <= TOLERANZ for x in w)})
+                "perioden": [p for p, x in zip(perioden, w) if x is not None],
+                "werte": belegt,
+                "null": bool(belegt) and all(abs(x) <= TOLERANZ
+                                             for x in belegt)})
     return zeilen
 
 

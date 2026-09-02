@@ -1,0 +1,125 @@
+{
+  "_zweck": "Abschlusszahlen als zweite, unabhaengige Quelle fuer die Recon. Diese Datei wird von Hand gefuellt: jemand liest den Jahresabschluss und ordnet dessen Positionen den Bilanzposten des Databooks zu. In dieser Stufe gibt es bewusst keinen PDF-Parser — eine geratene Zuordnung waere schlimmer als eine getippte.",
+
+  "_status": "BEISPIEL. Die Werte hier sind KEINE Abschlusszahlen. Sie sind aus dem Referenzfall abgeleitet und an vier Stellen bewusst abweichend gesetzt, damit die Recon nicht nur Nullen zeigt und der Mechanismus sichtbar wird. Die Abweichungen sind unter '_beispielabweichungen' einzeln benannt. Vor dem ersten echten Einsatz ist die Datei vollstaendig zu ersetzen.",
+
+  "_felder": {
+    "mandant": "Freitext. Erscheint im Kopf der Recon-Tabs.",
+    "quelle": "Woher die Zahlen stammen: Datei, Datum, Seitenzahl, Pruefungsvermerk. Erscheint als Quellenangabe im Blatt. Ohne diese Angabe ist eine Recon nicht nachvollziehbar.",
+    "waehrung": "Waehrungscode, z.B. AUD. Muss zur Saldenliste passen.",
+    "perioden": "Liste der Periodenlabels. Sie MUESSEN den Labels der Saldenliste entsprechen (hier FY2023 bis FY2026), sonst laeuft die Recon ins Leere.",
+    "bilanz": "Objekt: Bilanzposten -> Objekt: Periode -> Betrag. Die Schluessel sind die Bilanzposten des Databooks (Spalte ClassDescription der Saldenliste). Ein Posten, den nur der Abschluss kennt, wird in der Recon mit leerer SuSa-Spalte gezeigt und markiert; ein Posten, den nur die Saldenliste kennt, umgekehrt. Beides ist ein Befund, kein Fehler des Laufs.",
+    "guv": "Ebenso fuer die Ergebnisrechnung (Income, Cost of Goods Sold, Manufacturing, Expenses, Other Income, Other Expenses).",
+    "nettovermoegen": "OPTIONAL. Das im Abschluss ausgewiesene NET ASSETS je Periode. Ist es angegeben, wird es gegen die Summe der Bilanzposten ohne Eigenkapital geprueft — zwei Wege auf dieselbe Zahl. Fehlt es, wird es abgeleitet.",
+    "jahresergebnis": "OPTIONAL. Das im Abschluss ausgewiesene Periodenergebnis, gegen die Summe der GuV-Posten geprueft. Vorzeichen wie unter '_vorzeichen'."
+  },
+
+  "_vorzeichen": "DIESELBE KONVENTION WIE DIE SALDENLISTE: Soll positiv, Haben negativ. Aktiva positiv, Passiva und Eigenkapital negativ. Ertraege negativ, Aufwendungen positiv — ein Gewinn ist damit eine negative Summe. Es wird nirgends gedreht. Eine Vorzeichenumkehr an einer Stelle und nicht an der anderen ist der haeufigste stille Fehler in einer Recon: die Differenz ist dann doppelt so gross wie der Sachverhalt und zeigt in die falsche Richtung.",
+
+  "_zuordnung": "Die Schluessel unter 'bilanz' und 'guv' sind die Posten des Databooks, nicht die Zeilenbeschriftungen des Abschlusses. Wer die Datei fuellt, nimmt die Zuordnung vor und haelt sie unter 'quelle' fest. Eine automatische Zuordnung waere geraten und wuerde die Recon wertlos machen.",
+
+  "_beispielabweichungen": [
+    "Non-Current Assets FY2026 +963.337: Geschaefts- oder Firmenwert, den ein konsolidierter Abschluss traegt und eine Saldenliste einer Division nicht.",
+    "Current Liabilities FY2025 -250.000: eine Rueckstellung, die nur im Abschluss erfasst ist.",
+    "Restricted investments FY2026 +50.000: eine Position, die es NUR im Abschluss gibt. Sie zeigt, wie die Recon damit umgeht.",
+    "Expenses FY2026 +120.000: ein Aufwand, den nur der Abschluss traegt. Er schlaegt auf das Jahresergebnis durch.",
+    "Das Eigenkapital ist so gesetzt, dass die Beispielbilanz aufgeht — ein Abschluss, der nicht ausgeglichen ist, waere kein Abschluss."
+  ],
+
+  "mandant": "Referenzfall",
+  "quelle": "BEISPIEL — hier gehoeren Datei, Datum und Seitenzahl des Jahresabschlusses hin",
+  "waehrung": "AUD",
+  "perioden": ["FY2023", "FY2024", "FY2025", "FY2026"],
+
+  "bilanz": {
+    "Current Assets": {
+      "FY2023": 7611912.42,
+      "FY2024": 8435128.69,
+      "FY2025": 7152890.39,
+      "FY2026": 4570167.43
+    },
+    "Non-Current Assets": {
+      "FY2023": 2647642.32,
+      "FY2024": 2697594.24,
+      "FY2025": 2663447.47,
+      "FY2026": 4048552.02
+    },
+    "Restricted investments": {
+      "FY2023": 0.0,
+      "FY2024": 0.0,
+      "FY2025": 0.0,
+      "FY2026": 50000.0
+    },
+    "Current Liabilities": {
+      "FY2023": -2967616.43,
+      "FY2024": -3855735.96,
+      "FY2025": -4683378.05,
+      "FY2026": -5548440.95
+    },
+    "Non-Current Liabilities": {
+      "FY2023": -185908.50,
+      "FY2024": -151477.41,
+      "FY2025": -134526.38,
+      "FY2026": -382954.08
+    },
+    "Equity": {
+      "FY2023": -7106029.81,
+      "FY2024": -7125509.56,
+      "FY2025": -4998433.43,
+      "FY2026": -2737324.42
+    }
+  },
+
+  "guv": {
+    "Income": {
+      "FY2023": -8073003.72,
+      "FY2024": -12271076.04,
+      "FY2025": -7214768.01,
+      "FY2026": -3937881.61
+    },
+    "Cost of Goods Sold": {
+      "FY2023": 2987114.13,
+      "FY2024": 4612098.88,
+      "FY2025": 3069321.13,
+      "FY2026": 1727065.72
+    },
+    "Manufacturing": {
+      "FY2023": 847911.87,
+      "FY2024": 370575.75,
+      "FY2025": 141790.65,
+      "FY2026": 112568.61
+    },
+    "Expenses": {
+      "FY2023": 4379558.11,
+      "FY2024": 6703842.22,
+      "FY2025": 7027079.05,
+      "FY2026": 5768891.56
+    },
+    "Other Income": {
+      "FY2023": 0.0,
+      "FY2024": 0.0,
+      "FY2025": -1040893.81,
+      "FY2026": -311028.50
+    },
+    "Other Expenses": {
+      "FY2023": 146242.78,
+      "FY2024": -5211.36,
+      "FY2025": -105452.91,
+      "FY2026": 284830.23
+    }
+  },
+
+  "nettovermoegen": {
+    "FY2023": 7106029.81,
+    "FY2024": 7125509.56,
+    "FY2025": 4998433.43,
+    "FY2026": 2737324.42
+  },
+
+  "jahresergebnis": {
+    "FY2023": 287823.17,
+    "FY2024": -589770.55,
+    "FY2025": 1877076.10,
+    "FY2026": 3644446.01
+  }
+}
