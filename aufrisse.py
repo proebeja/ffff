@@ -320,7 +320,7 @@ def schreibe_aufriss(wb: Workbook, a: Aufriss, konten, perioden, ergebnisse,
         return max((abs(konten[x].saldo(perioden[-1])) for x in nos), default=0.0)
 
     zeile = Z_ERSTE
-    positionszeilen: list[int] = []
+    positionszeilen: list[dict] = []
     geflaggt: list[str] = []
     erste_inhaltszeile = zeile
     for i, schluessel in enumerate(sorted(gruppen, key=lambda g:
@@ -329,7 +329,8 @@ def schreibe_aufriss(wb: Workbook, a: Aufriss, konten, perioden, ergebnisse,
                      key=lambda x: abs(konten[x].saldo(perioden[-1])),
                      reverse=True)
         pos_zeile = zeile
-        positionszeilen.append(pos_zeile)
+        positionszeilen.append({"zeile": pos_zeile, "schluessel": schluessel,
+                                "konten": nos})
         # Traegt die Position NUR den unselbstaendigen Korrekturposten, fehlt
         # ihr das Gegenstueck. Gelb, damit es niemand ueberliest.
         allein = bool(a.unselbstaendig) and all(
@@ -473,7 +474,9 @@ def schreibe_aufriss(wb: Workbook, a: Aufriss, konten, perioden, ergebnisse,
             "positionen": len(gruppen), "summenzeile": summenzeile,
             "kontrollzeile": kontrollzeile, "vermerkzeile": vermerkzeile,
             "leer": not auswahl, "geflaggt": geflaggt,
-            "kontrolle": a.kontrolle, "vermerk": a.vermerk}
+            "kontrolle": a.kontrolle, "vermerk": a.vermerk,
+            # Der Lead zieht seine Positionssummen aus genau diesen Zeilen.
+            "positionszeilen": positionszeilen}
 
 
 def baue(ordner: str, spec: str, ziel: str, projekt: str = "Referenzfall",
@@ -491,11 +494,21 @@ def baue(ordner: str, spec: str, ziel: str, projekt: str = "Referenzfall",
     befunde = [schreibe_aufriss(wb, a, bs.konten, bs.perioden, ergebnisse,
                                 ms_zeilen, projekt, waehrung)
                for a in aufrisse()]
+
+    # Die Lead-Schicht setzt auf den fertigen Aufrissen auf und braucht deren
+    # Zeilennummern. Der Import steht hier und nicht oben, weil leads.py
+    # umgekehrt das Layout dieses Moduls verwendet — zwei Module, ein Format,
+    # kein Ringschluss beim Laden.
+    from leads import schreibe_leads
+    leadbefunde = schreibe_leads(wb, {b["blatt"]: b for b in befunde},
+                                 bs.konten, bs.perioden, ergebnisse,
+                                 ms_zeilen, projekt, waehrung)
+
     os.makedirs(os.path.dirname(os.path.abspath(ziel)), exist_ok=True)
     wb.save(ziel)
     return {"pfad": ziel, "perioden": bs.perioden, "konten": bs.konten,
             "ergebnisse": ergebnisse, "befunde": befunde,
-            "ms_zeilen": ms_zeilen}
+            "leads": leadbefunde, "ms_zeilen": ms_zeilen}
 
 
 def main() -> int:
@@ -508,6 +521,11 @@ def main() -> int:
     for b in e["befunde"]:
         art = "LEER (Vermerk)" if b["leer"] else \
             f"{b['positionen']} Positionen, {len(b['konten'])} Konten"
+        print(f"  {b['blatt']:16}{art}")
+    for b in e["leads"]:
+        art = "LEER (Vermerk)" if b["leer"] else \
+            f"{len(b['bloecke'])} Blöcke, " \
+            f"{sum(1 for x in b['bloecke'] if x['ohne_aufriss'])} ohne Aufriss"
         print(f"  {b['blatt']:16}{art}")
     print(f"  geschrieben: {e['pfad']}")
     return 0

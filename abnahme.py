@@ -24,6 +24,11 @@ Geprueft werden vier Dinge, die unabhaengig voneinander schieflaufen koennen:
    hartkodierter Zahl, Summen als ``SUMIF(...;"<>KTO";...)``, jedes
    Working-Capital-Konto auf genau einem von NA_OA/NA_OL — und der Aufriss
    ohne Datengrundlage angelegt, leer und mit Vermerk.
+5. **Die Lead-Schicht.** Hier entscheidet sich, ob die Architektur
+   dreischichtig ist oder nur so aussieht: geprueft wird die FORM der Formel.
+   Keine Positionssumme im Lead darf aus dem Mastersheet ziehen, jede
+   Kontozeile muss es, und je Block steht eine Pflicht-Kontrollzeile
+   Aufrisssumme gegen Summe der Kontozeilen.
 
 Die Sollwerte unter ``ERWARTET`` sind aus dem Referenzfall abgeleitet und
 danach festgeschrieben. Sie sind keine Wunschzahlen: die Bilanzsumme muss
@@ -57,7 +62,6 @@ from dataclasses import dataclass, field
 from datetime import date
 
 import openpyxl
-from openpyxl.utils import get_column_letter
 
 from klassifizierung import Classifier
 
@@ -409,50 +413,157 @@ AUFRISS_TABS = ["NA_OA", "NA_OL", "NA_TWC", "NA_Net Debt", "NA_Vorräte",
 AUFRISS_MAPPE = os.path.join("out", "Referenzfall_Aufrisse.xlsx")
 
 
-def _recalc_kriterium(befunde: dict, perioden: list[str]) -> Kriterium:
+def _recalc_kriterium() -> Kriterium:
     """Rechnet die Mappe wirklich durch (``--recalc``).
 
     Die Kriterien oben ziehen dieselbe Rechnung in Python nach. Das faengt
-    einen Denkfehler, aber keinen Tippfehler in der Formel. Deshalb hier der
-    Formelrechner ueber die fertige Datei. Er laeuft nicht bei jedem Lauf,
-    weil er ein bis zwei Minuten braucht.
+    einen Denkfehler, aber keinen Tippfehler in der Formel — einen falschen
+    Bereich, einen verrutschten Verweis, einen Blattnamen mit Leerzeichen
+    ohne Anfuehrungszeichen. Deshalb hier der Formelrechner ueber die fertige
+    Datei. Er laeuft nicht bei jedem Lauf, weil er ein bis zwei Minuten
+    braucht.
 
     Gerechnet wird mit dem Paket ``formulas`` und nicht mit dem
     LibreOffice-Recalc des Hausformats: LibreOffice laeuft in dieser Umgebung
     in den Timeout. Fuer die Auslieferung bleibt der Hausweg massgeblich.
     """
-    import formulas
+    from kontrollen import lies_kontrollzeilen
 
-    modell = formulas.ExcelModel().loads(AUFRISS_MAPPE).finish()
-    loesung = modell.calculate()
-    werte: dict[tuple[str, str], object] = {}
-    for schluessel, zelle in loesung.items():
-        if "]" not in schluessel or "!" not in schluessel:
-            continue
-        blatt = schluessel.split("]", 1)[1].split("'!")[0]
-        try:
-            werte[(blatt, schluessel.split("!", 1)[1])] = zelle.value[0, 0]
-        except Exception:
-            continue
-
-    abweichungen, gerechnet = [], []
-    for blatt in AUFRISS_TABS:
-        b = befunde[blatt]
-        if b["leer"]:
-            continue
-        for i in range(len(perioden)):
-            spalte = get_column_letter(6 + i)
-            wert = werte.get((blatt.upper(), f"{spalte}{b['kontrollzeile']}"))
-            if wert is None or abs(float(wert)) > 0.005:
-                abweichungen.append(f"{blatt} {perioden[i]}: {wert}")
-        summe = werte.get((blatt.upper(), f"F{b['summenzeile']}"))
-        gerechnet.append(f"{blatt}: {perioden[0]} {float(summe):,.1f}")
+    zeilen = lies_kontrollzeilen(AUFRISS_MAPPE)
+    schlecht = [z for z in zeilen if not z["null"]]
     return Kriterium(
-        "Nachgerechnet: jede Kontrollzeile der Mappe steht auf null",
-        not abweichungen,
+        "Nachgerechnet: JEDE Kontrollzeile der Mappe steht auf null",
+        bool(zeilen) and not schlecht,
+        f"{len(zeilen) - len(schlecht)} von {len(zeilen)} Kontrollzeilen. "
         "Die Mappe wurde mit einem Formelrechner durchgerechnet; geprueft "
         "sind die Werte, die Excel anzeigen wuerde, nicht die Absicht.",
-        abweichungen[:10] or gerechnet)
+        [f"{z['blatt']}!Zeile {z['zeile']}: "
+         + ", ".join(f"{p} {w:,.4f}" for p, w in zip(z["perioden"], z["werte"])
+                     if w is not None)
+         for z in (schlecht or zeilen)])
+
+
+#: Die Lead-Tabs der dritten Schicht.
+LEAD_TABS = ["Lead NA", "Lead PL"]
+
+
+def _pruefe_leads(wb, leads: list[dict], befunde: dict, bs,
+                  ergebnisse) -> list[Kriterium]:
+    """Der Kern der dreischichtigen Architektur.
+
+    Die Positionssumme im Lead muss aus dem Aufriss kommen und die Kontozeile
+    aus dem Mastersheet. Zieht die Position ebenfalls aus dem Mastersheet,
+    beginnen beide Wege am selben Ort — der Aufriss waere Dekoration, und
+    eine Position, die er nicht fuehrt, fiele niemandem auf. Deshalb wird
+    hier nicht nur das Ergebnis geprueft, sondern die FORM der Formel.
+    """
+    import aufrisse as auf
+
+    k: list[Kriterium] = []
+    na = next(x for x in leads if x["blatt"] == "Lead NA")
+
+    k.append(Kriterium(
+        "Lead-Tabs sind angelegt",
+        [b for b in wb.sheetnames if b.startswith("Lead")] == LEAD_TABS,
+        "Lead NA traegt die Ueberleitung zum Nettovermoegen; Lead PL ist "
+        "angelegt und leer.",
+        [", ".join(b for b in wb.sheetnames if b.startswith("Lead"))]))
+
+    ws = wb["Lead NA"]
+    aus_master, aus_aufriss, ohne_schicht = [], 0, []
+    for r in range(1, ws.max_row + 1):
+        if ws.cell(r, auf.SP_TYP).value != "POS":
+            continue
+        wert = str(ws.cell(r, auf.SP_ERSTE_PERIODE).value or "")
+        if "Mastersheet" in wert:
+            aus_master.append(f"Zeile {r}")
+        elif wert.startswith("='NA_"):
+            aus_aufriss += 1
+        else:
+            ohne_schicht.append(f"Zeile {r}: {ws.cell(r, auf.SP_DE).value}")
+    k.append(Kriterium(
+        "KEINE Positionssumme im Lead zieht aus dem Mastersheet",
+        not aus_master,
+        f"{aus_aufriss} Positionszeilen ziehen aus einem Aufriss "
+        f"(='NA_...'!), {len(ohne_schicht)} aus den eigenen Kontozeilen "
+        "(Bloecke ohne Aufriss, gelb markiert), 0 unmittelbar aus dem "
+        "Mastersheet.",
+        aus_master[:10]))
+
+    kto_falsch = []
+    for r in range(1, ws.max_row + 1):
+        if ws.cell(r, auf.SP_TYP).value != "KTO":
+            continue
+        wert = str(ws.cell(r, auf.SP_ERSTE_PERIODE).value or "")
+        if not wert.startswith("=SUMIFS(Mastersheet!"):
+            kto_falsch.append(f"Zeile {r}")
+    k.append(Kriterium(
+        "Nur die eingeklappten Kontozeilen ziehen per SUMIFS aus dem "
+        "Mastersheet",
+        not kto_falsch,
+        "Sie sind der einzige Weg der Lead-Schicht zum Mastersheet — und "
+        "damit der zweite, unabhaengige Weg der Kontrollzeile.",
+        kto_falsch[:10]))
+
+    ohne_kontrolle = [b["titel"] for b in na["bloecke"]
+                      if b["kontrollzeile"] is None]
+    k.append(Kriterium(
+        "Je Block eine Pflicht-Kontrollzeile",
+        not ohne_kontrolle,
+        f"{len(na['bloecke'])} Bloecke, {len(na['bloecke'])} Kontrollzeilen, "
+        "dazu die Schlusskontrolle Nettovermoegen plus Eigenkapital.",
+        [f"{b['titel']}: Zeile {b['kontrollzeile']}"
+         + (f" gegen {b['aufriss']}" if b["aufriss"] else " gegen Mastersheet")
+         for b in na["bloecke"]]))
+
+    abweichungen = []
+    for b in na["bloecke"]:
+        if not b["aufriss"]:
+            continue
+        quelle = befunde[b["aufriss"]]
+        for p in bs.perioden:
+            aufriss = sum(bs.konten[no].saldo(p) for no in quelle["konten"])
+            kontozeilen = sum(bs.konten[no].saldo(p) for no in b["konten"])
+            if abs(aufriss - kontozeilen) > 0.005:
+                abweichungen.append(f"{b['titel']} {p}: "
+                                    f"{aufriss - kontozeilen:,.2f}")
+    k.append(Kriterium(
+        "Aufrisssumme gleich Summe der Kontozeilen, je Block und Periode",
+        not abweichungen,
+        "Dieselbe Rechnung, die die Pflicht-Kontrollzeile im Blatt anstellt.",
+        abweichungen[:10] or [f"{b['titel']} ok" for b in na["bloecke"]
+                              if b["aufriss"]]))
+
+    alle = [no for b in na["bloecke"] for no in b["konten"]]
+    doppelt = sorted({no for no in alle if alle.count(no) > 1})
+    fehlend = sorted(set(bs.konten) - set(alle))
+    k.append(Kriterium(
+        "Der Lead traegt jedes Bilanzkonto genau einmal",
+        not doppelt and not fehlend,
+        f"{len(alle)} Kontozeilen fuer {len(bs.konten)} Konten; "
+        f"{len(doppelt)} doppelt, {len(fehlend)} nirgends. Ohne das koennte "
+        "das Nettovermoegen stimmen und trotzdem ein Konto fehlen.",
+        doppelt[:5] + fehlend[:5]))
+
+    ohne_aufriss = [b["titel"] for b in na["bloecke"] if b["ohne_aufriss"]]
+    k.append(Kriterium(
+        "Bloecke ohne Aufriss sind markiert, nicht stillschweigend gefuellt",
+        True,
+        f"{len(ohne_aufriss)} von {len(na['bloecke'])} Bloecken tragen keinen "
+        "Aufriss. Ihre Positionssumme kommt aus den eigenen Kontozeilen, ihre "
+        "Kontrollzeile prueft gegen das Mastersheet, und beides ist gelb.",
+        ohne_aufriss))
+
+    pl = next(x for x in leads if x["blatt"] == "Lead PL")
+    vermerk = str(wb["Lead PL"].cell(pl["vermerkzeile"], auf.SP_DE).value or "")
+    k.append(Kriterium(
+        "Lead PL ist angelegt, leer und traegt einen Vermerk",
+        pl["leer"] and vermerk.startswith("Vermerk:"),
+        "Die GuV-Datei traegt 237 Konten, aber die Entscheidungsdatei kennt "
+        "keine GuV-Kategorien und es gibt keinen GuV-Aufriss. Ein Lead PL mit "
+        "Zahlen muesste sie unmittelbar aus dem Mastersheet holen.",
+        [vermerk[:200]]))
+    return k
 
 
 def pruefe_aufrisse(bs, ergebnisse, spec: str, ordner: str, net_debt: dict,
@@ -475,8 +586,9 @@ def pruefe_aufrisse(bs, ergebnisse, spec: str, ordner: str, net_debt: dict,
 
     k.append(Kriterium(
         "Alle sieben Aufriss-Tabs sind angelegt",
-        [b for b in wb.sheetnames if b != "Mastersheet"] == AUFRISS_TABS,
-        "Reihenfolge und Namen wie beauftragt.",
+        [b for b in wb.sheetnames if b.startswith("NA_")] == AUFRISS_TABS,
+        "Reihenfolge und Namen wie beauftragt. Die Mappe fuehrt zusaetzlich "
+        "das Mastersheet als Arbeitsblatt und die Lead-Schicht.",
         [", ".join(wb.sheetnames)]))
 
     # Der zweite Weg: ueber das Merkmal im Mastersheet, nicht ueber Konten.
@@ -579,9 +691,6 @@ def pruefe_aufrisse(bs, ergebnisse, spec: str, ordner: str, net_debt: dict,
         [f"{p}: WC-Differenz {a:,.2f} · ND-Differenz {b:,.2f}"
          for p, a, b in summen_ok]))
 
-    if "--recalc" in sys.argv:
-        k.append(_recalc_kriterium(befunde, bs.perioden))
-
     geflaggt = {b: befunde[b]["geflaggt"] for b in AUFRISS_TABS
                 if befunde[b].get("geflaggt")}
     k.append(Kriterium(
@@ -593,6 +702,11 @@ def pruefe_aufrisse(bs, ergebnisse, spec: str, ordner: str, net_debt: dict,
         if geflaggt else "Keine solche Position im Referenzfall.",
         [f"{b}: {', '.join(v)}" for b, v in geflaggt.items()]))
 
+    # -- 5 Die Lead-Schicht -----------------------------------------------
+    k += _pruefe_leads(wb, ergebnis["leads"], befunde, bs, ergebnisse)
+
+    if "--recalc" in sys.argv:
+        k.append(_recalc_kriterium())
     return k
 
 
