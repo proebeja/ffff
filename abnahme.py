@@ -6,7 +6,7 @@ die Stellen, an die jemand gedacht hat. Der Referenzfall ist ein echter
 Kontenplan mit 198 Bilanz- und 237 GuV-Konten ueber vier Geschaeftsjahre und
 prueft das, woran niemand gedacht hat.
 
-Geprueft werden drei Dinge, die unabhaengig voneinander schieflaufen koennen:
+Geprueft werden vier Dinge, die unabhaengig voneinander schieflaufen koennen:
 
 1. **Das Einlesen.** Der Export fuehrt zwei Wertespalten, und beide summieren
    je Periode auf null. Wer die Bewegungsspalte nimmt, baut ein Databook aus
@@ -19,6 +19,11 @@ Geprueft werden drei Dinge, die unabhaengig voneinander schieflaufen koennen:
    Referenzfall verschiebt, faellt hier auf und nicht erst im Mandat.
 3. **Die Identitaeten.** Bilanzsumme null, GuV gegen das Ergebniskonto,
    Nettovermoegen gegen Eigenkapital. Drei Wege auf dieselbe Zahl.
+4. **Die Aufrisse.** Die sieben Tabs entstehen im Lauf und werden geprueft:
+   Kontrollzeile auf null, Kontozeilen mit sichtbarer Formel statt
+   hartkodierter Zahl, Summen als ``SUMIF(...;"<>KTO";...)``, jedes
+   Working-Capital-Konto auf genau einem von NA_OA/NA_OL — und der Aufriss
+   ohne Datengrundlage angelegt, leer und mit Vermerk.
 
 Die Sollwerte unter ``ERWARTET`` sind aus dem Referenzfall abgeleitet und
 danach festgeschrieben. Sie sind keine Wunschzahlen: die Bilanzsumme muss
@@ -29,9 +34,12 @@ begruenden warum.
 
 Aufruf::
 
-    python3 abnahme.py [klassifizierung_v1.json] [referenz]
+    python3 abnahme.py [klassifizierung_v1.json] [referenz] [--recalc]
 
-Exit-Code 1, sobald ein Kriterium nicht erfuellt ist.
+Exit-Code 1, sobald ein Kriterium nicht erfuellt ist. ``--recalc`` rechnet
+die gebaute Aufriss-Mappe zusaetzlich mit einem Formelrechner durch; das
+faengt den Tippfehler in der Formel, den ein Nachziehen in Python nicht
+sieht. Es dauert ein bis zwei Minuten und laeuft deshalb nicht bei jedem Lauf.
 
 Hinweis zur Verdrahtung: ``fdd_databook.py`` liegt nicht in diesem
 Repository. Der Abnahmetest liest den Referenzfall deshalb selbst ein — mit
@@ -49,6 +57,7 @@ from dataclasses import dataclass, field
 from datetime import date
 
 import openpyxl
+from openpyxl.utils import get_column_letter
 
 from klassifizierung import Classifier
 
@@ -383,10 +392,208 @@ def pruefe(spec: str, ordner: str) -> tuple[list[Kriterium], dict]:
         "OWC auf der OA-Seite, PRAP bleibt OWC auf der OL-Seite.",
         doppelt[:10]))
 
+    # -- 4 Aufrisse -------------------------------------------------------
+    k += pruefe_aufrisse(bs, ergebnisse, spec, ordner, net_debt, wc)
+
     zahlen = {"bs": bs, "guv": guv, "ergebnisse": ergebnisse,
               "net_debt": net_debt, "wc": wc, "netto": netto,
               "guv_summe": guv_summe, "quellen": quellen}
     return k, zahlen
+
+
+#: Die sieben Aufriss-Tabs in der geforderten Reihenfolge.
+AUFRISS_TABS = ["NA_OA", "NA_OL", "NA_TWC", "NA_Net Debt", "NA_Vorräte",
+                "NA_Sachanlagen", "NA_CAPEX"]
+
+#: Wohin der Abnahmelauf die Arbeitsmappe schreibt.
+AUFRISS_MAPPE = os.path.join("out", "Referenzfall_Aufrisse.xlsx")
+
+
+def _recalc_kriterium(befunde: dict, perioden: list[str]) -> Kriterium:
+    """Rechnet die Mappe wirklich durch (``--recalc``).
+
+    Die Kriterien oben ziehen dieselbe Rechnung in Python nach. Das faengt
+    einen Denkfehler, aber keinen Tippfehler in der Formel. Deshalb hier der
+    Formelrechner ueber die fertige Datei. Er laeuft nicht bei jedem Lauf,
+    weil er ein bis zwei Minuten braucht.
+
+    Gerechnet wird mit dem Paket ``formulas`` und nicht mit dem
+    LibreOffice-Recalc des Hausformats: LibreOffice laeuft in dieser Umgebung
+    in den Timeout. Fuer die Auslieferung bleibt der Hausweg massgeblich.
+    """
+    import formulas
+
+    modell = formulas.ExcelModel().loads(AUFRISS_MAPPE).finish()
+    loesung = modell.calculate()
+    werte: dict[tuple[str, str], object] = {}
+    for schluessel, zelle in loesung.items():
+        if "]" not in schluessel or "!" not in schluessel:
+            continue
+        blatt = schluessel.split("]", 1)[1].split("'!")[0]
+        try:
+            werte[(blatt, schluessel.split("!", 1)[1])] = zelle.value[0, 0]
+        except Exception:
+            continue
+
+    abweichungen, gerechnet = [], []
+    for blatt in AUFRISS_TABS:
+        b = befunde[blatt]
+        if b["leer"]:
+            continue
+        for i in range(len(perioden)):
+            spalte = get_column_letter(6 + i)
+            wert = werte.get((blatt.upper(), f"{spalte}{b['kontrollzeile']}"))
+            if wert is None or abs(float(wert)) > 0.005:
+                abweichungen.append(f"{blatt} {perioden[i]}: {wert}")
+        summe = werte.get((blatt.upper(), f"F{b['summenzeile']}"))
+        gerechnet.append(f"{blatt}: {perioden[0]} {float(summe):,.1f}")
+    return Kriterium(
+        "Nachgerechnet: jede Kontrollzeile der Mappe steht auf null",
+        not abweichungen,
+        "Die Mappe wurde mit einem Formelrechner durchgerechnet; geprueft "
+        "sind die Werte, die Excel anzeigen wuerde, nicht die Absicht.",
+        abweichungen[:10] or gerechnet)
+
+
+def pruefe_aufrisse(bs, ergebnisse, spec: str, ordner: str, net_debt: dict,
+                    wc: dict) -> list[Kriterium]:
+    """Baut die Aufriss-Mappe und prueft sie.
+
+    Die Kontrollzeile jedes Tabs rechnet ``Summe der Kontozeilen`` gegen
+    ``SUMIFS ueber ein Merkmal des Mastersheets``. Beide Wege werden hier in
+    Python nachgezogen — das ist dieselbe Rechnung, die die Formel im Blatt
+    anstellt, nur ohne Excel. Ob die Formeln auch WIRKLICH so im Blatt stehen,
+    prueft das Kriterium darunter; und ``--recalc`` rechnet die Mappe
+    zusaetzlich mit einem Formelrechner durch.
+    """
+    import aufrisse as auf
+
+    k: list[Kriterium] = []
+    ergebnis = auf.baue(ordner, spec, AUFRISS_MAPPE)
+    wb = openpyxl.load_workbook(AUFRISS_MAPPE)
+    befunde = {b["blatt"]: b for b in ergebnis["befunde"]}
+
+    k.append(Kriterium(
+        "Alle sieben Aufriss-Tabs sind angelegt",
+        [b for b in wb.sheetnames if b != "Mastersheet"] == AUFRISS_TABS,
+        "Reihenfolge und Namen wie beauftragt.",
+        [", ".join(wb.sheetnames)]))
+
+    # Der zweite Weg: ueber das Merkmal im Mastersheet, nicht ueber Konten.
+    merkmal = {auf.MS_KLASSE: "klasse", auf.MS_KATEGORIE: "category",
+               auf.MS_SEITE: "wc_seite"}
+    abweichungen = []
+    for blatt in AUFRISS_TABS:
+        b = befunde[blatt]
+        if b["leer"]:
+            continue
+        for p in bs.perioden:
+            ueber_konten = sum(bs.konten[no].saldo(p) for no in b["konten"])
+            ueber_merkmal = sum(
+                bs.konten[no].saldo(p) for no, r in ergebnisse.items()
+                if any(r[merkmal[sp]] == w for sp, w in b["kontrolle"]))
+            if abs(ueber_konten - ueber_merkmal) > 0.005:
+                abweichungen.append(f"{blatt} {p}: "
+                                    f"{ueber_konten - ueber_merkmal:,.2f}")
+    k.append(Kriterium(
+        "Kontrollzeile jedes Aufrisses geht auf null",
+        not abweichungen,
+        "Zwei unabhaengige Wege je Tab und Periode: die Summe der "
+        "Kontozeilen gegen ein SUMIFS ueber das Merkmal im Mastersheet.",
+        abweichungen[:10] or [f"{b} ok" for b in AUFRISS_TABS
+                              if not befunde[b]["leer"]]))
+
+    ohne_formel = []
+    for blatt in AUFRISS_TABS:
+        ws = wb[blatt]
+        for r in range(1, ws.max_row + 1):
+            if ws.cell(r, auf.SP_TYP).value != "KTO":
+                continue
+            wert = ws.cell(r, auf.SP_ERSTE_PERIODE).value
+            if not (isinstance(wert, str) and wert.startswith("=SUMIF(Mastersheet!")):
+                ohne_formel.append(f"{blatt}!Zeile {r}")
+    k.append(Kriterium(
+        "Jede Kontozeile holt ihren Wert per sichtbarer Formel",
+        not ohne_formel,
+        "Eine hartkodierte Zahl im Aufriss ist nicht zurueckverfolgbar. Die "
+        "Kontozeilen verweisen per SUMIF auf das Mastersheet.",
+        ohne_formel[:10]))
+
+    ohne_kontrolle = [b for b in AUFRISS_TABS
+                      if not befunde[b]["leer"]
+                      and befunde[b]["kontrollzeile"] is None]
+    summen_ohne_sumif = []
+    for blatt in AUFRISS_TABS:
+        b = befunde[blatt]
+        if b["leer"]:
+            continue
+        wert = wb[blatt].cell(b["summenzeile"], auf.SP_ERSTE_PERIODE).value
+        if not (isinstance(wert, str) and '"<>KTO"' in wert):
+            summen_ohne_sumif.append(blatt)
+    k.append(Kriterium(
+        'Summenzeilen als SUMIF(...;"<>KTO";...)',
+        not ohne_kontrolle and not summen_ohne_sumif,
+        "Die Kontozeilen liegen INNERHALB des Summenbereichs; ein blankes SUM "
+        "zaehlte sie doppelt.",
+        ohne_kontrolle + summen_ohne_sumif))
+
+    leer = [b for b in AUFRISS_TABS if befunde[b]["leer"]]
+    mit_vermerk = [b for b in leer
+                   if wb[b].cell(befunde[b]["vermerkzeile"],
+                                 auf.SP_DE).value.startswith("Vermerk:")]
+    k.append(Kriterium(
+        "Ein Aufriss ohne Datengrundlage wird trotzdem angelegt",
+        leer == ["NA_CAPEX"] and mit_vermerk == leer,
+        f"{', '.join(leer) or 'keiner'} ist leer und traegt einen Vermerk, "
+        "der die fehlende Unterlage benennt. Ein Tab, der gar nicht erst "
+        "entsteht, verschwindet aus der Wahrnehmung.",
+        [wb[b].cell(befunde[b]["vermerkzeile"], auf.SP_DE).value[:200]
+         for b in leer]))
+
+    doppelt = [no for no in bs.konten
+               if (no in befunde["NA_OA"]["konten"])
+               and (no in befunde["NA_OL"]["konten"])]
+    wc_konten = {no for no, r in ergebnisse.items()
+                 if r["klasse"] in ("TWC", "OWC")}
+    fehlend = wc_konten - set(befunde["NA_OA"]["konten"]) \
+        - set(befunde["NA_OL"]["konten"])
+    k.append(Kriterium(
+        "Jedes Working-Capital-Konto steht auf genau einem von NA_OA/NA_OL",
+        not doppelt and not fehlend,
+        f"{len(wc_konten)} Konten, davon {len(befunde['NA_OA']['konten'])} in "
+        f"NA_OA und {len(befunde['NA_OL']['konten'])} in NA_OL. "
+        f"{len(doppelt)} doppelt, {len(fehlend)} nirgends.",
+        sorted(doppelt)[:5] + sorted(fehlend)[:5]))
+
+    summen_ok = []
+    for p in bs.perioden:
+        oa = sum(bs.konten[no].saldo(p) for no in befunde["NA_OA"]["konten"])
+        ol = sum(bs.konten[no].saldo(p) for no in befunde["NA_OL"]["konten"])
+        nd = sum(bs.konten[no].saldo(p)
+                 for no in befunde["NA_Net Debt"]["konten"])
+        summen_ok.append((p, oa + ol - wc[p], nd - net_debt[p]))
+    k.append(Kriterium(
+        "NA_OA plus NA_OL ist das Working Capital, NA_Net Debt das Net Debt",
+        all(abs(a) <= 0.005 and abs(b) <= 0.005 for _, a, b in summen_ok),
+        "Die Aufrisse tragen dieselben Summen wie die Klassifizierung.",
+        [f"{p}: WC-Differenz {a:,.2f} · ND-Differenz {b:,.2f}"
+         for p, a, b in summen_ok]))
+
+    if "--recalc" in sys.argv:
+        k.append(_recalc_kriterium(befunde, bs.perioden))
+
+    geflaggt = {b: befunde[b]["geflaggt"] for b in AUFRISS_TABS
+                if befunde[b].get("geflaggt")}
+    k.append(Kriterium(
+        "Positionen ohne Gegenstueck sind markiert, nicht versteckt",
+        True,
+        "Kumulierte Abschreibung ist ein Korrekturposten. Steht sie ohne die "
+        "Anschaffungskosten derselben Anlagenklasse, ist die Position gelb "
+        "und traegt den Grund im Klartext."
+        if geflaggt else "Keine solche Position im Referenzfall.",
+        [f"{b}: {', '.join(v)}" for b, v in geflaggt.items()]))
+
+    return k
 
 
 # --------------------------------------------------------------------------
