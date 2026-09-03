@@ -170,6 +170,7 @@ class Engine:
         """
         kr = self.kontenrahmen
         seite_quelle = _seite_aus_kontotyp(account.kontotyp)
+        ist_guv = (account.kontotyp == "guv") if account.kontotyp else None
 
         if account.fs_pfad and account.fs_pfad in kr.fs_lines:
             z_fs, z_klasse = account.fs_pfad, kr.klasse_von(account.fs_pfad)
@@ -180,8 +181,34 @@ class Engine:
         else:
             z = kr.zuordnen(account.bezeichnung, account.gruppe or "",
                             account.fristigkeit or "", seite=seite_quelle,
-                            konzernnamen=self.konzernnamen)
+                            konzernnamen=self.konzernnamen, ist_guv=ist_guv)
             if z is None:
+                # Ein GuV-Konto ohne Positionstreffer bleibt ein GuV-Konto.
+                # Es in die Review-Queue OHNE Klasse zu schicken, hiesse es
+                # aus der GuV zu nehmen und das Ergebnis zu verfaelschen; die
+                # offene Frage ist die Position, nicht das Rechenwerk.
+                #
+                # Als Position tritt dann die Kontogruppe des Mandanten ein.
+                # In der Bilanz waere das genau der Fehler, um den es in
+                # diesem Rahmen geht — "R&D/Demo tools - Waterloo" ist keine
+                # Bilanzposition. In der GuV ist die Kontogruppe dagegen eine
+                # zulaessige Gliederung: sie ist die Gliederung, nach der der
+                # Mandant selbst berichtet. Woher sie stammt, bleibt in der
+                # Quellenspalte sichtbar.
+                if ist_guv:
+                    gruppe = (account.gruppe or "").strip()
+                    return self._aasb_ergebnis(
+                        account, kr, gruppe or "(Position offen)", Klasse.PL,
+                        None, Quelle.AASB_GRUPPE if gruppe else Quelle.REVIEW,
+                        "gruppe:mandant" if gruppe else None, [],
+                        (f"GuV-Konto laut Quelle; der Rahmen kennt keine "
+                         f"Position dafuer. Gegliedert wird nach der "
+                         f"Kontogruppe des Mandanten ('{gruppe}')."
+                         if gruppe else
+                         f"GuV-Konto laut Quelle, aber weder Bibliothek noch "
+                         f"Kontogruppe trafen '{account.bezeichnung}' — die "
+                         f"Position ist offen, das Rechenwerk nicht."),
+                        review=not gruppe)
                 m = self._review_ohne_pfad(account)
                 m.rahmen = kr.id
                 return replace(m, begruendung=(

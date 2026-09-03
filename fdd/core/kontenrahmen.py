@@ -272,7 +272,8 @@ class Kontenrahmen:
     # ---- die Kaskade -----------------------------------------------------
     def zuordnen(self, bezeichnung: str, gruppe: str = "",
                  fristigkeit: str = "", seite: Optional[str] = None,
-                 konzernnamen: Iterable[str] = ()) -> Optional[Zuordnung]:
+                 konzernnamen: Iterable[str] = (),
+                 ist_guv: Optional[bool] = None) -> Optional[Zuordnung]:
         """Kontoname (und ersatzweise Kontogruppe) -> FS Line Item + Klasse.
 
         ``seite`` ist die Bilanzseite aus der Quelle, falls sie eine liefert
@@ -281,22 +282,43 @@ class Kontenrahmen:
         abgeleitete Seite. ``fristigkeit`` ist das Zusatzsignal
         Current/Non-current; ein Widerspruch zur Bibliothek erzeugt einen
         Flag, keine Ablehnung.
+
+        ``ist_guv`` trennt die beiden Rechenwerke. Alle 32 Stichwortregeln
+        zielen auf Bilanzpositionen; ohne diese Trennung liest die Kaskade
+        "Sales - Direct Labour" über ``labour`` als Personalrückstellung und
+        stellt ein GuV-Konto in die Bilanz. Sagt die Quelle, dass ein Konto
+        zur GuV gehört, gilt das — die Stichwortregeln bleiben dann außen vor
+        und es wird ausschließlich gegen die Ertrags- und Aufwandszeilen der
+        Bibliothek gematcht.
         """
         name = normalisiere(bezeichnung)
         gruppe_norm = normalisiere(gruppe)
         seite = seite or self._seite_aus_gruppe(gruppe_norm)
 
+        if ist_guv:
+            z = (self._per_bibliothek(name, nur_guv=True)
+                 or self._per_kategorie(gruppe_norm, nur_guv=True))
+            return z
+
         z = (self._konzern(name, seite, konzernnamen)
              or self._per_stichwort(name, self.QUELLE_STICHWORT, "name")
-             or self._per_bibliothek(name)
+             or self._per_bibliothek(name, nur_bilanz=ist_guv is False)
              or self._per_stichwort(gruppe_norm, self.QUELLE_GRUPPE, "gruppe")
-             or self._per_kategorie(gruppe_norm))
+             or self._per_kategorie(gruppe_norm, nur_bilanz=ist_guv is False))
         if z is None:
             return None
         if seite and self.klasse_von(z.fs_line) not in (None,):
             z.seite = seite
         z.flags += self._fristigkeit_pruefen(z.fs_line, fristigkeit)
         return z
+
+    def _passt(self, m: "Musterkonto", nur_guv: bool, nur_bilanz: bool) -> bool:
+        """Filtert die Bibliothek auf das gemeinte Rechenwerk."""
+        if nur_guv:
+            return self.ist_guv(m.fs_line)
+        if nur_bilanz:
+            return m.fs_line in self.fs_lines
+        return True
 
     def _seite_aus_gruppe(self, gruppe_norm: str) -> Optional[str]:
         if " asset" in gruppe_norm:
@@ -351,11 +373,14 @@ class Kontenrahmen:
                          f" -> {treffer.fs_line} (längster Treffer)."),
             seite=self.seite_von(treffer.fs_line))
 
-    def _per_bibliothek(self, name: str) -> Optional[Zuordnung]:
+    def _per_bibliothek(self, name: str, nur_guv: bool = False,
+                        nur_bilanz: bool = False) -> Optional[Zuordnung]:
         bestes: Optional[Musterkonto] = None
         for m in self.bibliothek:
             kern = m.name_norm.strip()
             if not kern or not _trifft(kern, name):
+                continue
+            if not self._passt(m, nur_guv, nur_bilanz):
                 continue
             if bestes is None or len(kern) > len(bestes.name_norm.strip()):
                 bestes = m
@@ -370,7 +395,8 @@ class Kontenrahmen:
                          f"im Kontonamen -> {bestes.fs_line}."),
             seite=self.seite_von(bestes.fs_line), current=bestes.current)
 
-    def _per_kategorie(self, gruppe_norm: str) -> Optional[Zuordnung]:
+    def _per_kategorie(self, gruppe_norm: str, nur_guv: bool = False,
+                       nur_bilanz: bool = False) -> Optional[Zuordnung]:
         """Kontogruppe der SuSa gegen Kategorie/Unterkategorie der Bibliothek.
 
         Letzte Stufe vor der Review-Queue. Sie trifft grob — eine Gruppe wie
@@ -378,6 +404,8 @@ class Kontenrahmen:
         """
         bestes: Optional[tuple[str, Musterkonto]] = None
         for m in self.bibliothek:
+            if not self._passt(m, nur_guv, nur_bilanz):
+                continue
             for feld in (m.kategorie_norm, m.unterkategorie_norm):
                 kern = feld.strip()
                 if not kern or not _trifft(kern, gruppe_norm):

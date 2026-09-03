@@ -145,10 +145,19 @@ def schreibe_databook(pfad: str, mapped: list[MappedAccount], nd: NetDebtView,
                       recon=None, setup=None, lead_na=None, lead_pl=None,
                       ja_recon=None, status=None, benchmark=None,
                       recon_abschluss=None, recon_aggregiert=None,
-                      qa=None, verhalten=None, einfrierung=None) -> None:
+                      qa=None, verhalten=None, einfrierung=None,
+                      raster=None) -> None:
+    """``perioden`` sind die Spalten der Auswertungsblätter.
+
+    ``raster`` ist optional und ändert nur EINS: das Mastersheet führt dann
+    zusätzlich die Quartalsspalten, aus denen die Jahresspalten gerechnet
+    werden. Alle übrigen Blätter bleiben jahresweise — ein Aufriss oder ein
+    Lead über fünfzehn Quartalsspalten ist nicht lesbar, und die
+    Net-Asset-Sicht einer FDD ist eine Sicht auf Stichtage.
+    """
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
-    layout = _schreibe_mastersheet(wb, mapped, perioden, entity)
+    layout = _schreibe_mastersheet(wb, mapped, perioden, entity, raster)
     refs = _schreibe_schedules(wb, schedules, layout, perioden, entity) if schedules else {}
     if lead_na is not None and lead_na.bloecke:
         _schreibe_lead_na(wb, lead_na, layout, perioden, refs, setup)
@@ -400,15 +409,49 @@ def _schreibe_mixed_aufriss(wb, a: Aufriss, layout, perioden) -> AufrissRef:
 
 
 # ---- Mastersheet (Single Source of Truth) --------------------------------
-def _schreibe_mastersheet(wb, mapped, perioden, entity) -> MastersheetLayout:
+def _jahresformel(m: MappedAccount, jahr: str, quartale: list[str],
+                  spalten: dict[str, int], zeile: int) -> Optional[str]:
+    """Formel der Jahresspalte, wenn das Mastersheet Quartale führt.
+
+    Die Jahreszahl wird nicht ein zweites Mal eingetragen, sondern aus den
+    Quartalen daneben gerechnet — sonst stünden zwei Wahrheiten im selben
+    Blatt und niemand sähe, wenn sie auseinanderlaufen.
+
+    Bestand und Bewegung werden dabei verschieden behandelt, und die
+    Verwechslung ist der klassische Fehler: eine Bilanzposition ist der
+    Schlussbestand des letzten Quartals, eine GuV-Position die **Summe** der
+    vier Quartale. Wer die Bilanz summiert, vervierfacht sie.
+    """
+    if not quartale:
+        return None
+    if m.klasse == Klasse.PL:
+        a = get_column_letter(spalten[quartale[0]])
+        b = get_column_letter(spalten[quartale[-1]])
+        return f"=SUM({a}{zeile}:{b}{zeile})"
+    letztes = get_column_letter(spalten[quartale[-1]])
+    return f"={letztes}{zeile}"
+
+
+def _schreibe_mastersheet(wb, mapped, perioden, entity,
+                          raster=None) -> MastersheetLayout:
+    """Das Mastersheet trägt ALLE Spalten, die übrigen Blätter nur die Jahre.
+
+    Liegt ein ``raster`` vor, führt das Mastersheet je Geschäftsjahr erst
+    dessen Quartale und dann die Jahresspalte. Die Aufriss- und Lead-Blätter
+    greifen ausschließlich auf die Jahresspalten zu; das Quartalsraster
+    bleibt auf das Mastersheet beschränkt.
+    """
     ws = wb.create_sheet("Mastersheet")
+    spalten_labels = list(raster.spalten) if raster is not None else list(perioden)
     kopf = ["Konto", "Bezeichnung", "Entity", "HGB-Pfad (DE)", "HGB-Path (EN)",
             "Klasse", "NA-Zeile (DE)", "NA-Zeile (EN)", "Quelle/Regel", "Review",
             "Pfad abweichend in Periode"]
     perioden_start = len(kopf) + 1
-    for p in perioden:
+    for p in spalten_labels:
         kopf.append(p)
     _schreibe_kopf(ws, kopf, zeile=1)
+    perioden_spalten = {p: perioden_start + i
+                        for i, p in enumerate(spalten_labels)}
 
     r = 2
     zeile_je_account: dict[int, int] = {}
@@ -434,16 +477,43 @@ def _schreibe_mastersheet(wb, mapped, perioden, entity) -> MastersheetLayout:
         c11 = ws.cell(r, 11, abw); c11.font = _hinweis
         if abw:
             c11.fill = _gelb_fill
-        for i, p in enumerate(perioden):
-            cell = ws.cell(r, perioden_start + i, round(m.saldo(p), 2))
+        for i, p in enumerate(spalten_labels):
+            wert = round(m.saldo(p), 2)
+            cell = ws.cell(r, perioden_start + i, wert)
             cell.number_format = ZAHLENFORMAT
             cell.font = _input          # blau: hartcodierter Input
+            if raster is None or not raster.ist_jahr(p):
+                continue
+            quartale = raster.quartale_je_jahr.get(p, [])
+            formel = _jahresformel(m, p, quartale, perioden_spalten, r)
+            if formel is None:
+                continue
+            # Gegenprobe VOR dem Ersetzen: die Formel darf nur stehen, wenn
+            # sie denselben Wert liefert wie die Quelle. Sonst bleibt die
+            # Zahl der Quelle stehen und der Widerspruch wird markiert,
+            # statt ihn hinter einer Formel verschwinden zu lassen.
+            aus_quartalen = (sum(round(m.saldo(q), 2) for q in quartale)
+                             if m.klasse == Klasse.PL
+                             else round(m.saldo(quartale[-1]), 2))
+            if abs(aus_quartalen - wert) < 0.005:
+                cell.value = formel
+                cell.font = _normal     # schwarz: Formel im selben Blatt
+            else:
+                cell.fill = _gelb_fill
         r += 1
     letzte = r - 1
 
-    perioden_spalten = {p: perioden_start + i for i, p in enumerate(perioden)}
     _breiten(ws, {1: 10, 2: 34, 3: 18, 4: 46, 5: 46, 6: 8, 7: 30, 8: 30, 9: 26,
                   10: 9, 11: 42})
+    if raster is not None:
+        # Die Jahresspalten sind die, mit denen weitergearbeitet wird; die
+        # Quartale davor lassen sich zu einer Gruppe einklappen.
+        for jahr, quartale in raster.quartale_je_jahr.items():
+            for q in quartale:
+                sp = get_column_letter(perioden_spalten[q])
+                ws.column_dimensions[sp].outline_level = 1
+                ws.column_dimensions[sp].width = 13
+        ws.sheet_properties.outlinePr.summaryRight = True
     ws.freeze_panes = "A2"
     return MastersheetLayout(
         sheetname="Mastersheet", erste_datenzeile=2, letzte_datenzeile=max(letzte, 2),

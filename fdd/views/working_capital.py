@@ -81,8 +81,13 @@ class WCView:
 
 def _seite(m: MappedAccount) -> str:
     """WC-Seite des Kontos. Kommt aus der Engine (``oa_ol_ableitung``, v2.5);
-    der Pfad-Fallback greift nur für Konten, die vor v2.5 gemappt wurden."""
-    return m.seite or ("OA" if m.hgb_pfad.startswith("/Aktiva") else "OL")
+    der Pfad-Fallback greift nur für Konten, die vor v2.5 gemappt wurden.
+
+    Der Fallback fragt ``bilanzseite`` und nicht den Pfadanfang: bei einem
+    Nicht-HGB-Kontenrahmen lautet der Pfad ``/AASB/Aktiva/...``, und ein
+    ``startswith("/Aktiva")`` machte daraus stillschweigend eine Passivseite.
+    """
+    return m.seite or ("OA" if m.bilanzseite == "AKTIVA" else "OL")
 
 
 def baue_working_capital(mapped: list[MappedAccount], perioden: list[str],
@@ -107,9 +112,8 @@ def baue_working_capital(mapped: list[MappedAccount], perioden: list[str],
             key = (m.klasse.value, na_de)
             z = zeilen.get(key)
             if z is None:
-                pfad = m.pfad_in(periode)
                 z = WCZeile(na_de=na_de, na_en=na_en, klasse=m.klasse.value,
-                            seite="OA" if pfad.startswith("/Aktiva") else "OL",
+                            seite=_seite(m),
                             betraege={q: 0.0 for q in perioden})
                 zeilen[key] = z
             z.betraege[periode] += m.saldo(periode)
