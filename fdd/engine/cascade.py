@@ -11,6 +11,16 @@ Reihenfolge, erste greifende Quelle gewinnt:
 Aus dem gesetzten HGB-Pfad wird die analytische Klasse ABGELEITET
 (Reklassifizierung, Longest-Prefix). Nur die drei gemischten Positionen
 bestimmen ND/OWC inhaltsabhängig über Typ-2-Regeln.
+
+**Nicht-HGB-Mandate.** Bekommt die Engine einen ``kontenrahmen`` (AASB, später
+IFRS/US GAAP/UK GAAP), läuft statt der HGB-Kette die Kaskade dieses Rahmens:
+Kontennachweis, dann Stichwortregeln, Kontenbibliothek und Kontogruppe gegen
+den Kontonamen. Beide Wege enden gleich — bei einer Klasse und einer
+NA-Zeile — und sie berühren einander nicht: ohne ``kontenrahmen`` läuft
+ausschließlich der HGB-Weg, mit ``kontenrahmen`` ausschließlich der andere.
+Die einzige Stelle, an der sie sich treffen, sind die Typ-2-Regeln für
+gemischte Positionen; sie sind inhaltlich (Gesellschafterdarlehen, Kreditkarte,
+Kaution) und nicht rechtsformspezifisch formuliert.
 """
 
 from __future__ import annotations
@@ -20,6 +30,7 @@ from dataclasses import replace
 from typing import Optional
 
 from ..core.hausconvention import Hausconvention
+from ..core.kontenrahmen import Kontenrahmen
 from ..core.model import Account, Klasse, MappedAccount, NormalizedLedger, Quelle
 from . import matcher, reclassify
 from .ai_hook import KIUrteilsschicht
@@ -37,11 +48,17 @@ class Engine:
     def __init__(self, hc: Hausconvention,
                  protokoll: Optional[Entscheidungsprotokoll] = None,
                  ki: Optional[KIUrteilsschicht] = None,
-                 lernbibliothek: Optional[dict[str, str]] = None):
+                 lernbibliothek: Optional[dict[str, str]] = None,
+                 kontenrahmen: Optional[Kontenrahmen] = None,
+                 konzernnamen: Optional[list[str]] = None):
         self.hc = hc
         self.protokoll = protokoll or Entscheidungsprotokoll()
         self.ki = ki or KIUrteilsschicht()          # v1: inaktiv
         self.lernbibliothek = lernbibliothek or {}   # konto -> hgb_pfad
+        #: Nicht-HGB-Rahmen aus dem Setup-Dialog. ``None`` = HGB.
+        self.kontenrahmen = kontenrahmen
+        #: Namen der verbundenen Unternehmen und Gesellschafter (Setup-Frage 5).
+        self.konzernnamen = konzernnamen or []
         self._kanonische_pfade = [r.hgb_pfad for r in hc.reklass_regeln]
 
     # ---- öffentliche API --------------------------------------------------
@@ -78,6 +95,12 @@ class Engine:
             return replace(m, begruendung=(
                 "Kontonummer kommt mehrfach vor und die Werte überschneiden "
                 "sich; welche Zeile gilt, ist ungeklärt."))
+        # Nicht-HGB-Mandat: eigener Weg. Er steht vor der SKR-Technikschwelle,
+        # weil die Grenze 9000 eine Eigenheit des SKR ist — in einem
+        # australischen Kontenplan ist "9-0100 Interest Income" ein
+        # gewöhnliches Ertragskonto und kein Statistikkonto.
+        if self.kontenrahmen is not None:
+            return self._map_kontenrahmen(account)
         # v2.8: Saldenvortragskonten fallen nicht mehr pauschal in TECH. Sie
         # werden nachgelagert abgestimmt (siehe engine/saldenvortrag.py); der
         # nicht abstimmbare Rest gehört ins Eigenkapital.
@@ -126,6 +149,127 @@ class Engine:
                     f"SKR03-Default über Kontonummer-Bereich ({account.konto}).")
 
         return (None, Quelle.REVIEW, None, "")
+
+    # ---- Nicht-HGB-Rahmen (AASB, später IFRS/US GAAP/UK GAAP) ------------
+    #: Klasse ``MIXED`` des Rahmens -> Typ-2-Regelset der Hausconvention. Die
+    #: Regelsets sind nach Bilanzposten benannt, ihre Regeln aber inhaltlich
+    #: formuliert (Gesellschafterdarlehen, Kreditkarte, Kaution) und damit
+    #: rechtsformunabhängig. Zugeordnet wird deshalb über Seite und Art der
+    #: Position, nicht über den Namen des FS Line Items.
+    _MIXED_AASB = {
+        "AKTIVA": "sonstige_vermoegensgegenstaende",
+        "PASSIVA": "sonstige_verbindlichkeiten",
+        "RUECKSTELLUNG": "sonstige_rueckstellungen",
+    }
+
+    def _map_kontenrahmen(self, account: Account) -> MappedAccount:
+        """Die Kaskade des Nicht-HGB-Rahmens für ein Konto.
+
+        Stufe 1 bleibt der Kontennachweis: liefert die Quelle eine Position
+        (``fs_pfad``), gilt sie. Alles Weitere macht der Rahmen selbst.
+        """
+        kr = self.kontenrahmen
+        seite_quelle = _seite_aus_kontotyp(account.kontotyp)
+
+        if account.fs_pfad and account.fs_pfad in kr.fs_lines:
+            z_fs, z_klasse = account.fs_pfad, kr.klasse_von(account.fs_pfad)
+            quelle, regel_id = Quelle.KONTENNACHWEIS, None
+            begruendung = ("FS Line Item aus dem Kontennachweis des "
+                           "Abschlusses (Abschlusstreue).")
+            seite, flags = seite_quelle or kr.seite_von(z_fs), []
+        else:
+            z = kr.zuordnen(account.bezeichnung, account.gruppe or "",
+                            account.fristigkeit or "", seite=seite_quelle,
+                            konzernnamen=self.konzernnamen)
+            if z is None:
+                m = self._review_ohne_pfad(account)
+                m.rahmen = kr.id
+                return replace(m, begruendung=(
+                    f"Weder Stichwort noch Bibliothek noch Kontogruppe "
+                    f"trafen '{account.bezeichnung}' — Review-Queue."))
+            z_fs, z_klasse = z.fs_line, z.klasse
+            quelle = Quelle(z.quelle)
+            regel_id, begruendung = z.regel_id, z.begruendung
+            seite, flags = z.seite, list(z.flags)
+
+        # GuV: der Rahmen führt die Ertrags- und Aufwandszeilen nur in der
+        # Bibliothek, nicht in der Reklassifizierungstabelle. Sie tragen
+        # Klasse PL und nehmen an der Net-Asset-Sicht nicht teil.
+        if z_klasse is None or kr.ist_guv(z_fs):
+            return self._aasb_ergebnis(account, kr, z_fs, Klasse.PL, None,
+                                       quelle, regel_id, flags,
+                                       begruendung + " GuV-Zeile -> Klasse PL.")
+
+        if z_klasse == "MIXED":
+            return self._mixed_kontenrahmen(account, kr, z_fs, seite, quelle,
+                                            regel_id, flags, begruendung)
+
+        klasse = Klasse(z_klasse)
+        return self._aasb_ergebnis(
+            account, kr, z_fs, klasse, seite, quelle, regel_id, flags,
+            begruendung + f" Klasse {klasse.value} via Reklassifizierung.")
+
+    def _mixed_kontenrahmen(self, account: Account, kr: Kontenrahmen,
+                            fs_line: str, seite: Optional[str], quelle: Quelle,
+                            regel_id: Optional[str], flags: list[str],
+                            begruendung: str) -> MappedAccount:
+        """Gemischte Position des Rahmens: die Typ-2-Regeln entscheiden.
+
+        18 der 67 FS Line Items sind gemischt — 'Provisions' und 'Employee
+        benefit obligations' sind je nach Inhalt Net Debt oder Working
+        Capital. Diese Frage beantwortet kein Kontenrahmen, sondern nur der
+        Kontoinhalt; zuständig sind dieselben Typ-2-Regeln wie bei HGB.
+        """
+        art = ("RUECKSTELLUNG" if "provision" in fs_line.lower()
+               else seite or "PASSIVA")
+        regelset = self._MIXED_AASB.get(art)
+        r2 = matcher.match_typ2(account.bezeichnung, self.hc.typ2_regeln(regelset))
+        if r2 is None:
+            return self._aasb_ergebnis(
+                account, kr, fs_line, Klasse.REVIEW, seite, quelle, regel_id,
+                flags, begruendung + f" Gemischte Position '{fs_line}', keine "
+                f"Typ-2-Regel griff — Review.", review=True)
+        klasse = Klasse.OWC if r2.klasse == "REVIEW" else Klasse(r2.klasse)
+        m = self._aasb_ergebnis(
+            account, kr, fs_line, klasse, seite, quelle, r2.id, flags,
+            begruendung + f" Gemischt -> {klasse.value} via Typ-2 '{r2.id}'."
+            + (f" {r2.hinweis}" if r2.hinweis else ""),
+            review=r2.review or r2.klasse == "REVIEW")
+        m.aus_mixed = True
+        m.pflichtfrage = r2.pflichtfrage
+        m.verhaltenspruefung = r2.verhaltenspruefung
+        m.gekoppelt_mit = r2.gekoppelt_mit
+        m.standardfrage = r2.standardfrage
+        return m
+
+    def _aasb_ergebnis(self, account: Account, kr: Kontenrahmen, fs_line: str,
+                       klasse: Klasse, seite: Optional[str], quelle: Quelle,
+                       regel_id: Optional[str], flags: list[str],
+                       begruendung: str, review: bool = False) -> MappedAccount:
+        """Baut den Datensatz. Der Pfad trägt den Rahmen im ersten Segment.
+
+        ``/AASB/Aktiva/Trade receivables, net`` statt ``/Aktiva/...``: ein
+        FS Line Item ist kein HGB-Pfad und darf nicht so aussehen. Wer die
+        Bilanzseite braucht, nimmt ``MappedAccount.bilanzseite``.
+
+        DE- und EN-Pfad sind identisch. Der Rahmen ist englisch geführt und
+        kennt keine deutsche Entsprechung; eine erfundene Übersetzung wäre
+        schlechter als die Wiederholung des Originals.
+        """
+        knoten = ("GuV" if klasse == Klasse.PL
+                  else "Aktiva" if seite == "AKTIVA"
+                  else "Passiva" if seite == "PASSIVA" else "unbestimmt")
+        pfad = f"/{kr.id.upper()}/{knoten}/{fs_line}"
+        return MappedAccount(
+            account=account, hgb_pfad=pfad, hgb_pfad_en=pfad, klasse=klasse,
+            na_de=fs_line, na_en=fs_line, quelle=quelle, regel_id=regel_id,
+            review=review or knoten == "unbestimmt",
+            seite=(None if klasse not in (Klasse.TWC, Klasse.OWC)
+                   else "OA" if seite == "AKTIVA" else "OL"),
+            rahmen=kr.id, flags=flags,
+            begruendung=begruendung + ("" if knoten != "unbestimmt" else
+                                       " Bilanzseite nicht bestimmbar — Review."),
+        )
 
     # ---- Ableitung Klasse + NA-Zeile aus dem Pfad ------------------------
     def _ableiten(self, account: Account, hgb_pfad: str, quelle: Quelle,
@@ -231,6 +375,16 @@ class Engine:
             quelle=Quelle.SKR_DEFAULT, regel_id=None, review=False,
             begruendung=f"Technisches Konto (>= {self.hc.tech_ab}) — nicht im Databook.",
         )
+
+
+def _seite_aus_kontotyp(kontotyp: Optional[str]) -> Optional[str]:
+    """Bilanzseite, soweit der Reader sie gemeldet hat. Sie ist verlässlicher
+    als jede Ableitung aus Kontonamen oder Vorzeichen und sticht deshalb."""
+    if kontotyp == "bilanz_aktiv":
+        return "AKTIVA"
+    if kontotyp == "bilanz_passiv":
+        return "PASSIVA"
+    return None
 
 
 def _seite(hgb_pfad: str, klasse: Klasse, reg) -> Optional[str]:

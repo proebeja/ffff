@@ -43,6 +43,14 @@ class Quelle(str, Enum):
     REVIEW = "Review-Queue"
     KI_VORSCHLAG = "KI-Urteilsschicht (Vorschlag)"
     OVERRIDE = "Manueller Override"
+    # Nicht-HGB-Kontenrahmen (erster: AASB). Drei getrennte Werte statt eines
+    # gemeinsamen, weil sich die drei Stufen in ihrer Verlässlichkeit deutlich
+    # unterscheiden: das Stichwort trifft das Konto, die Kontogruppe nur seine
+    # Nachbarschaft. Ohne die Unterscheidung ist eine Fehlzuordnung im
+    # Mastersheet später nicht auffindbar.
+    AASB_STICHWORT = "AASB-Stichwort"
+    AASB_BIBLIOTHEK = "AASB-Bibliothek"
+    AASB_GRUPPE = "AASB-Gruppe"
 
 
 @dataclass(frozen=True)
@@ -69,6 +77,12 @@ class Account:
     entity: str = "Single-Entity"
     fs_pfad: Optional[str] = None      # HGB-Pfad aus dem Abschluss, falls vorhanden
     kontotyp: Optional[str] = None     # "bilanz_aktiv"/"bilanz_passiv"/"guv"/None
+    # Kontogruppe der Quelle, falls die Saldenliste eine führt (MYOB:
+    # "Current Assets", SAP: Knotenname). Sie ist bei Nicht-HGB-Rahmen die
+    # letzte Stufe vor der Review-Queue — nie die erste: eine Gruppe nennt die
+    # Nachbarschaft eines Kontos, nicht seinen Inhalt.
+    gruppe: Optional[str] = None
+    fristigkeit: Optional[str] = None  # "Current"/"Non-current", falls geliefert
 
     def saldo(self, periode: str) -> float:
         for pb in self.salden:
@@ -117,10 +131,31 @@ class MappedAccount:
     # Audit-Spur bei manuellem Override der abgeleiteten Klasse:
     override_von: Optional[Klasse] = None
     override_begruendung: str = ""
+    #: Welcher Kontenrahmen die Position gesetzt hat: "HGB" oder die ID des
+    #: Nicht-HGB-Rahmens ("aasb"). Steuert keine Logik, sondern sagt, wie
+    #: ``hgb_pfad`` zu lesen ist.
+    rahmen: str = "HGB"
+    #: Hinweise aus dem Kontenrahmen (z.B. Fristigkeits-Widerspruch). Kein
+    #: Review-Grund für sich, aber im Mastersheet sichtbar.
+    flags: list[str] = field(default_factory=list)
 
     @property
     def konto(self) -> str:
         return self.account.konto
+
+    @property
+    def bilanzseite(self) -> Optional[str]:
+        """AKTIVA/PASSIVA, rahmenunabhängig. ``None`` für GuV und Auffang-
+        Zustände.
+
+        HGB-Pfade beginnen mit ``/Aktiva`` bzw. ``/Passiva``, Pfade eines
+        Nicht-HGB-Rahmens mit ``/<Rahmen>/Aktiva``. Wer die Seite braucht,
+        fragt hier und nicht ``hgb_pfad.startswith``.
+        """
+        for seg in self.hgb_pfad.split("/"):
+            if seg in ("Aktiva", "Passiva"):
+                return "AKTIVA" if seg == "Aktiva" else "PASSIVA"
+        return None
 
     @property
     def bezeichnung(self) -> str:

@@ -1,0 +1,2703 @@
+{
+  "_name": "Kontenrahmen AASB",
+  "_version": "1.0",
+  "_quelle": "Chart_of_Accounts_AASB.xlsx, 209 Musterkonten, AASB 101 / AASB 18",
+  "_zweck": "Ersetzt fuer AASB-Abschluesse die SKR-Bereichstabelle. Das Matching laeuft ueber den KONTONAMEN, nicht ueber die Kontonummer, weil AASB keine verbindliche Nummerierung kennt und die Nummern in der Quelldatei illustrativ sind.",
+  "_kaskade": [
+    "1. Kontennachweis des Abschlusses, wenn vorhanden. Massgeblich.",
+    "2. Kontenplan in der SuSa, wenn mitgeliefert.",
+    "3. Kontenbibliothek dieser Datei ueber den Kontonamen -> FS Line Item.",
+    "4. Reklassifizierungstabelle: FS Line Item -> Klasse.",
+    "5. Klasse MIXED -> Stichwortregeln entscheiden.",
+    "6. Kein Treffer -> Review-Queue."
+  ],
+  "_matching": [
+    "Normalisierung: klein schreiben, Sonderzeichen und Mehrfachleerzeichen entfernen.",
+    "Substring-Match des Mandantenkontonamens gegen 'name' der Bibliothek, laengster Treffer gewinnt.",
+    "Zusaetzliches Signal: die Spalte Current/Non-current der SuSa gegen 'current' der Bibliothek. Widerspruch erzeugt einen Flag, keine Ablehnung.",
+    "Kein Treffer ueber den Namen: die Kontogruppe der SuSa gegen 'kategorie' und 'unterkategorie' pruefen.",
+    "Beispiel: 'BT Logo Capitalised' trifft ueber 'Trademarks and brands' das FS Line Item 'Intangible assets' und damit die Klasse FA.",
+    "REIHENFOLGE: erst die Stichwortregeln, dann die Kontenbibliothek als Feinabgleich.",
+    "Die Bibliothek allein trifft reale Mandantenkonten kaum. Im Test gegen 220 australische Konten lag die Trefferquote bei 9 Prozent, weil Bankkonten nach der Bank heissen und nicht nach ihrer Funktion.",
+    "Mit der Stichwortschicht steigt sie deutlich. Die Bibliothek bleibt trotzdem drin, weil sie die zulaessigen FS Line Items definiert und als Nachschlagewerk dient."
+  ],
+  "reklassifizierung": [
+    {
+      "fs_line": "Accrued expenses",
+      "klasse": "OWC",
+      "deal_hinweis": "NWC / Case-specific / Operating NWC"
+    },
+    {
+      "fs_line": "Accrued expenses / employee liabilities",
+      "klasse": "MIXED",
+      "deal_hinweis": "NWC / Debt-like case-specific / Operating NWC"
+    },
+    {
+      "fs_line": "Accrued interest / borrowings",
+      "klasse": "ND",
+      "deal_hinweis": "Net Debt"
+    },
+    {
+      "fs_line": "Accumulated OCI / hedge reserve",
+      "klasse": "EQ",
+      "deal_hinweis": "Equity"
+    },
+    {
+      "fs_line": "Accumulated OCI / translation reserve",
+      "klasse": "EQ",
+      "deal_hinweis": "Equity"
+    },
+    {
+      "fs_line": "Borrowings",
+      "klasse": "ND",
+      "deal_hinweis": "Net Debt"
+    },
+    {
+      "fs_line": "Borrowings / cash and cash equivalents",
+      "klasse": "ND",
+      "deal_hinweis": "Net Debt"
+    },
+    {
+      "fs_line": "Borrowings / debt",
+      "klasse": "ND",
+      "deal_hinweis": "Net Debt"
+    },
+    {
+      "fs_line": "Borrowings / other assets",
+      "klasse": "MIXED",
+      "deal_hinweis": "Net Debt / Case-specific"
+    },
+    {
+      "fs_line": "Borrowings / related-party liabilities",
+      "klasse": "ND",
+      "deal_hinweis": "Net Debt"
+    },
+    {
+      "fs_line": "Cash and cash equivalents",
+      "klasse": "ND",
+      "deal_hinweis": "Net Debt / Cash"
+    },
+    {
+      "fs_line": "Contract assets",
+      "klasse": "TWC",
+      "deal_hinweis": "Operating NWC"
+    },
+    {
+      "fs_line": "Contract cost asset",
+      "klasse": "OWC",
+      "deal_hinweis": "Excluded from NWC / Operating NWC / Case-specific"
+    },
+    {
+      "fs_line": "Contract liabilities",
+      "klasse": "OWC",
+      "deal_hinweis": "Case-specific / Debt-like / NWC / Case-specific"
+    },
+    {
+      "fs_line": "Contract liabilities / other liabilities",
+      "klasse": "OWC",
+      "deal_hinweis": "NWC / Case-specific"
+    },
+    {
+      "fs_line": "Current financial assets",
+      "klasse": "MIXED",
+      "deal_hinweis": "Cash-like / Case-specific"
+    },
+    {
+      "fs_line": "Current tax asset",
+      "klasse": "ND",
+      "deal_hinweis": "Excluded from NWC",
+      "hinweis": "Ertragsteuer. Debt like beziehungsweise cash like."
+    },
+    {
+      "fs_line": "Current tax liabilities",
+      "klasse": "ND",
+      "deal_hinweis": "Excluded from NWC / Debt-like",
+      "hinweis": "Ertragsteuer. Debt like."
+    },
+    {
+      "fs_line": "Deferred tax assets",
+      "klasse": "DT",
+      "deal_hinweis": "Excluded from NWC"
+    },
+    {
+      "fs_line": "Deferred tax liabilities",
+      "klasse": "DT",
+      "deal_hinweis": "Excluded from NWC"
+    },
+    {
+      "fs_line": "Derivative financial assets",
+      "klasse": "MIXED",
+      "deal_hinweis": "Case-specific",
+      "hinweis": "Sicherungsgeschaeft oder Spekulation, das entscheidet."
+    },
+    {
+      "fs_line": "Derivative financial liabilities",
+      "klasse": "MIXED",
+      "deal_hinweis": "Case-specific",
+      "hinweis": "Sicherungsgeschaeft oder Spekulation, das entscheidet."
+    },
+    {
+      "fs_line": "Employee benefit obligations",
+      "klasse": "MIXED",
+      "deal_hinweis": "Case-specific / Debt-like / Case-specific / NWC / Case-specific",
+      "hinweis": "Urlaub operativ, Long Service Leave und Boni debt like."
+    },
+    {
+      "fs_line": "Employee benefit obligations / other current liabilities",
+      "klasse": "MIXED",
+      "deal_hinweis": "NWC / Case-specific"
+    },
+    {
+      "fs_line": "Equity-method investments / associates",
+      "klasse": "FA",
+      "deal_hinweis": "Excluded from NWC"
+    },
+    {
+      "fs_line": "Financial assets",
+      "klasse": "MIXED",
+      "deal_hinweis": "Case-specific",
+      "hinweis": "Charakter aus dem Instrument bestimmen. Ausleihung ND, Handelsforderung TWC."
+    },
+    {
+      "fs_line": "Financial assets / investments",
+      "klasse": "MIXED",
+      "deal_hinweis": "Case-specific"
+    },
+    {
+      "fs_line": "Financial assets, net",
+      "klasse": "MIXED",
+      "deal_hinweis": "Case-specific"
+    },
+    {
+      "fs_line": "GST receivable / payable",
+      "klasse": "OWC",
+      "deal_hinweis": "Usually excluded from NWC"
+    },
+    {
+      "fs_line": "Goodwill",
+      "klasse": "FA",
+      "deal_hinweis": "Excluded from NWC"
+    },
+    {
+      "fs_line": "Intangible assets",
+      "klasse": "FA",
+      "deal_hinweis": "Excluded from NWC"
+    },
+    {
+      "fs_line": "Intangible assets / goodwill",
+      "klasse": "FA",
+      "deal_hinweis": "Excluded from NWC"
+    },
+    {
+      "fs_line": "Inventories",
+      "klasse": "TWC",
+      "deal_hinweis": "Operating NWC"
+    },
+    {
+      "fs_line": "Investment property / PPE",
+      "klasse": "FA",
+      "deal_hinweis": "Excluded from NWC"
+    },
+    {
+      "fs_line": "Joint venture investments",
+      "klasse": "FA",
+      "deal_hinweis": "Excluded from NWC"
+    },
+    {
+      "fs_line": "Lease liabilities",
+      "klasse": "ND",
+      "deal_hinweis": "Net Debt / Debt-like"
+    },
+    {
+      "fs_line": "Loans / financial assets",
+      "klasse": "MIXED",
+      "deal_hinweis": "Case-specific / Cash-like"
+    },
+    {
+      "fs_line": "Non-controlling interests",
+      "klasse": "EQ",
+      "deal_hinweis": "Equity"
+    },
+    {
+      "fs_line": "Other current assets",
+      "klasse": "OWC",
+      "deal_hinweis": "Case-specific"
+    },
+    {
+      "fs_line": "Other current assets / tax receivable",
+      "klasse": "OWC",
+      "deal_hinweis": "Usually excluded from NWC"
+    },
+    {
+      "fs_line": "Other current liabilities",
+      "klasse": "OWC",
+      "deal_hinweis": "Case-specific / Usually excluded from NWC"
+    },
+    {
+      "fs_line": "Other current liabilities / tax payable",
+      "klasse": "OWC",
+      "deal_hinweis": "Usually excluded from NWC"
+    },
+    {
+      "fs_line": "Other non-current assets",
+      "klasse": "FA",
+      "deal_hinweis": "Excluded from NWC"
+    },
+    {
+      "fs_line": "Other non-current liabilities",
+      "klasse": "OWC",
+      "deal_hinweis": "Case-specific"
+    },
+    {
+      "fs_line": "Other receivables",
+      "klasse": "OWC",
+      "deal_hinweis": "Case-specific"
+    },
+    {
+      "fs_line": "Other reserves / APIC",
+      "klasse": "EQ",
+      "deal_hinweis": "Equity"
+    },
+    {
+      "fs_line": "Prepayments / other current assets",
+      "klasse": "OWC",
+      "deal_hinweis": "Operating NWC / Operating NWC / Case-specific"
+    },
+    {
+      "fs_line": "Property, plant and equipment",
+      "klasse": "FA",
+      "deal_hinweis": "Excluded from NWC"
+    },
+    {
+      "fs_line": "Provisions",
+      "klasse": "MIXED",
+      "deal_hinweis": "Case-specific / Debt-like / Case-specific / NWC / Case-specific",
+      "hinweis": "Rueckstellung. Urlaub und Gewaehrleistung sind operativ, Restrukturierung und Rueckbau debt like."
+    },
+    {
+      "fs_line": "Provisions / ARO",
+      "klasse": "MIXED",
+      "deal_hinweis": "Debt-like / Case-specific",
+      "hinweis": "Rueckbauverpflichtung. In der Regel debt like."
+    },
+    {
+      "fs_line": "ROU assets / PPE",
+      "klasse": "FA",
+      "deal_hinweis": "Excluded from NWC"
+    },
+    {
+      "fs_line": "Related-party financial assets",
+      "klasse": "MIXED",
+      "deal_hinweis": "Case-specific"
+    },
+    {
+      "fs_line": "Related-party payables",
+      "klasse": "MIXED",
+      "deal_hinweis": "Case-specific",
+      "hinweis": "Ausserhalb des Konsolidierungskreises ND, innerhalb eliminiert."
+    },
+    {
+      "fs_line": "Related-party receivables",
+      "klasse": "MIXED",
+      "deal_hinweis": "Case-specific",
+      "hinweis": "Ausserhalb des Konsolidierungskreises ND, innerhalb eliminiert."
+    },
+    {
+      "fs_line": "Restricted cash / other current assets",
+      "klasse": "MIXED",
+      "deal_hinweis": "Case-specific",
+      "hinweis": "Nicht frei verfuegbar. Gehoert nicht ins normale Cash."
+    },
+    {
+      "fs_line": "Restricted cash / other non-current assets",
+      "klasse": "MIXED",
+      "deal_hinweis": "Case-specific"
+    },
+    {
+      "fs_line": "Retained earnings",
+      "klasse": "EQ",
+      "deal_hinweis": "Equity"
+    },
+    {
+      "fs_line": "Retained earnings / current-year result",
+      "klasse": "EQ",
+      "deal_hinweis": "Equity"
+    },
+    {
+      "fs_line": "Revaluation / fair value reserve",
+      "klasse": "EQ",
+      "deal_hinweis": "Equity"
+    },
+    {
+      "fs_line": "Share capital / common stock",
+      "klasse": "EQ",
+      "deal_hinweis": "Equity"
+    },
+    {
+      "fs_line": "Share premium / APIC",
+      "klasse": "EQ",
+      "deal_hinweis": "Equity"
+    },
+    {
+      "fs_line": "Trade and other payables",
+      "klasse": "TWC",
+      "deal_hinweis": "Operating NWC / Operating NWC / Case-specific"
+    },
+    {
+      "fs_line": "Trade and other receivables",
+      "klasse": "TWC",
+      "deal_hinweis": "Operating NWC / Operating NWC / Case-specific"
+    },
+    {
+      "fs_line": "Trade payables / accruals",
+      "klasse": "TWC",
+      "deal_hinweis": "Operating NWC"
+    },
+    {
+      "fs_line": "Trade receivables / contract assets",
+      "klasse": "TWC",
+      "deal_hinweis": "Operating NWC"
+    },
+    {
+      "fs_line": "Trade receivables, net",
+      "klasse": "TWC",
+      "deal_hinweis": "Operating NWC"
+    },
+    {
+      "fs_line": "Treasury shares / own shares",
+      "klasse": "EQ",
+      "deal_hinweis": "Equity"
+    }
+  ],
+  "kontenbibliothek": [
+    {
+      "name": "Cash on hand",
+      "fs_line": "Cash and cash equivalents",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Cash & cash equivalents",
+      "unterkategorie": "Cash",
+      "normal": "Debit"
+    },
+    {
+      "name": "Bank current accounts",
+      "fs_line": "Cash and cash equivalents",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Cash & cash equivalents",
+      "unterkategorie": "Cash",
+      "normal": "Debit"
+    },
+    {
+      "name": "Bank deposit accounts",
+      "fs_line": "Cash and cash equivalents",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Cash & cash equivalents",
+      "unterkategorie": "Cash",
+      "normal": "Debit"
+    },
+    {
+      "name": "Cash equivalents / short-term deposits",
+      "fs_line": "Cash and cash equivalents",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Cash & cash equivalents",
+      "unterkategorie": "Cash equivalents",
+      "normal": "Debit"
+    },
+    {
+      "name": "Restricted cash - current",
+      "fs_line": "Restricted cash / other current assets",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Cash & cash equivalents",
+      "unterkategorie": "Restricted cash",
+      "normal": "Debit"
+    },
+    {
+      "name": "Restricted cash - non-current",
+      "fs_line": "Restricted cash / other non-current assets",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Cash & cash equivalents",
+      "unterkategorie": "Restricted cash",
+      "normal": "Debit"
+    },
+    {
+      "name": "Trade receivables",
+      "fs_line": "Trade and other receivables",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Trade & other receivables",
+      "unterkategorie": "Trade receivables",
+      "normal": "Debit"
+    },
+    {
+      "name": "Unbilled receivables / accrued revenue",
+      "fs_line": "Trade receivables / contract assets",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Trade & other receivables",
+      "unterkategorie": "Accrued revenue",
+      "normal": "Debit"
+    },
+    {
+      "name": "Contract assets",
+      "fs_line": "Contract assets",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Trade & other receivables",
+      "unterkategorie": "Contract assets",
+      "normal": "Debit"
+    },
+    {
+      "name": "Allowance for doubtful accounts / credit losses",
+      "fs_line": "Trade receivables, net",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Trade & other receivables",
+      "unterkategorie": "Loss allowance",
+      "normal": "Credit"
+    },
+    {
+      "name": "Other receivables",
+      "fs_line": "Trade and other receivables",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Trade & other receivables",
+      "unterkategorie": "Other receivables",
+      "normal": "Debit"
+    },
+    {
+      "name": "Receivables from related parties",
+      "fs_line": "Related-party receivables",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Trade & other receivables",
+      "unterkategorie": "Related parties",
+      "normal": "Debit"
+    },
+    {
+      "name": "Employee receivables / advances",
+      "fs_line": "Other receivables",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Trade & other receivables",
+      "unterkategorie": "Employee receivables",
+      "normal": "Debit"
+    },
+    {
+      "name": "VAT / GST / sales tax receivable",
+      "fs_line": "Other current assets / tax receivable",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Trade & other receivables",
+      "unterkategorie": "Indirect tax",
+      "normal": "Debit"
+    },
+    {
+      "name": "Income tax receivable",
+      "fs_line": "Current tax asset",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Trade & other receivables",
+      "unterkategorie": "Income tax",
+      "normal": "Debit"
+    },
+    {
+      "name": "GST / BAS clearing",
+      "fs_line": "GST receivable / payable",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Trade & other receivables",
+      "unterkategorie": "Indirect tax",
+      "normal": "Debit / Credit"
+    },
+    {
+      "name": "Raw materials",
+      "fs_line": "Inventories",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Inventories",
+      "unterkategorie": "Inventory",
+      "normal": "Debit"
+    },
+    {
+      "name": "Work in progress",
+      "fs_line": "Inventories",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Inventories",
+      "unterkategorie": "Inventory",
+      "normal": "Debit"
+    },
+    {
+      "name": "Finished goods",
+      "fs_line": "Inventories",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Inventories",
+      "unterkategorie": "Inventory",
+      "normal": "Debit"
+    },
+    {
+      "name": "Merchandise / trading stock",
+      "fs_line": "Inventories",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Inventories",
+      "unterkategorie": "Inventory",
+      "normal": "Debit"
+    },
+    {
+      "name": "Inventory in transit",
+      "fs_line": "Inventories",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Inventories",
+      "unterkategorie": "Inventory",
+      "normal": "Debit"
+    },
+    {
+      "name": "Inventory obsolescence allowance",
+      "fs_line": "Inventories",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Inventories",
+      "unterkategorie": "Inventory allowance",
+      "normal": "Credit"
+    },
+    {
+      "name": "Prepaid insurance",
+      "fs_line": "Prepayments / other current assets",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Prepayments & other current assets",
+      "unterkategorie": "Prepayments",
+      "normal": "Debit"
+    },
+    {
+      "name": "Prepaid rent",
+      "fs_line": "Prepayments / other current assets",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Prepayments & other current assets",
+      "unterkategorie": "Prepayments",
+      "normal": "Debit"
+    },
+    {
+      "name": "Prepaid software / subscriptions",
+      "fs_line": "Prepayments / other current assets",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Prepayments & other current assets",
+      "unterkategorie": "Prepayments",
+      "normal": "Debit"
+    },
+    {
+      "name": "Supplier advances / deposits",
+      "fs_line": "Prepayments / other current assets",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Prepayments & other current assets",
+      "unterkategorie": "Advances",
+      "normal": "Debit"
+    },
+    {
+      "name": "Deferred contract acquisition costs - current",
+      "fs_line": "Contract cost asset",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Prepayments & other current assets",
+      "unterkategorie": "Contract costs",
+      "normal": "Debit"
+    },
+    {
+      "name": "Other current assets",
+      "fs_line": "Other current assets",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Prepayments & other current assets",
+      "unterkategorie": "Other",
+      "normal": "Debit"
+    },
+    {
+      "name": "Short-term investments / marketable securities",
+      "fs_line": "Current financial assets",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Financial assets",
+      "unterkategorie": "Investments",
+      "normal": "Debit"
+    },
+    {
+      "name": "Debt securities - amortized cost",
+      "fs_line": "Financial assets",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Financial assets",
+      "unterkategorie": "Debt investments",
+      "normal": "Debit"
+    },
+    {
+      "name": "Debt securities - fair value",
+      "fs_line": "Financial assets",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Financial assets",
+      "unterkategorie": "Debt investments",
+      "normal": "Debit"
+    },
+    {
+      "name": "Equity investments",
+      "fs_line": "Financial assets / investments",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Financial assets",
+      "unterkategorie": "Equity investments",
+      "normal": "Debit"
+    },
+    {
+      "name": "Derivative assets",
+      "fs_line": "Derivative financial assets",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Financial assets",
+      "unterkategorie": "Derivatives",
+      "normal": "Debit"
+    },
+    {
+      "name": "Loans receivable",
+      "fs_line": "Loans / financial assets",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Financial assets",
+      "unterkategorie": "Loans",
+      "normal": "Debit"
+    },
+    {
+      "name": "Loans to related parties",
+      "fs_line": "Related-party financial assets",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Financial assets",
+      "unterkategorie": "Related-party loans",
+      "normal": "Debit"
+    },
+    {
+      "name": "Allowance for credit losses on loans / securities",
+      "fs_line": "Financial assets, net",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Financial assets",
+      "unterkategorie": "Loss allowance",
+      "normal": "Credit"
+    },
+    {
+      "name": "Land",
+      "fs_line": "Property, plant and equipment",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Property, plant & equipment",
+      "unterkategorie": "PPE",
+      "normal": "Debit"
+    },
+    {
+      "name": "Buildings",
+      "fs_line": "Property, plant and equipment",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Property, plant & equipment",
+      "unterkategorie": "PPE",
+      "normal": "Debit"
+    },
+    {
+      "name": "Plant and machinery",
+      "fs_line": "Property, plant and equipment",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Property, plant & equipment",
+      "unterkategorie": "PPE",
+      "normal": "Debit"
+    },
+    {
+      "name": "Vehicles",
+      "fs_line": "Property, plant and equipment",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Property, plant & equipment",
+      "unterkategorie": "PPE",
+      "normal": "Debit"
+    },
+    {
+      "name": "Furniture and fixtures",
+      "fs_line": "Property, plant and equipment",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Property, plant & equipment",
+      "unterkategorie": "PPE",
+      "normal": "Debit"
+    },
+    {
+      "name": "IT hardware",
+      "fs_line": "Property, plant and equipment",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Property, plant & equipment",
+      "unterkategorie": "PPE",
+      "normal": "Debit"
+    },
+    {
+      "name": "Leasehold improvements",
+      "fs_line": "Property, plant and equipment",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Property, plant & equipment",
+      "unterkategorie": "PPE",
+      "normal": "Debit"
+    },
+    {
+      "name": "Construction in progress",
+      "fs_line": "Property, plant and equipment",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Property, plant & equipment",
+      "unterkategorie": "PPE",
+      "normal": "Debit"
+    },
+    {
+      "name": "Accumulated depreciation - PPE",
+      "fs_line": "Property, plant and equipment",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Property, plant & equipment",
+      "unterkategorie": "Accumulated depreciation",
+      "normal": "Credit"
+    },
+    {
+      "name": "PPE impairment allowance",
+      "fs_line": "Property, plant and equipment",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Property, plant & equipment",
+      "unterkategorie": "Impairment",
+      "normal": "Credit"
+    },
+    {
+      "name": "Right-of-use assets - property",
+      "fs_line": "ROU assets / PPE",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Right-of-use assets",
+      "unterkategorie": "Leases",
+      "normal": "Debit"
+    },
+    {
+      "name": "Right-of-use assets - vehicles",
+      "fs_line": "ROU assets / PPE",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Right-of-use assets",
+      "unterkategorie": "Leases",
+      "normal": "Debit"
+    },
+    {
+      "name": "Right-of-use assets - equipment",
+      "fs_line": "ROU assets / PPE",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Right-of-use assets",
+      "unterkategorie": "Leases",
+      "normal": "Debit"
+    },
+    {
+      "name": "Accumulated depreciation / amortization - ROU assets",
+      "fs_line": "ROU assets / PPE",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Right-of-use assets",
+      "unterkategorie": "Leases",
+      "normal": "Credit"
+    },
+    {
+      "name": "Purchased software",
+      "fs_line": "Intangible assets",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Intangible assets",
+      "unterkategorie": "Software",
+      "normal": "Debit"
+    },
+    {
+      "name": "Capitalized development costs",
+      "fs_line": "Intangible assets",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Intangible assets",
+      "unterkategorie": "Development",
+      "normal": "Debit"
+    },
+    {
+      "name": "Capitalized internally developed software",
+      "fs_line": "Intangible assets",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Intangible assets",
+      "unterkategorie": "Development",
+      "normal": "Debit"
+    },
+    {
+      "name": "Patents and licences",
+      "fs_line": "Intangible assets",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Intangible assets",
+      "unterkategorie": "IP",
+      "normal": "Debit"
+    },
+    {
+      "name": "Customer relationships",
+      "fs_line": "Intangible assets",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Intangible assets",
+      "unterkategorie": "Acquired intangibles",
+      "normal": "Debit"
+    },
+    {
+      "name": "Brands / trademarks",
+      "fs_line": "Intangible assets",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Intangible assets",
+      "unterkategorie": "IP",
+      "normal": "Debit"
+    },
+    {
+      "name": "Goodwill",
+      "fs_line": "Goodwill",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Goodwill",
+      "unterkategorie": "Goodwill",
+      "normal": "Debit"
+    },
+    {
+      "name": "Accumulated amortization - intangible assets",
+      "fs_line": "Intangible assets",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Intangible assets",
+      "unterkategorie": "Accumulated amortization",
+      "normal": "Credit"
+    },
+    {
+      "name": "Intangible asset / goodwill impairment allowance",
+      "fs_line": "Intangible assets / goodwill",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Intangible assets",
+      "unterkategorie": "Impairment",
+      "normal": "Credit"
+    },
+    {
+      "name": "Investment property",
+      "fs_line": "Investment property / PPE",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Other non-current assets",
+      "unterkategorie": "Investment property",
+      "normal": "Debit"
+    },
+    {
+      "name": "Investments in associates",
+      "fs_line": "Equity-method investments / associates",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Other non-current assets",
+      "unterkategorie": "Associates",
+      "normal": "Debit"
+    },
+    {
+      "name": "Investments in joint ventures",
+      "fs_line": "Joint venture investments",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Other non-current assets",
+      "unterkategorie": "Joint ventures",
+      "normal": "Debit"
+    },
+    {
+      "name": "Deferred tax assets",
+      "fs_line": "Deferred tax assets",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Other non-current assets",
+      "unterkategorie": "Deferred tax",
+      "normal": "Debit"
+    },
+    {
+      "name": "Long-term deposits",
+      "fs_line": "Other non-current assets",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Other non-current assets",
+      "unterkategorie": "Deposits",
+      "normal": "Debit"
+    },
+    {
+      "name": "Deferred contract acquisition costs - non-current",
+      "fs_line": "Contract cost asset",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Other non-current assets",
+      "unterkategorie": "Contract costs",
+      "normal": "Debit"
+    },
+    {
+      "name": "Other non-current assets",
+      "fs_line": "Other non-current assets",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Other non-current assets",
+      "unterkategorie": "Other",
+      "normal": "Debit"
+    },
+    {
+      "name": "Trade payables",
+      "fs_line": "Trade and other payables",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Trade & other payables",
+      "unterkategorie": "Trade payables",
+      "normal": "Credit"
+    },
+    {
+      "name": "Accrued supplier invoices / GRNI",
+      "fs_line": "Trade payables / accruals",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Trade & other payables",
+      "unterkategorie": "Accruals",
+      "normal": "Credit"
+    },
+    {
+      "name": "Other payables",
+      "fs_line": "Trade and other payables",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Trade & other payables",
+      "unterkategorie": "Other payables",
+      "normal": "Credit"
+    },
+    {
+      "name": "Payables to related parties",
+      "fs_line": "Related-party payables",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Trade & other payables",
+      "unterkategorie": "Related parties",
+      "normal": "Credit"
+    },
+    {
+      "name": "Customer refundable deposits",
+      "fs_line": "Other current liabilities",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Trade & other payables",
+      "unterkategorie": "Customer deposits",
+      "normal": "Credit"
+    },
+    {
+      "name": "Accrued payroll",
+      "fs_line": "Accrued expenses / employee liabilities",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Accrued expenses",
+      "unterkategorie": "Payroll accruals",
+      "normal": "Credit"
+    },
+    {
+      "name": "Accrued bonuses",
+      "fs_line": "Accrued expenses / employee liabilities",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Accrued expenses",
+      "unterkategorie": "Variable compensation",
+      "normal": "Credit"
+    },
+    {
+      "name": "Accrued vacation / annual leave",
+      "fs_line": "Employee benefit obligations",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Accrued expenses",
+      "unterkategorie": "Employee benefits",
+      "normal": "Credit"
+    },
+    {
+      "name": "Accrued professional fees",
+      "fs_line": "Accrued expenses",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Accrued expenses",
+      "unterkategorie": "Accruals",
+      "normal": "Credit"
+    },
+    {
+      "name": "Accrued utilities and occupancy",
+      "fs_line": "Accrued expenses",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Accrued expenses",
+      "unterkategorie": "Accruals",
+      "normal": "Credit"
+    },
+    {
+      "name": "Accrued interest",
+      "fs_line": "Accrued interest / borrowings",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Accrued expenses",
+      "unterkategorie": "Interest",
+      "normal": "Credit"
+    },
+    {
+      "name": "Other accrued expenses",
+      "fs_line": "Accrued expenses",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Accrued expenses",
+      "unterkategorie": "Accruals",
+      "normal": "Credit"
+    },
+    {
+      "name": "Contract liabilities / deferred revenue - current",
+      "fs_line": "Contract liabilities",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Contract liabilities",
+      "unterkategorie": "Deferred revenue",
+      "normal": "Credit"
+    },
+    {
+      "name": "Contract liabilities / deferred revenue - non-current",
+      "fs_line": "Contract liabilities",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Contract liabilities",
+      "unterkategorie": "Deferred revenue",
+      "normal": "Credit"
+    },
+    {
+      "name": "Gift card / voucher liability",
+      "fs_line": "Contract liabilities / other liabilities",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Contract liabilities",
+      "unterkategorie": "Deferred revenue",
+      "normal": "Credit"
+    },
+    {
+      "name": "VAT / GST / sales tax payable",
+      "fs_line": "Other current liabilities / tax payable",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Tax liabilities",
+      "unterkategorie": "Indirect tax",
+      "normal": "Credit"
+    },
+    {
+      "name": "Payroll taxes payable",
+      "fs_line": "Other current liabilities",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Tax liabilities",
+      "unterkategorie": "Payroll tax",
+      "normal": "Credit"
+    },
+    {
+      "name": "PAYG withholding payable",
+      "fs_line": "Other current liabilities",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Tax liabilities",
+      "unterkategorie": "Payroll tax",
+      "normal": "Credit"
+    },
+    {
+      "name": "Superannuation payable",
+      "fs_line": "Employee benefit obligations / other current liabilities",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Employee benefit liabilities",
+      "unterkategorie": "Superannuation",
+      "normal": "Credit"
+    },
+    {
+      "name": "Payroll tax payable",
+      "fs_line": "Other current liabilities",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Tax liabilities",
+      "unterkategorie": "Payroll tax",
+      "normal": "Credit"
+    },
+    {
+      "name": "Income tax payable",
+      "fs_line": "Current tax liabilities",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Tax liabilities",
+      "unterkategorie": "Income tax",
+      "normal": "Credit"
+    },
+    {
+      "name": "Deferred tax liabilities",
+      "fs_line": "Deferred tax liabilities",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Tax liabilities",
+      "unterkategorie": "Deferred tax",
+      "normal": "Credit"
+    },
+    {
+      "name": "Pension / defined benefit obligation - current",
+      "fs_line": "Employee benefit obligations",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Employee benefit liabilities",
+      "unterkategorie": "Pensions",
+      "normal": "Credit"
+    },
+    {
+      "name": "Pension / defined benefit obligation - non-current",
+      "fs_line": "Employee benefit obligations",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Employee benefit liabilities",
+      "unterkategorie": "Pensions",
+      "normal": "Credit"
+    },
+    {
+      "name": "Long-service leave / long-term employee benefits",
+      "fs_line": "Employee benefit obligations",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Employee benefit liabilities",
+      "unterkategorie": "Employee benefits",
+      "normal": "Credit"
+    },
+    {
+      "name": "Lease liabilities - current",
+      "fs_line": "Lease liabilities",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Lease liabilities",
+      "unterkategorie": "Leases",
+      "normal": "Credit"
+    },
+    {
+      "name": "Lease liabilities - non-current",
+      "fs_line": "Lease liabilities",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Lease liabilities",
+      "unterkategorie": "Leases",
+      "normal": "Credit"
+    },
+    {
+      "name": "Bank overdrafts",
+      "fs_line": "Borrowings / cash and cash equivalents",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Borrowings",
+      "unterkategorie": "Bank debt",
+      "normal": "Credit"
+    },
+    {
+      "name": "Revolving credit facility - drawn",
+      "fs_line": "Borrowings",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Borrowings",
+      "unterkategorie": "Bank debt",
+      "normal": "Credit"
+    },
+    {
+      "name": "Term loans - current",
+      "fs_line": "Borrowings",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Borrowings",
+      "unterkategorie": "Bank debt",
+      "normal": "Credit"
+    },
+    {
+      "name": "Term loans - non-current",
+      "fs_line": "Borrowings",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Borrowings",
+      "unterkategorie": "Bank debt",
+      "normal": "Credit"
+    },
+    {
+      "name": "Bonds / notes payable",
+      "fs_line": "Borrowings / debt",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Borrowings",
+      "unterkategorie": "Debt securities",
+      "normal": "Credit"
+    },
+    {
+      "name": "Shareholder / related-party loans",
+      "fs_line": "Borrowings / related-party liabilities",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Borrowings",
+      "unterkategorie": "Related-party debt",
+      "normal": "Credit"
+    },
+    {
+      "name": "Debt issuance costs / loan fees",
+      "fs_line": "Borrowings / other assets",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Borrowings",
+      "unterkategorie": "Debt issuance costs",
+      "normal": "Debit"
+    },
+    {
+      "name": "Derivative liabilities",
+      "fs_line": "Derivative financial liabilities",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Borrowings",
+      "unterkategorie": "Derivatives",
+      "normal": "Credit"
+    },
+    {
+      "name": "Warranty provisions",
+      "fs_line": "Provisions",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Provisions",
+      "unterkategorie": "Warranties",
+      "normal": "Credit"
+    },
+    {
+      "name": "Legal and litigation provisions",
+      "fs_line": "Provisions",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Provisions",
+      "unterkategorie": "Legal",
+      "normal": "Credit"
+    },
+    {
+      "name": "Restructuring provisions",
+      "fs_line": "Provisions",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Provisions",
+      "unterkategorie": "Restructuring",
+      "normal": "Credit"
+    },
+    {
+      "name": "Decommissioning / asset retirement obligations",
+      "fs_line": "Provisions / ARO",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Provisions",
+      "unterkategorie": "Restoration / ARO",
+      "normal": "Credit"
+    },
+    {
+      "name": "Onerous contract provisions",
+      "fs_line": "Provisions",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Provisions",
+      "unterkategorie": "Onerous contracts",
+      "normal": "Credit"
+    },
+    {
+      "name": "Other provisions",
+      "fs_line": "Provisions",
+      "statement": "Balance Sheet",
+      "current": "Current / Non-current",
+      "kategorie": "Provisions",
+      "unterkategorie": "Other",
+      "normal": "Credit"
+    },
+    {
+      "name": "Other current liabilities",
+      "fs_line": "Other current liabilities",
+      "statement": "Balance Sheet",
+      "current": "Current",
+      "kategorie": "Other liabilities",
+      "unterkategorie": "Other",
+      "normal": "Credit"
+    },
+    {
+      "name": "Other non-current liabilities",
+      "fs_line": "Other non-current liabilities",
+      "statement": "Balance Sheet",
+      "current": "Non-current",
+      "kategorie": "Other liabilities",
+      "unterkategorie": "Other",
+      "normal": "Credit"
+    },
+    {
+      "name": "Share capital / common stock",
+      "fs_line": "Share capital / common stock",
+      "statement": "Balance Sheet",
+      "current": "Equity",
+      "kategorie": "Equity",
+      "unterkategorie": "Share capital",
+      "normal": "Credit"
+    },
+    {
+      "name": "Share premium / additional paid-in capital",
+      "fs_line": "Share premium / APIC",
+      "statement": "Balance Sheet",
+      "current": "Equity",
+      "kategorie": "Equity",
+      "unterkategorie": "Share premium / APIC",
+      "normal": "Credit"
+    },
+    {
+      "name": "Treasury shares / own shares",
+      "fs_line": "Treasury shares / own shares",
+      "statement": "Balance Sheet",
+      "current": "Equity",
+      "kategorie": "Equity",
+      "unterkategorie": "Treasury shares",
+      "normal": "Debit"
+    },
+    {
+      "name": "Retained earnings",
+      "fs_line": "Retained earnings",
+      "statement": "Balance Sheet",
+      "current": "Equity",
+      "kategorie": "Equity",
+      "unterkategorie": "Retained earnings",
+      "normal": "Credit"
+    },
+    {
+      "name": "Current year profit / loss",
+      "fs_line": "Retained earnings / current-year result",
+      "statement": "Balance Sheet",
+      "current": "Equity",
+      "kategorie": "Equity",
+      "unterkategorie": "Current year result",
+      "normal": "Credit / Debit"
+    },
+    {
+      "name": "Foreign currency translation reserve",
+      "fs_line": "Accumulated OCI / translation reserve",
+      "statement": "Balance Sheet / OCI",
+      "current": "Equity",
+      "kategorie": "Equity",
+      "unterkategorie": "OCI reserve",
+      "normal": "Credit / Debit"
+    },
+    {
+      "name": "Cash flow hedge reserve",
+      "fs_line": "Accumulated OCI / hedge reserve",
+      "statement": "Balance Sheet / OCI",
+      "current": "Equity",
+      "kategorie": "Equity",
+      "unterkategorie": "OCI reserve",
+      "normal": "Credit / Debit"
+    },
+    {
+      "name": "Fair value / revaluation reserve",
+      "fs_line": "Revaluation / fair value reserve",
+      "statement": "Balance Sheet / OCI",
+      "current": "Equity",
+      "kategorie": "Equity",
+      "unterkategorie": "OCI / revaluation reserve",
+      "normal": "Credit / Debit"
+    },
+    {
+      "name": "Share-based payment reserve",
+      "fs_line": "Other reserves / APIC",
+      "statement": "Balance Sheet",
+      "current": "Equity",
+      "kategorie": "Equity",
+      "unterkategorie": "Equity compensation",
+      "normal": "Credit"
+    },
+    {
+      "name": "Non-controlling interests",
+      "fs_line": "Non-controlling interests",
+      "statement": "Balance Sheet",
+      "current": "Equity",
+      "kategorie": "Equity",
+      "unterkategorie": "NCI",
+      "normal": "Credit / Debit"
+    },
+    {
+      "name": "Dividends declared",
+      "fs_line": "Retained earnings",
+      "statement": "Equity",
+      "current": "Equity",
+      "kategorie": "Equity",
+      "unterkategorie": "Dividends",
+      "normal": "Debit"
+    },
+    {
+      "name": "Product revenue",
+      "fs_line": "Revenue",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Revenue",
+      "unterkategorie": "Products",
+      "normal": "Credit"
+    },
+    {
+      "name": "Service revenue",
+      "fs_line": "Revenue",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Revenue",
+      "unterkategorie": "Services",
+      "normal": "Credit"
+    },
+    {
+      "name": "Subscription / SaaS revenue",
+      "fs_line": "Revenue",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Revenue",
+      "unterkategorie": "Subscriptions",
+      "normal": "Credit"
+    },
+    {
+      "name": "Licensing / royalty revenue",
+      "fs_line": "Revenue",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Revenue",
+      "unterkategorie": "Licensing",
+      "normal": "Credit"
+    },
+    {
+      "name": "Maintenance and support revenue",
+      "fs_line": "Revenue",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Revenue",
+      "unterkategorie": "Support",
+      "normal": "Credit"
+    },
+    {
+      "name": "Implementation / project revenue",
+      "fs_line": "Revenue",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Revenue",
+      "unterkategorie": "Projects",
+      "normal": "Credit"
+    },
+    {
+      "name": "Commission revenue",
+      "fs_line": "Revenue",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Revenue",
+      "unterkategorie": "Commissions",
+      "normal": "Credit"
+    },
+    {
+      "name": "Rental / lease income",
+      "fs_line": "Revenue / lease income",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Revenue",
+      "unterkategorie": "Lease income",
+      "normal": "Credit"
+    },
+    {
+      "name": "Other operating revenue",
+      "fs_line": "Revenue / other operating income",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Revenue",
+      "unterkategorie": "Other",
+      "normal": "Credit"
+    },
+    {
+      "name": "Sales returns and allowances",
+      "fs_line": "Revenue",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Revenue",
+      "unterkategorie": "Contra revenue",
+      "normal": "Debit"
+    },
+    {
+      "name": "Volume rebates / customer incentives",
+      "fs_line": "Revenue",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Revenue",
+      "unterkategorie": "Contra revenue",
+      "normal": "Debit"
+    },
+    {
+      "name": "Cost of products sold",
+      "fs_line": "Cost of sales / cost of revenue",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Cost of sales",
+      "unterkategorie": "COGS",
+      "normal": "Debit"
+    },
+    {
+      "name": "Raw materials consumed",
+      "fs_line": "Cost of sales",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Cost of sales",
+      "unterkategorie": "Materials",
+      "normal": "Debit"
+    },
+    {
+      "name": "Direct production labour",
+      "fs_line": "Cost of sales",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Cost of sales",
+      "unterkategorie": "Labour",
+      "normal": "Debit"
+    },
+    {
+      "name": "Manufacturing overhead",
+      "fs_line": "Cost of sales",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Cost of sales",
+      "unterkategorie": "Overhead",
+      "normal": "Debit"
+    },
+    {
+      "name": "Inbound freight",
+      "fs_line": "Cost of sales",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Cost of sales",
+      "unterkategorie": "Logistics",
+      "normal": "Debit"
+    },
+    {
+      "name": "Third-party service delivery costs",
+      "fs_line": "Cost of revenue",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Cost of sales",
+      "unterkategorie": "Services",
+      "normal": "Debit"
+    },
+    {
+      "name": "Hosting / cloud infrastructure - cost of revenue",
+      "fs_line": "Cost of revenue",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Cost of sales",
+      "unterkategorie": "Hosting",
+      "normal": "Debit"
+    },
+    {
+      "name": "Inventory write-downs / obsolescence",
+      "fs_line": "Cost of sales / impairment",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Cost of sales",
+      "unterkategorie": "Inventory impairment",
+      "normal": "Debit"
+    },
+    {
+      "name": "Purchase price variances",
+      "fs_line": "Cost of sales",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Cost of sales",
+      "unterkategorie": "Manufacturing variance",
+      "normal": "Debit / Credit"
+    },
+    {
+      "name": "Production / absorption variances",
+      "fs_line": "Cost of sales",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Cost of sales",
+      "unterkategorie": "Manufacturing variance",
+      "normal": "Debit / Credit"
+    },
+    {
+      "name": "Salaries and wages",
+      "fs_line": "Employee benefits / SG&A",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Personnel expenses",
+      "unterkategorie": "Payroll",
+      "normal": "Debit"
+    },
+    {
+      "name": "Employer social security / payroll taxes",
+      "fs_line": "Employee benefits / SG&A",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Personnel expenses",
+      "unterkategorie": "Payroll",
+      "normal": "Debit"
+    },
+    {
+      "name": "Bonuses and commissions",
+      "fs_line": "Employee benefits / SG&A",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Personnel expenses",
+      "unterkategorie": "Variable compensation",
+      "normal": "Debit"
+    },
+    {
+      "name": "Pension / retirement expense",
+      "fs_line": "Employee benefits / SG&A",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Personnel expenses",
+      "unterkategorie": "Pensions",
+      "normal": "Debit"
+    },
+    {
+      "name": "Share-based compensation expense",
+      "fs_line": "Employee benefits / SG&A",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Personnel expenses",
+      "unterkategorie": "Share-based payments",
+      "normal": "Debit"
+    },
+    {
+      "name": "Recruiting expense",
+      "fs_line": "SG&A / operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Personnel expenses",
+      "unterkategorie": "Recruiting",
+      "normal": "Debit"
+    },
+    {
+      "name": "Training and employee development",
+      "fs_line": "SG&A / operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Personnel expenses",
+      "unterkategorie": "Training",
+      "normal": "Debit"
+    },
+    {
+      "name": "Travel and accommodation",
+      "fs_line": "SG&A / operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Personnel expenses",
+      "unterkategorie": "Travel",
+      "normal": "Debit"
+    },
+    {
+      "name": "Employee benefits - other",
+      "fs_line": "Employee benefits / SG&A",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Personnel expenses",
+      "unterkategorie": "Other benefits",
+      "normal": "Debit"
+    },
+    {
+      "name": "Rent expense - exempt / short-term leases",
+      "fs_line": "Operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Occupancy expenses",
+      "unterkategorie": "Rent",
+      "normal": "Debit"
+    },
+    {
+      "name": "Variable lease payments",
+      "fs_line": "Operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Occupancy expenses",
+      "unterkategorie": "Rent",
+      "normal": "Debit"
+    },
+    {
+      "name": "Utilities",
+      "fs_line": "Operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Occupancy expenses",
+      "unterkategorie": "Utilities",
+      "normal": "Debit"
+    },
+    {
+      "name": "Repairs and maintenance",
+      "fs_line": "Operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Occupancy expenses",
+      "unterkategorie": "Maintenance",
+      "normal": "Debit"
+    },
+    {
+      "name": "Property taxes / rates",
+      "fs_line": "Operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Occupancy expenses",
+      "unterkategorie": "Taxes",
+      "normal": "Debit"
+    },
+    {
+      "name": "Cleaning and facility services",
+      "fs_line": "Operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Occupancy expenses",
+      "unterkategorie": "Facilities",
+      "normal": "Debit"
+    },
+    {
+      "name": "Advertising expense",
+      "fs_line": "Selling expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Sales & marketing",
+      "unterkategorie": "Marketing",
+      "normal": "Debit"
+    },
+    {
+      "name": "Digital / performance marketing",
+      "fs_line": "Selling expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Sales & marketing",
+      "unterkategorie": "Marketing",
+      "normal": "Debit"
+    },
+    {
+      "name": "Trade fairs and events",
+      "fs_line": "Selling expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Sales & marketing",
+      "unterkategorie": "Marketing",
+      "normal": "Debit"
+    },
+    {
+      "name": "Sales commissions expense",
+      "fs_line": "Selling expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Sales & marketing",
+      "unterkategorie": "Commissions",
+      "normal": "Debit"
+    },
+    {
+      "name": "Customer success expense",
+      "fs_line": "Selling expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Sales & marketing",
+      "unterkategorie": "Customer success",
+      "normal": "Debit"
+    },
+    {
+      "name": "Outbound freight / delivery",
+      "fs_line": "Selling expenses / cost of sales",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Sales & marketing",
+      "unterkategorie": "Logistics",
+      "normal": "Debit"
+    },
+    {
+      "name": "IT software and subscriptions",
+      "fs_line": "Operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Technology expenses",
+      "unterkategorie": "Software",
+      "normal": "Debit"
+    },
+    {
+      "name": "Cloud / hosting - corporate",
+      "fs_line": "Operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Technology expenses",
+      "unterkategorie": "Hosting",
+      "normal": "Debit"
+    },
+    {
+      "name": "Telecommunications",
+      "fs_line": "Operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Technology expenses",
+      "unterkategorie": "Telecom",
+      "normal": "Debit"
+    },
+    {
+      "name": "IT support and maintenance",
+      "fs_line": "Operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Technology expenses",
+      "unterkategorie": "IT services",
+      "normal": "Debit"
+    },
+    {
+      "name": "Audit fees",
+      "fs_line": "SG&A / operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Professional fees",
+      "unterkategorie": "Audit",
+      "normal": "Debit"
+    },
+    {
+      "name": "Legal fees",
+      "fs_line": "SG&A / operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Professional fees",
+      "unterkategorie": "Legal",
+      "normal": "Debit"
+    },
+    {
+      "name": "Consulting fees",
+      "fs_line": "SG&A / operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Professional fees",
+      "unterkategorie": "Consulting",
+      "normal": "Debit"
+    },
+    {
+      "name": "Tax advisory fees",
+      "fs_line": "SG&A / operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Professional fees",
+      "unterkategorie": "Tax advisory",
+      "normal": "Debit"
+    },
+    {
+      "name": "M&A / transaction costs",
+      "fs_line": "Operating expenses / transaction costs",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Professional fees",
+      "unterkategorie": "Transaction costs",
+      "normal": "Debit"
+    },
+    {
+      "name": "Insurance expense",
+      "fs_line": "Operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Other operating expenses",
+      "unterkategorie": "Insurance",
+      "normal": "Debit"
+    },
+    {
+      "name": "Office supplies",
+      "fs_line": "Operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Other operating expenses",
+      "unterkategorie": "Office",
+      "normal": "Debit"
+    },
+    {
+      "name": "Bank fees",
+      "fs_line": "Operating expenses / finance costs",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Other operating expenses",
+      "unterkategorie": "Banking",
+      "normal": "Debit"
+    },
+    {
+      "name": "Bad debt / credit loss expense",
+      "fs_line": "Impairment / credit loss expense",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Other operating expenses",
+      "unterkategorie": "Credit losses",
+      "normal": "Debit"
+    },
+    {
+      "name": "Warranty expense",
+      "fs_line": "Operating expenses / cost of sales",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Other operating expenses",
+      "unterkategorie": "Warranty",
+      "normal": "Debit"
+    },
+    {
+      "name": "Restructuring expense",
+      "fs_line": "Operating expenses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Other operating expenses",
+      "unterkategorie": "Restructuring",
+      "normal": "Debit"
+    },
+    {
+      "name": "Research expense",
+      "fs_line": "R&D expense",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "R&D expenses",
+      "unterkategorie": "Research",
+      "normal": "Debit"
+    },
+    {
+      "name": "Development expense - expensed",
+      "fs_line": "R&D expense",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "R&D expenses",
+      "unterkategorie": "Development",
+      "normal": "Debit"
+    },
+    {
+      "name": "Government grant income / expense offset",
+      "fs_line": "Other operating income / expense offset",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Other operating income",
+      "unterkategorie": "Government grants",
+      "normal": "Credit"
+    },
+    {
+      "name": "Depreciation - owned PPE",
+      "fs_line": "Depreciation expense",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Depreciation & amortization",
+      "unterkategorie": "Depreciation",
+      "normal": "Debit"
+    },
+    {
+      "name": "Depreciation / amortization - ROU assets",
+      "fs_line": "Depreciation / lease expense",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Depreciation & amortization",
+      "unterkategorie": "Leases",
+      "normal": "Debit"
+    },
+    {
+      "name": "Amortization - intangible assets",
+      "fs_line": "Amortization expense",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Depreciation & amortization",
+      "unterkategorie": "Amortization",
+      "normal": "Debit"
+    },
+    {
+      "name": "PPE impairment expense",
+      "fs_line": "Impairment expense",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Impairment",
+      "unterkategorie": "PPE",
+      "normal": "Debit"
+    },
+    {
+      "name": "Intangible asset impairment expense",
+      "fs_line": "Impairment expense",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Impairment",
+      "unterkategorie": "Intangibles",
+      "normal": "Debit"
+    },
+    {
+      "name": "Goodwill impairment expense",
+      "fs_line": "Impairment expense",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Impairment",
+      "unterkategorie": "Goodwill",
+      "normal": "Debit"
+    },
+    {
+      "name": "Interest income - deposits",
+      "fs_line": "Finance / interest income",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Finance income",
+      "unterkategorie": "Interest income",
+      "normal": "Credit"
+    },
+    {
+      "name": "Interest income - loans / securities",
+      "fs_line": "Finance / interest income",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Finance income",
+      "unterkategorie": "Interest income",
+      "normal": "Credit"
+    },
+    {
+      "name": "Interest expense - bank debt",
+      "fs_line": "Finance costs / interest expense",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Finance costs",
+      "unterkategorie": "Interest expense",
+      "normal": "Debit"
+    },
+    {
+      "name": "Interest expense - lease liabilities",
+      "fs_line": "Finance costs / lease interest",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Finance costs",
+      "unterkategorie": "Lease interest",
+      "normal": "Debit"
+    },
+    {
+      "name": "Amortization of debt issuance costs",
+      "fs_line": "Finance costs / interest expense",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Finance costs",
+      "unterkategorie": "Debt issuance costs",
+      "normal": "Debit"
+    },
+    {
+      "name": "Foreign exchange gain",
+      "fs_line": "FX gain / other income",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Other income / expense",
+      "unterkategorie": "FX",
+      "normal": "Credit"
+    },
+    {
+      "name": "Foreign exchange loss",
+      "fs_line": "FX loss / other expense",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Other income / expense",
+      "unterkategorie": "FX",
+      "normal": "Debit"
+    },
+    {
+      "name": "Gain on disposal of PPE",
+      "fs_line": "Other gains / losses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Other income / expense",
+      "unterkategorie": "Asset disposals",
+      "normal": "Credit"
+    },
+    {
+      "name": "Loss on disposal of PPE",
+      "fs_line": "Other gains / losses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Other income / expense",
+      "unterkategorie": "Asset disposals",
+      "normal": "Debit"
+    },
+    {
+      "name": "Fair value gains / losses - investments",
+      "fs_line": "Fair value gains / losses",
+      "statement": "Income Statement / OCI",
+      "current": "N/A",
+      "kategorie": "Other income / expense",
+      "unterkategorie": "Fair value",
+      "normal": "Debit / Credit"
+    },
+    {
+      "name": "Fair value gains / losses - investment property",
+      "fs_line": "Fair value gains / losses",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Other income / expense",
+      "unterkategorie": "Investment property",
+      "normal": "Debit / Credit"
+    },
+    {
+      "name": "Share of profit / loss of associates and JVs",
+      "fs_line": "Share of profit/loss of equity-method investees",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Other income / expense",
+      "unterkategorie": "Equity method",
+      "normal": "Debit / Credit"
+    },
+    {
+      "name": "Dividend income",
+      "fs_line": "Dividend income / other income",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Other income / expense",
+      "unterkategorie": "Investment income",
+      "normal": "Credit"
+    },
+    {
+      "name": "Current income tax expense",
+      "fs_line": "Income tax expense",
+      "statement": "Income Statement",
+      "current": "N/A",
+      "kategorie": "Income tax",
+      "unterkategorie": "Current tax",
+      "normal": "Debit"
+    },
+    {
+      "name": "Deferred income tax expense / benefit",
+      "fs_line": "Income tax expense",
+      "statement": "Income Statement / OCI",
+      "current": "N/A",
+      "kategorie": "Income tax",
+      "unterkategorie": "Deferred tax",
+      "normal": "Debit / Credit"
+    },
+    {
+      "name": "OCI - foreign currency translation",
+      "fs_line": "Other comprehensive income",
+      "statement": "OCI",
+      "current": "N/A",
+      "kategorie": "Other comprehensive income",
+      "unterkategorie": "FX translation",
+      "normal": "Debit / Credit"
+    },
+    {
+      "name": "OCI - cash flow hedges",
+      "fs_line": "Other comprehensive income",
+      "statement": "OCI",
+      "current": "N/A",
+      "kategorie": "Other comprehensive income",
+      "unterkategorie": "Hedges",
+      "normal": "Debit / Credit"
+    },
+    {
+      "name": "OCI - defined benefit remeasurement",
+      "fs_line": "Other comprehensive income",
+      "statement": "OCI",
+      "current": "N/A",
+      "kategorie": "Other comprehensive income",
+      "unterkategorie": "Pensions",
+      "normal": "Debit / Credit"
+    },
+    {
+      "name": "OCI - revaluation / fair value reserve movement",
+      "fs_line": "Other comprehensive income",
+      "statement": "OCI",
+      "current": "N/A",
+      "kategorie": "Other comprehensive income",
+      "unterkategorie": "Revaluation",
+      "normal": "Debit / Credit"
+    },
+    {
+      "name": "Suspense account",
+      "fs_line": "N/A",
+      "statement": "Control",
+      "current": "N/A",
+      "kategorie": "Control accounts",
+      "unterkategorie": "Suspense",
+      "normal": "Debit / Credit"
+    },
+    {
+      "name": "Intercompany clearing",
+      "fs_line": "N/A",
+      "statement": "Control",
+      "current": "N/A",
+      "kategorie": "Control accounts",
+      "unterkategorie": "Intercompany",
+      "normal": "Debit / Credit"
+    },
+    {
+      "name": "Payroll clearing",
+      "fs_line": "N/A",
+      "statement": "Control",
+      "current": "N/A",
+      "kategorie": "Control accounts",
+      "unterkategorie": "Payroll",
+      "normal": "Debit / Credit"
+    },
+    {
+      "name": "Fixed asset clearing",
+      "fs_line": "N/A",
+      "statement": "Control",
+      "current": "N/A",
+      "kategorie": "Control accounts",
+      "unterkategorie": "Fixed assets",
+      "normal": "Debit / Credit"
+    }
+  ],
+  "stichwortregeln": [
+    {
+      "fs_line": "Cash and cash equivalents",
+      "klasse": "ND",
+      "wenn_eines": [
+        "cash",
+        "bank",
+        "cheque",
+        "chequing",
+        "checking",
+        "saver",
+        "petty cash",
+        "eft clearing",
+        "money in transit",
+        "geldtransit",
+        "current account",
+        "kasse",
+        "bankguthaben",
+        "usd account",
+        "euro account",
+        "sgd account",
+        "aud account",
+        "gbp account",
+        "asi account",
+        "fx account",
+        "foreign currency account"
+      ]
+    },
+    {
+      "fs_line": "Restricted cash / other current assets",
+      "klasse": "MIXED",
+      "wenn_eines": [
+        "restricted",
+        "term deposit",
+        "festgeld",
+        "escrow",
+        "pledged",
+        "security deposit account",
+        "cash collateral",
+        "sperrkonto",
+        "funds holding"
+      ]
+    },
+    {
+      "fs_line": "Trade receivables, net",
+      "klasse": "TWC",
+      "wenn_eines": [
+        "trade debtor",
+        "trade receivable",
+        "accounts receivable",
+        "debtors control",
+        "kundenforderung",
+        "forderungen aus l"
+      ]
+    },
+    {
+      "fs_line": "Trade and other receivables",
+      "klasse": "TWC",
+      "wenn_eines": [
+        "sundry debtor",
+        "other debtor",
+        "trade and other receivable"
+      ]
+    },
+    {
+      "fs_line": "Prepayments / other current assets",
+      "klasse": "OWC",
+      "wenn_eines": [
+        "prepayment",
+        "prepaid",
+        "rent in advance",
+        "deposits paid",
+        "kaution",
+        "employee advance",
+        "vorschuss",
+        "aktive rechnungsabgrenzung",
+        "deposit paid"
+      ]
+    },
+    {
+      "fs_line": "Inventories",
+      "klasse": "TWC",
+      "wenn_eines": [
+        "inventory",
+        "inventories",
+        "stock on hand",
+        "finished goods",
+        "work in progress",
+        "raw material",
+        "vorraete",
+        "bestand",
+        "merchandise",
+        "product",
+        "fertigerzeugnis",
+        "handelsware"
+      ]
+    },
+    {
+      "fs_line": "Contract assets",
+      "klasse": "TWC",
+      "wenn_eines": [
+        "accrued income",
+        "contract asset",
+        "unbilled"
+      ]
+    },
+    {
+      "fs_line": "Contract liabilities",
+      "klasse": "OWC",
+      "wenn_eines": [
+        "unearned revenue",
+        "deferred income",
+        "deferred revenue",
+        "sales in advance",
+        "contract liabilit",
+        "erhaltene anzahlung",
+        "advance from customer"
+      ]
+    },
+    {
+      "fs_line": "Trade and other payables",
+      "klasse": "TWC",
+      "wenn_eines": [
+        "trade creditor",
+        "trade payable",
+        "accounts payable",
+        "creditors control",
+        "sundry creditor",
+        "lieferantenverbindlich",
+        "verbindlichkeiten aus l"
+      ]
+    },
+    {
+      "fs_line": "Accrued expenses",
+      "klasse": "OWC",
+      "wenn_eines": [
+        "accrued expense",
+        "accrued liabilit",
+        "accrued trade creditor",
+        "accrued payroll",
+        "accrued commission",
+        "abgegrenzte schuld",
+        "ausstehende rechnung"
+      ]
+    },
+    {
+      "fs_line": "Other current liabilities",
+      "klasse": "OWC",
+      "wenn_eines": [
+        "payroll liabilit",
+        "paygw",
+        "superannuation payable",
+        "payroll tax",
+        "child support",
+        "parental leave",
+        "suspense",
+        "clearing account",
+        "other payable",
+        "sonstige verbindlichkeit"
+      ]
+    },
+    {
+      "fs_line": "GST receivable / payable",
+      "klasse": "OWC",
+      "wenn_eines": [
+        "gst",
+        "bas payable",
+        "vat",
+        "sales tax",
+        "fbt",
+        "fringe benefit",
+        "import duty",
+        "zoll",
+        "umsatzsteuer",
+        "vorsteuer",
+        "withholding tax",
+        "ato",
+        "withholding payable",
+        "abn withholding",
+        "voluntary withholding"
+      ]
+    },
+    {
+      "fs_line": "Property, plant and equipment",
+      "klasse": "FA",
+      "wenn_eines": [
+        "plant and equipment",
+        "property",
+        "furniture",
+        "fitting",
+        "office equipment",
+        "computer equipment",
+        "tools",
+        "lab equipment",
+        "warehouse equipment",
+        "leasehold",
+        "prototype",
+        "motor vehicle",
+        "sachanlage",
+        "maschinen",
+        "betriebsausstattung",
+        "demo tool",
+        "accumulated depreciation",
+        "acc dep",
+        "fixed asset",
+        "set up cost",
+        "fitout",
+        "fit out",
+        "anlagevermoegen"
+      ]
+    },
+    {
+      "fs_line": "ROU assets / PPE",
+      "klasse": "FA",
+      "wenn_eines": [
+        "right of use asset",
+        "rou asset",
+        "nutzungsrecht"
+      ]
+    },
+    {
+      "fs_line": "Intangible assets",
+      "klasse": "FA",
+      "wenn_eines": [
+        "intangible",
+        "intellectual property",
+        "patent",
+        "software",
+        "trademark",
+        "brand",
+        "licence",
+        "license",
+        "logo",
+        "immaterielle",
+        "entwicklungskost",
+        "development cost"
+      ]
+    },
+    {
+      "fs_line": "Goodwill",
+      "klasse": "FA",
+      "wenn_eines": [
+        "goodwill",
+        "geschaeftswert",
+        "firmenwert"
+      ]
+    },
+    {
+      "fs_line": "Deferred tax assets",
+      "klasse": "DT",
+      "wenn_eines": [
+        "deferred tax asset",
+        "aktive latente steuer"
+      ]
+    },
+    {
+      "fs_line": "Deferred tax liabilities",
+      "klasse": "DT",
+      "wenn_eines": [
+        "deferred tax liabilit",
+        "passive latente steuer"
+      ]
+    },
+    {
+      "fs_line": "Current tax asset",
+      "klasse": "ND",
+      "wenn_eines": [
+        "income tax asset",
+        "income tax receivable",
+        "steuerforderung",
+        "tax refund"
+      ]
+    },
+    {
+      "fs_line": "Current tax liabilities",
+      "klasse": "ND",
+      "wenn_eines": [
+        "income tax payable",
+        "income tax liabilit",
+        "steuerrueckstell",
+        "ertragsteuer"
+      ]
+    },
+    {
+      "fs_line": "Borrowings",
+      "klasse": "ND",
+      "wenn_eines": [
+        "loan",
+        "borrowing",
+        "credit facility",
+        "trade facility",
+        "overdraft",
+        "bond",
+        "note payable",
+        "convertible",
+        "darlehen",
+        "kredit",
+        "anleihe",
+        "r&d finance",
+        "borrowing cost",
+        "interest withholding",
+        "credit card",
+        "kreditkarte",
+        "company card",
+        "amex",
+        "visa",
+        "mastercard"
+      ]
+    },
+    {
+      "fs_line": "Lease liabilities",
+      "klasse": "ND",
+      "wenn_eines": [
+        "lease liabilit",
+        "finance lease",
+        "leasingverbindlich",
+        "hire purchase",
+        "mietkauf"
+      ]
+    },
+    {
+      "fs_line": "Accrued interest / borrowings",
+      "klasse": "ND",
+      "wenn_eines": [
+        "accrued interest",
+        "zinsabgrenzung",
+        "interest payable"
+      ]
+    },
+    {
+      "fs_line": "Related-party receivables",
+      "klasse": "MIXED",
+      "wenn_eines": [
+        "inter company loan",
+        "intercompany receivable",
+        "related party receivable",
+        "forderungen gegen verbundene",
+        "gesellschafterdarlehen"
+      ]
+    },
+    {
+      "fs_line": "Related-party payables",
+      "klasse": "MIXED",
+      "wenn_eines": [
+        "intercompany payable",
+        "related party payable",
+        "verbindlichkeiten gegenueber verbundene"
+      ]
+    },
+    {
+      "fs_line": "Provisions",
+      "klasse": "MIXED",
+      "wenn_eines": [
+        "provision for",
+        "rueckstellung",
+        "warranty",
+        "gewaehrleistung",
+        "restructuring",
+        "restruktur",
+        "make good",
+        "rueckbau",
+        "onerous"
+      ]
+    },
+    {
+      "fs_line": "Employee benefit obligations",
+      "klasse": "MIXED",
+      "wenn_eines": [
+        "annual leave",
+        "long service leave",
+        "lsl",
+        "urlaubsrueckstell",
+        "employee benefit",
+        "jubilaeum",
+        "pension",
+        "altersversorgung",
+        "superannuation guarantee"
+      ]
+    },
+    {
+      "fs_line": "Share capital / common stock",
+      "klasse": "EQ",
+      "wenn_eines": [
+        "share capital",
+        "ordinary share",
+        "preference share",
+        "pref share",
+        "gezeichnetes kapital",
+        "stammkapital",
+        "contributed equity"
+      ]
+    },
+    {
+      "fs_line": "Other reserves / APIC",
+      "klasse": "EQ",
+      "wenn_eines": [
+        "reserve",
+        "ruecklage",
+        "warrant",
+        "share premium",
+        "apic",
+        "equity interest",
+        "fundraising equity",
+        "equity cost",
+        "capital raising cost"
+      ]
+    },
+    {
+      "fs_line": "Retained earnings",
+      "klasse": "EQ",
+      "wenn_eines": [
+        "retained earnings",
+        "current earnings",
+        "gewinnvortrag",
+        "verlustvortrag",
+        "accumulated losses",
+        "historical balancing",
+        "jahresergebnis"
+      ]
+    },
+    {
+      "fs_line": "Other current assets",
+      "klasse": "OWC",
+      "wenn_eines": [
+        "other current asset",
+        "sonstige vermoegensgegenstaende",
+        "sonstige forderung"
+      ]
+    },
+    {
+      "fs_line": "Financial assets",
+      "klasse": "MIXED",
+      "wenn_eines": [
+        "investment",
+        "beteiligung",
+        "shares in",
+        "anteile an",
+        "securities",
+        "wertpapier"
+      ]
+    }
+  ],
+  "_offene_punkte": [
+    "Kreditkarten sind hier unter Borrowings gefuehrt, also ND. Werden sie monatlich vollstaendig ausgeglichen, gehoeren sie ins Working Capital. Kategorieregel, Rueckfrage noetig.",
+    "Waehrungsbezogene Bankkonten werden ueber 'usd account', 'euro account' und so fort erkannt. Bei anderen Bankbezeichnungen ist die Kontogruppe das zweite Signal.",
+    "Die Kontenbibliothek trifft reale Mandantenkonten kaum direkt. Sie definiert die zulaessigen FS Line Items und dient als Nachschlagewerk, das Matching leisten die Stichwortregeln."
+  ],
+  "_validierung": "Getestet gegen Projekt Luma, 220 Bilanzzeilen eines australischen Kontenrahmens: 198 Treffer ueber Stichworte, 21 ueber die Kontogruppe, 1 ueber die Bibliothek, 0 ohne Treffer. Vor der Stichwortschicht lag die Trefferquote bei 9 Prozent."
+}
