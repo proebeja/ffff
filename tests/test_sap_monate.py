@@ -149,7 +149,15 @@ def test_neue_leads_ziehen_nicht_aus_dem_mastersheet(wb, tab):
         lab = str(ws.cell(r, 3).value)
         # Kontroll- und nachrichtliche Zeilen dürfen gegen das Mastersheet
         # prüfen — nur die Positionszeilen selbst nicht.
-        if "ontrollzeile" in lab or lab.startswith("nachrichtlich"):
+        #
+        # Dritte Ausnahme: die Restzeile der nicht zugeordneten Bilanzkonten.
+        # Sie ist keine Position, sondern das Gegenteil davon — die Summe der
+        # Konten, die in KEINE Position gefallen sind. Einen Aufriss, aus dem
+        # sie ziehen könnte, gibt es dafür naturgemäß nicht. Ohne sie ginge
+        # die Net-Asset-Brücke um genau ihren Betrag nicht auf, ohne dass man
+        # im Blatt sähe, warum.
+        if ("ontrollzeile" in lab or lab.startswith("nachrichtlich")
+                or lab.startswith("Nicht zugeordnete Bilanzkonten")):
             continue
         for c in range(2, ws.max_column + 1):
             f = ws.cell(r, c).value

@@ -110,6 +110,24 @@ def _ref_formel(aufriss: "Optional[AufrissRef]", periode: str, nd_teil: bool) ->
     return "=" + zelle
 
 
+#: Waehrung der Kopfzeilen. Reine Anzeige — es wird nichts umgerechnet.
+#: ``schreibe_databook`` setzt sie je Arbeitsmappe; der Default bleibt EUR,
+#: damit sich fuer die bestehenden Mandate nichts aendert. Ein australischer
+#: Mandant berichtet in AUD, und "in EUR" ueber seinen Zahlen waere schlicht
+#: falsch.
+_WAEHRUNG = "EUR"
+
+
+def _bezeichnung(na_de: str, na_en: str) -> str:
+    """Positionsname fuer die Lead- und Aufrisszeilen.
+
+    Ueblich ist ``DE / EN``. Bei einem Kontenrahmen, der nur eine Sprache
+    fuehrt (AASB), sind beide Felder gleich — dann steht der Name einmal da
+    und nicht zweimal hintereinander. Eine Wiederholung ist keine Uebersetzung.
+    """
+    return na_de if na_de == na_en or not na_en else f"{na_de} / {na_en}"
+
+
 def _krit(text: str) -> str:
     """Escaping für ein SUMIFS-Text-Kriterium: Doppelquotes verdoppeln (sonst
     bricht der Formel-String), Excel-Wildcards (* ? ~) mit ~ neutralisieren
@@ -146,7 +164,8 @@ def schreibe_databook(pfad: str, mapped: list[MappedAccount], nd: NetDebtView,
                       ja_recon=None, status=None, benchmark=None,
                       recon_abschluss=None, recon_aggregiert=None,
                       qa=None, verhalten=None, einfrierung=None,
-                      raster=None) -> None:
+                      raster=None, waehrung: str = "EUR",
+                      ergebnis_im_eigenkapital: bool = False) -> None:
     """``perioden`` sind die Spalten der Auswertungsblätter.
 
     ``raster`` ist optional und ändert nur EINS: das Mastersheet führt dann
@@ -155,12 +174,15 @@ def schreibe_databook(pfad: str, mapped: list[MappedAccount], nd: NetDebtView,
     Lead über fünfzehn Quartalsspalten ist nicht lesbar, und die
     Net-Asset-Sicht einer FDD ist eine Sicht auf Stichtage.
     """
+    global _WAEHRUNG
+    _WAEHRUNG = waehrung
     wb = openpyxl.Workbook()
     wb.remove(wb.active)
     layout = _schreibe_mastersheet(wb, mapped, perioden, entity, raster)
     refs = _schreibe_schedules(wb, schedules, layout, perioden, entity) if schedules else {}
     if lead_na is not None and lead_na.bloecke:
-        _schreibe_lead_na(wb, lead_na, layout, perioden, refs, setup)
+        _schreibe_lead_na(wb, lead_na, layout, perioden, refs, setup,
+                          ergebnis_im_eigenkapital)
     _schreibe_net_debt(wb, nd, layout, perioden, entity, refs, setup)
     if wc is not None:
         _schreibe_working_capital(wb, wc, layout, perioden, entity, refs, setup)
@@ -209,7 +231,7 @@ def _schreibe_reconciliation(wb, recon, perioden, entity) -> None:
     ws = wb.create_sheet("Recon SuSa-KN")
     ws.sheet_view.showGridLines = False
     _titel(ws, 1, 2, f"Reconciliation SuSa gegen Kontennachweis — {entity}")
-    ws.cell(2, 2, "in EUR · Differenz = SuSa − Kontennachweis · Differenzen sind "
+    ws.cell(2, 2, f"in {_WAEHRUNG} · Differenz = SuSa − Kontennachweis · Differenzen sind "
                   "Information (Abschlussbuchungen/Umgliederungen), nicht per se Fehler"
             ).font = _hinweis
 
@@ -300,12 +322,12 @@ def _schreibe_schedules(wb, schedules: Schedules, layout: MastersheetLayout,
 
 
 def _aufriss_kopf(ws, a: Aufriss) -> None:
-    ws.cell(1, 2, f"Aufriss {a.sheetname}: {a.na_de} / {a.na_en}").font = Font(
+    ws.cell(1, 2, f"Aufriss {a.sheetname}: {_bezeichnung(a.na_de, a.na_en)}").font = Font(
         name=FONT_NAME, bold=True, size=12, color=TEAL)
     speist = {"ND": "Net-Debt-Lead", "WC": "Working-Capital-Lead",
               "beide": "WC-Lead (operating) + ND-Lead (thereof ND)",
               "NA": "Lead NA", "PL": "Lead PL"}[a.speist]
-    ws.cell(2, 2, f"in EUR · Einzelkonten je Periode aus dem Mastersheet · speist {speist}").font = Font(
+    ws.cell(2, 2, f"in {_WAEHRUNG} · Einzelkonten je Periode aus dem Mastersheet · speist {speist}").font = Font(
         name=FONT_NAME, italic=True, size=9)
 
 
@@ -559,7 +581,7 @@ def _schreibe_net_debt(wb, nd: NetDebtView, layout: MastersheetLayout,
 
     # Titelblock
     t = ws.cell(1, 2, f"Net Debt — {entity}"); t.font = Font(name=FONT_NAME, bold=True, size=13, color=TEAL)
-    ws.cell(2, 2, "in EUR · jede Zeile zieht aus genau einem Aufriss · Umgliederungs"
+    ws.cell(2, 2, f"in {_WAEHRUNG} · jede Zeile zieht aus genau einem Aufriss · Umgliederungs"
                   "zeilen links aufklappbar · Spalte 'Quelle' für den Report ausblendbar").font = _hinweis
     _vorlaeufig_banner(ws, 3, setup)
 
@@ -615,7 +637,7 @@ def _schreibe_net_debt(wb, nd: NetDebtView, layout: MastersheetLayout,
         for z in zeilen:
             ws.cell(r, 2, ref).font = _normal
             aufriss = refs.get(z.na_de)
-            ws.cell(r, 3, f"{z.na_de} / {z.na_en}").font = _normal
+            ws.cell(r, 3, _bezeichnung(z.na_de, z.na_en)).font = _normal
             if aufriss:
                 ws.cell(r, 4, aufriss.sheetname).font = _hinweis
             for i, p in enumerate(perioden):
@@ -696,7 +718,7 @@ def _schreibe_working_capital(wb, wc: WCView, layout: MastersheetLayout,
 
     ws.cell(1, 2, f"Working Capital (Ist je Periode) — {entity}").font = Font(
         name=FONT_NAME, bold=True, size=13, color=TEAL)
-    ws.cell(2, 2, "in EUR · jede Zeile zieht aus genau einem Aufriss · WC-Definition "
+    ws.cell(2, 2, f"in {_WAEHRUNG} · jede Zeile zieht aus genau einem Aufriss · WC-Definition "
                   "über alle Perioden identisch · gemischte Positionen in der "
                   "Reported-Sicht (= operating + thereof ND aus dem Aufriss; Konten "
                   "der Position, die noch in der Review-Queue stehen, sind darin "
@@ -737,7 +759,7 @@ def _schreibe_working_capital(wb, wc: WCView, layout: MastersheetLayout,
         gemischt = aufriss is not None and aufriss.is_mixed
 
         ws.cell(r, 2, ref).font = _normal
-        ws.cell(r, 3, f"{z.na_de} / {z.na_en}"
+        ws.cell(r, 3, _bezeichnung(z.na_de, z.na_en)
                       + (" (reported)" if gemischt else "")).font = _normal
         ws.cell(r, 4, quelle).font = _hinweis
         ws.cell(r, 5, z.seite).font = _hinweis
@@ -836,6 +858,7 @@ def _schreibe_working_capital(wb, wc: WCView, layout: MastersheetLayout,
 
 # ---- Lead NA / Lead PL (ziehen aus Aufrissen, Kontrollzeile prüft MS) ----
 def _schreibe_uebersichts_lead(wb, view, layout, perioden, refs, setup,
+                               ergebnis_im_eigenkapital: bool,
                                tabname: str, titel: str, hinweis: str,
                                gesamt_label: str, klassen: tuple[str, ...],
                                gegenprobe: tuple[str, str] | None = None) -> None:
@@ -884,7 +907,7 @@ def _schreibe_uebersichts_lead(wb, view, layout, perioden, refs, setup,
         for z in zeilen:
             aufriss = refs.get(z.na_de)
             ws.cell(r, 2, ref).font = _normal
-            ws.cell(r, 3, f"{z.na_de} / {z.na_en}").font = _normal
+            ws.cell(r, 3, _bezeichnung(z.na_de, z.na_en)).font = _normal
             if aufriss:
                 ws.cell(r, 4, aufriss.sheetname).font = _hinweis
             kc = ws.cell(r, 5, z.klasse); kc.font = _hinweis
@@ -922,7 +945,16 @@ def _schreibe_uebersichts_lead(wb, view, layout, perioden, refs, setup,
         # Jahresergebnis der Periode: Summe aller Aufrisse, die den Lead PL
         # speisen. Damit bleibt die Regel gewahrt, dass jede Zeile aus
         # Aufrissen zieht und nicht aus dem Mastersheet.
-        pl_refs = [a for a in refs.values() if getattr(a, "speist_pl", False)]
+        #
+        # Sie entfaellt, wenn die Quelle das Ergebnis bereits im Eigenkapital
+        # fuehrt. Eine DATEV-SuSa tut das nicht — dort ist das Ergebnis erst
+        # nach dem Abschluss im Kapital, und die Zeile schliesst die Luecke.
+        # Ein MYOB-Export tut es: dort waechst der Gewinnvortrag im
+        # Geschaeftsjahr mit. Die Zeile trotzdem zu ziehen, zaehlt das
+        # Ergebnis doppelt — und zwar in genau der Kontrollzeile, die belegen
+        # soll, dass die Bilanz schliesst.
+        pl_refs = ([a for a in refs.values() if getattr(a, "speist_pl", False)]
+                   if not ergebnis_im_eigenkapital else [])
         if pl_refs:
             ws.cell(r, 2, ref).font = _normal
             ws.cell(r, 3, "Jahresergebnis der Periode / Result for the period").font = _normal
@@ -935,8 +967,31 @@ def _schreibe_uebersichts_lead(wb, view, layout, perioden, refs, setup,
             ek_rows.append(r)
             ref += 1
             r += 1
-        ek_row = summe_zeile("Saldo Eigenkapital (inkl. Jahresergebnis)",
-                             ek_rows, fill=_sub_fill)
+        # Bilanzkonten, die keiner Position zugefallen sind (Review-Queue),
+        # stehen in keinem der beiden Bloecke. Ohne eine eigene Zeile fehlten
+        # sie in der Bruecke, und die Kontrollzeile ginge um genau ihren
+        # Betrag nicht auf — ohne dass man saehe, warum. Sie ist die einzige
+        # Zeile des Leads, die direkt aus dem Mastersheet zieht; einen Aufriss
+        # gibt es fuer eine unbestimmte Position nicht.
+        rng_klasse = layout.bereich(layout.spalte_klasse)
+        offen = [f'SUMIFS({layout.bereich(layout.perioden_spalten[p])},'
+                 f'{rng_klasse},"REVIEW")' for p in perioden]
+        if any(True for _ in perioden):
+            ws.cell(r, 3, "Nicht zugeordnete Bilanzkonten (Review-Queue) / "
+                          "Unallocated balance sheet accounts").font = _normal
+            ws.cell(r, 5, "offen").font = _hinweis
+            for i, p in enumerate(perioden):
+                cell = ws.cell(r, p0 + i, "=" + offen[i])
+                cell.number_format = ZAHLENFORMAT
+                cell.font = _link
+                cell.fill = _gelb_fill
+            ek_rows.append(r)
+            r += 1
+
+        ek_row = summe_zeile(
+            "Saldo Eigenkapital" + ("" if ergebnis_im_eigenkapital
+                                    else " (inkl. Jahresergebnis)")
+            + " + nicht zugeordnete Konten", ek_rows, fill=_sub_fill)
 
     k = r + 1
     ws.cell(k, 3, f"Kontrollzeile (Σ {'/'.join(klassen)} Mastersheet − {gesamt_label}, muss 0 sein)").font = Font(
@@ -953,8 +1008,10 @@ def _schreibe_uebersichts_lead(wb, view, layout, perioden, refs, setup,
 
     if ek_row is not None:
         k2 = k + 1
-        ws.cell(k2, 3, f"Kontrollzeile ({gesamt_label} + Eigenkapital inkl. "
-                       "Jahresergebnis, muss 0 sein — die Bilanz schließt)").font = Font(
+        ws.cell(k2, 3, f"Kontrollzeile ({gesamt_label} + Eigenkapital"
+                       + ("" if ergebnis_im_eigenkapital else " inkl. Jahresergebnis")
+                       + " + nicht zugeordnete Konten, muss 0 sein — die "
+                         "Bilanz schließt)").font = Font(
             name=FONT_NAME, italic=True, size=9)
         for i, p in enumerate(perioden):
             sp = get_column_letter(p0 + i)
@@ -985,10 +1042,12 @@ def _lead_wert(aufriss, periode: str, klasse: str) -> str:
     return "=" + aufriss.total[periode]
 
 
-def _schreibe_lead_na(wb, view, layout, perioden, refs, setup=None) -> None:
+def _schreibe_lead_na(wb, view, layout, perioden, refs, setup=None,
+                      ergebnis_im_eigenkapital=False) -> None:
     _schreibe_uebersichts_lead(
-        wb, view, layout, perioden, refs, setup, "Lead NA", "Lead NA (Net Assets)",
-        "in EUR · jede Zeile zieht aus genau einem Aufriss · Net-Asset-Brücke: "
+        wb, view, layout, perioden, refs, setup,
+        ergebnis_im_eigenkapital, "Lead NA", "Lead NA (Net Assets)",
+        f"in {_WAEHRUNG} · jede Zeile zieht aus genau einem Aufriss · Net-Asset-Brücke: "
         "Anlagevermögen + Working Capital + Net Debt + latente Steuern",
         "Net Assets", ("FA", "TWC", "OWC", "ND", "DT"),
         gegenprobe=("Gegenprobe: Eigenkapital", "EQ"))
@@ -996,8 +1055,9 @@ def _schreibe_lead_na(wb, view, layout, perioden, refs, setup=None) -> None:
 
 def _schreibe_lead_pl(wb, view, layout, perioden, refs, setup=None) -> None:
     _schreibe_uebersichts_lead(
-        wb, view, layout, perioden, refs, setup, "Lead PL", "Lead PL (Gewinn- und Verlustrechnung)",
-        "in EUR · jede Zeile zieht aus genau einem Aufriss · Vorzeichen wie im "
+        wb, view, layout, perioden, refs, setup, False,
+        "Lead PL", "Lead PL (Gewinn- und Verlustrechnung)",
+        f"in {_WAEHRUNG} · jede Zeile zieht aus genau einem Aufriss · Vorzeichen wie im "
         "Mastersheet (Erträge negativ, Aufwendungen positiv) · Summe = Ergebnis "
         "mit umgekehrtem Vorzeichen",
         "Summe GuV (= Jahresergebnis, Vorzeichen invers)", ("PL",))
@@ -1011,7 +1071,7 @@ def _schreibe_ja_reconciliation(wb, rec, entity) -> None:
     ws = wb.create_sheet("Recon Databook-JA")
     ws.sheet_view.showGridLines = False
     _titel(ws, 1, 2, f"Reconciliation Databook gegen Jahresabschluss — {entity}")
-    ws.cell(2, 2, "in EUR · Differenz = Databook − Jahresabschluss · der Abschluss "
+    ws.cell(2, 2, f"in {_WAEHRUNG} · Differenz = Databook − Jahresabschluss · der Abschluss "
                   "ist Abstimmziel, er ändert kein Mapping").font = _hinweis
     r = 3
     for h in rec.hinweise:

@@ -60,6 +60,10 @@ ENTITY = "Projekt Luma (BT Imaging Pty Ltd)"
 #: Debt, statt als Konzernforderung.
 KONZERN = ["Aurora"]
 
+#: Der Mandant berichtet in australischen Dollar. Reine Anzeige in den
+#: Kopfzeilen — es wird nichts umgerechnet.
+WAEHRUNG = "AUD"
+
 
 @dataclass
 class Quellen:
@@ -120,12 +124,26 @@ def run(quellen: Quellen, ausgabe: str, verbose: bool = True) -> dict:
         d["detail"] = (f"{len(qa.pruefungen)} Prüfungen, "
                        f"{len(qa.durchgefallen)} nicht bestanden")
 
+    im_ek, ek_probe = _ergebnis_im_eigenkapital(mapped, jahre)
+    qa.add("L11", "Eigenkapitalbewegung geht im Periodenergebnis auf",
+           im_ek and all("deckungsgleich" in z for z in ek_probe), FLAG,
+           ("Das Eigenkapital traegt das Periodenergebnis bereits; die Zeile "
+            "'Jahresergebnis der Periode' entfaellt deshalb im Lead NA, sie "
+            "zaehlte es sonst doppelt."
+            if im_ek else
+            "Das Eigenkapital traegt das Periodenergebnis nicht; es wird im "
+            "Lead NA als eigene Zeile ergaenzt.")
+           + (" Nicht jedes Jahr geht auf — die Reste unten sind zu klaeren."
+              if not all("deckungsgleich" in z for z in ek_probe) else ""),
+           ek_probe)
+
     meta = _meta(quellen, ledger, raster, mapped, diag, review, hc, s)
     with lp.phase("Excel-Ausgabe") as d:
         excel.schreibe_databook(
             ausgabe, mapped, nd, review, jahre, ENTITY, meta=meta, wc=wc,
             schedules=schedules, lead_na=lead_na, lead_pl=lead_pl,
-            setup=s, status=status, qa=qa, raster=raster)
+            setup=s, status=status, qa=qa, raster=raster,
+            waehrung=WAEHRUNG, ergebnis_im_eigenkapital=im_ek)
         d["detail"] = os.path.basename(ausgabe)
     lp.zaehle_arbeitsmappe(ausgabe)
 
@@ -241,6 +259,46 @@ def _qa(mapped, raster, diag, jahre) -> QAReport:
     return qa
 
 
+def _ergebnis_im_eigenkapital(mapped, jahre) -> tuple[bool, list[str]]:
+    """Gemessen, nicht angenommen: waechst das Eigenkapital je Jahr um genau
+    das Periodenergebnis?
+
+    Eine DATEV-SuSa fuehrt das Ergebnis vor dem Abschluss NICHT im Kapital;
+    ein MYOB-Export tut es. Wer das verwechselt, zaehlt das Ergebnis in der
+    Net-Asset-Bruecke doppelt — und zwar in genau der Kontrollzeile, die
+    belegen soll, dass die Bilanz schliesst.
+
+    Entschieden wird ueber ``any`` und nicht ueber ``all``: eine Uebereinstimmung
+    auf den Cent ist kein Zufall, waehrend eine Abweichung viele harmlose
+    Gruende hat — eine Kapitalerhoehung, eine Ausschuettung, eine Umbuchung in
+    den Ruecklagen. ``all`` zu verlangen hiesse, ein einziges Jahr mit einer
+    Kapitalmassnahme entscheiden zu lassen. Die Jahre, die abweichen, stehen
+    einzeln im QA-Blatt: dort ist die Abweichung ein eigener Befund und keine
+    Nebenwirkung.
+    """
+    def ek(jahr):
+        return _r2(sum(m.saldo(jahr) for m in mapped if m.klasse == Klasse.EQ))
+
+    def pl(jahr):
+        return _r2(sum(m.saldo(jahr) for m in mapped if m.klasse == Klasse.PL))
+
+    probe, treffer = [], []
+    for vorjahr, jahr in zip(jahre, jahre[1:]):
+        delta = _r2(ek(jahr) - ek(vorjahr))
+        ergebnis = pl(jahr)
+        rest = _r2(delta - ergebnis)
+        passt = abs(rest) <= 0.05
+        treffer.append(passt)
+        probe.append(
+            f"{jahr}: Eigenkapital {ek(vorjahr):,.2f} -> {ek(jahr):,.2f} "
+            f"(Delta {delta:,.2f}), Periodenergebnis {ergebnis:,.2f}"
+            + (" — deckungsgleich" if passt else
+               f" — Rest {rest:,.2f}, also eine Eigenkapitalbewegung "
+               f"ausserhalb des Ergebnisses (Kapitalmassnahme, Ausschuettung "
+               f"oder Umbuchung); zu klaeren"))
+    return (any(treffer)), probe
+
+
 def _meta(quellen, ledger, raster, mapped, diag, review, hc, s) -> dict:
     return {
         "Mandat": ENTITY,
@@ -256,6 +314,7 @@ def _meta(quellen, ledger, raster, mapped, diag, review, hc, s) -> dict:
         "Review-Queue": str(len(review)),
         "Status": "VORLÄUFIG — kein Abschluss, kein Kontennachweis",
         "Verbundene Unternehmen": ", ".join(KONZERN) or "(keine erfasst)",
+        "Währung": f"{WAEHRUNG} (Anzeige; keine Umrechnung)",
     }
 
 
